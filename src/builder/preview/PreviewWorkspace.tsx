@@ -1,22 +1,24 @@
 import { Component, useCallback, useState, type ErrorInfo, type ReactNode } from 'react'
 import type { ConfigNode } from '../../registry/metadata'
-import { useBuilderActions, useBuilderState, useHoverId, useSetHover } from '../state/BuilderProvider'
-import { AdvuiFrame, renderAdvuiNode } from './AdvuiPreview'
+import { useBuilderActions, useBuilderState, useHoverId, useRegistry, useSetHover } from '../state/BuilderProvider'
 import { CanvasGuides } from './CanvasGuides'
 import { ElementTree } from './ElementTree'
+import type { PreviewKit } from './previewKit'
 import { SelectionOverlay } from './SelectionOverlay'
 
-export function PreviewWorkspace({ bar }: { bar: ReactNode }) {
+export function PreviewWorkspace({ kit, bar }: { kit: PreviewKit; bar: ReactNode }) {
   const state = useBuilderState()
   const actions = useBuilderActions()
+  const registry = useRegistry()
+  const { Frame } = kit
   const hoverId = useHoverId()
   const setHover = useSetHover()
   const [canvas, setCanvas] = useState<HTMLDivElement | null>(null)
   const [frame, setFrame] = useState<HTMLDivElement | null>(null)
 
   const renderNode = useCallback(
-    (node: ConfigNode, children: ReactNode) => renderAdvuiNode(node, children, state.platform),
-    [state.platform],
+    (node: ConfigNode, children: ReactNode) => kit.renderNode(node, children, { platform: state.platform, registry }),
+    [kit, registry, state.platform],
   )
 
   return (
@@ -35,9 +37,9 @@ export function PreviewWorkspace({ bar }: { bar: ReactNode }) {
           <div ref={setFrame} className={`frame ${state.platform}`}>
             <div className="stage" style={{ width: state.viewportWidth }}>
               <PreviewErrorBoundary>
-                <AdvuiFrame theme={state.theme}>
+                <Frame theme={state.theme}>
                   <ElementTree node={state.document} renderNode={renderNode} />
-                </AdvuiFrame>
+                </Frame>
               </PreviewErrorBoundary>
             </div>
             <SelectionOverlay

@@ -1,7 +1,6 @@
 import { groupedProps, propsForPlatform } from '../../registry/adaptMeta'
-import { getMeta } from '../../registry/componentRegistry'
 import { findPath } from '../selection/selection'
-import { useBuilderActions, useBuilderState } from '../state/BuilderProvider'
+import { useBuilderActions, useBuilderState, useRegistry } from '../state/BuilderProvider'
 import { InspectorBreadcrumb } from './InspectorBreadcrumb'
 import { PlatformNotes } from './PlatformNotes'
 import { PropertyEditor } from './PropertyEditor'
@@ -17,9 +16,10 @@ const groupLabels = {
 export function Inspector() {
   const state = useBuilderState()
   const actions = useBuilderActions()
+  const registry = useRegistry()
   const path = findPath(state.document, state.selectedId) ?? [state.document]
   const node = path[path.length - 1]
-  const meta = getMeta(node.component)
+  const meta = registry.get(node.component)
   const sections = groupedProps(propsForPlatform(meta, state.platform))
   const values: Record<string, unknown> = { ...node.props }
   if (node.text != null) values.children = node.text

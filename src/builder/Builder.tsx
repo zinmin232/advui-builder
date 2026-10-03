@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState, type PointerEvent } from 'react'
+import { lazy, Suspense, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { writeToClipboard } from './clipboard'
 import { clampInspectorWidth, clampSidebarWidth } from './persistence'
 import { shareUrl } from './shareConfig'
@@ -6,19 +6,37 @@ import { LayersPanel } from './layers/LayersPanel'
 import { CodePanel } from './code/CodePanel'
 import { Inspector } from './inspector/Inspector'
 import { PlatformSelector } from './preview/PlatformSelector'
+import type { PreviewLoader } from './preview/previewKit'
 import { PreviewToolbar } from './preview/PreviewToolbar'
+import { PreviewWorkspace } from './preview/PreviewWorkspace'
 import { ComponentSidebar } from './sidebar/ComponentSidebar'
-import { useBuilderActions, useBuilderState, usePreferenceActions, usePreferences } from './state/BuilderProvider'
+import {
+  useBuilderActions,
+  useBuilderState,
+  usePreferenceActions,
+  usePreferences,
+  useRegistry,
+} from './state/BuilderProvider'
 import { useShortcuts } from './useShortcuts'
 
-// The preview pulls in AdvUI, Tamagui and React Native Web. Loading it separately lets the panels appear first.
-const PreviewWorkspace = lazy(() =>
-  import('./preview/PreviewWorkspace').then((module) => ({ default: module.PreviewWorkspace })),
-)
+/** The preview waits for the component library to load. The panels render without it. */
+function lazyPreview(load: PreviewLoader) {
+  return lazy(async () => {
+    const kit = await load()
+    return {
+      default: function LoadedPreview({ bar }: { bar: ReactNode }) {
+        return <PreviewWorkspace kit={kit} bar={bar} />
+      },
+    }
+  })
+}
 
-export function Builder() {
+/** `loadPreview` must be a stable function: a new one reloads the preview. */
+export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
   const state = useBuilderState()
   const actions = useBuilderActions()
+  const registry = useRegistry()
+  const Preview = useMemo(() => lazyPreview(loadPreview), [loadPreview])
   const preferences = usePreferences()
   const preferenceActions = usePreferenceActions()
   const drag = useRef<{ kind: 'sidebar' | 'inspector'; start: number; origin: number } | null>(null)
@@ -48,7 +66,7 @@ export function Builder() {
   useShortcuts()
 
   const copyLink = async () => {
-    await writeToClipboard(shareUrl(state, window.location))
+    await writeToClipboard(shareUrl(registry, state, window.location))
     setLinkCopied(true)
     window.setTimeout(() => setLinkCopied(false), 1600)
   }
@@ -255,7 +273,7 @@ export function Builder() {
                   </div>
                 }
               >
-                <PreviewWorkspace bar={viewBar} />
+                <Preview bar={viewBar} />
               </Suspense>
             ) : (
               <>

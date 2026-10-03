@@ -1,15 +1,20 @@
 import { isSameValue } from '../../registry/adaptMeta'
-import { getMeta } from '../../registry/componentRegistry'
 import type { ConfigNode, PlatformId } from '../../registry/metadata'
+import type { BuilderRegistry } from '../../registry/registry'
 
-function collectImports(node: ConfigNode, into = new Set<string>()): Set<string> {
+export interface CodeOptions {
+  registry: BuilderRegistry
+  platform?: PlatformId
+}
+
+function collectImports(registry: BuilderRegistry, node: ConfigNode, into = new Set<string>()): Set<string> {
   if (node.component === 'Toast') {
     into.add('Button')
     into.add('toast')
   } else {
-    into.add(getMeta(node.component).importName)
+    into.add(registry.get(node.component).importName)
   }
-  for (const child of node.children) collectImports(child, into)
+  for (const child of node.children) collectImports(registry, child, into)
   return into
 }
 
@@ -30,8 +35,8 @@ function formatAttr(key: string, value: unknown): string {
   return `${key}={${JSON.stringify(value)}}`
 }
 
-function emittedAttrs(node: ConfigNode, platform: PlatformId): string[] {
-  const meta = getMeta(node.component)
+function emittedAttrs(registry: BuilderRegistry, node: ConfigNode, platform: PlatformId): string[] {
+  const meta = registry.get(node.component)
   const attrs: string[] = []
   const seen = new Set<string>()
 
@@ -68,13 +73,13 @@ function renderToastCall(node: ConfigNode, indent: number): string {
   return `${pad}<Button onPress={() => ${method}(${args})}>\n${pad}  ${label}\n${pad}</Button>`
 }
 
-function renderNode(node: ConfigNode, indent: number, platform: PlatformId): string {
+function renderNode(registry: BuilderRegistry, node: ConfigNode, indent: number, platform: PlatformId): string {
   if (node.component === 'Toast') return renderToastCall(node, indent)
   const pad = '  '.repeat(indent)
-  const tag = getMeta(node.component).jsxTag
-  const attrs = emittedAttrs(node, platform)
+  const tag = registry.get(node.component).jsxTag
+  const attrs = emittedAttrs(registry, node, platform)
   const text = node.text ?? ''
-  const children = node.children.map((child) => renderNode(child, indent + 1, platform))
+  const children = node.children.map((child) => renderNode(registry, child, indent + 1, platform))
   const hasElements = children.length > 0
   const multiline = attrs.length >= 2 || hasElements || text.length > 48
 
@@ -97,8 +102,9 @@ function renderNode(node: ConfigNode, indent: number, platform: PlatformId): str
   return `${open}\n${body.join('\n')}\n${pad}</${tag}>`
 }
 
-export function generateCode(root: ConfigNode, platform: PlatformId = 'web'): string {
-  const names = [...collectImports(root)].sort()
-  const jsx = renderNode(root, 0, platform)
-  return `import { ${names.join(', ')} } from '@advui/core'\n\n${jsx}\n`
+/** TSX for a tree, importing from the registry's package. Props equal to their metadata default are left out. */
+export function generateCode(root: ConfigNode, { registry, platform = 'web' }: CodeOptions): string {
+  const names = [...collectImports(registry, root)].sort()
+  const jsx = renderNode(registry, root, 0, platform)
+  return `import { ${names.join(', ')} } from '${registry.importSource}'\n\n${jsx}\n`
 }

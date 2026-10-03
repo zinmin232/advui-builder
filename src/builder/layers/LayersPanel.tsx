@@ -1,8 +1,8 @@
 import { useRef, useState, type DragEvent, type RefObject } from 'react'
-import { acceptsChildren, itemNoun } from '../../registry/componentRegistry'
 import type { ConfigNode } from '../../registry/metadata'
+import type { BuilderRegistry } from '../../registry/registry'
 import { findNode, findPath, itemHostId, type PlacePosition } from '../selection/selection'
-import { useBuilderActions, usePreferenceActions } from '../state/BuilderProvider'
+import { useBuilderActions, usePreferenceActions, useRegistry } from '../state/BuilderProvider'
 
 const LAYER_DRAG = 'application/x-advui-layer'
 
@@ -22,11 +22,12 @@ export function LayersPanel({
 }) {
   const preferenceActions = usePreferenceActions()
   const actions = useBuilderActions()
+  const registry = useRegistry()
   const draggingId = useRef<string | null>(null)
   const [drop, setDrop] = useState<DropTarget | null>(null)
-  const hostId = itemHostId(root, selectedId)
+  const hostId = itemHostId(registry, root, selectedId)
   const host = hostId ? findNode(root, hostId) : null
-  const noun = host ? itemNoun(host.component) : null
+  const noun = host ? registry.itemNoun(host.component) : null
 
   const showDrop = (next: DropTarget | null) => {
     setDrop((current) => {
@@ -84,6 +85,7 @@ export function LayersPanel({
 }
 
 function hoverPosition(
+  registry: BuilderRegistry,
   event: DragEvent<HTMLDivElement>,
   node: ConfigNode,
   root: ConfigNode,
@@ -95,7 +97,7 @@ function hoverPosition(
   if (!source || findPath(source, node.id)) return null
   const rect = event.currentTarget.getBoundingClientRect()
   const ratio = rect.height === 0 ? 0.5 : (event.clientY - rect.top) / rect.height
-  const inside = acceptsChildren(node.component)
+  const inside = registry.acceptsChildren(node.component)
   if (depth === 0) return inside ? 'inside' : null
   if (inside && ratio > 0.28 && ratio < 0.72) return 'inside'
   return ratio < 0.5 ? 'before' : 'after'
@@ -130,6 +132,7 @@ function LayerNode({
   onDropTarget: (drop: DropTarget | null) => void
   onPlace: (id: string, targetId: string, position: PlacePosition) => void
 }) {
+  const registry = useRegistry()
   const [open, setOpen] = useState(true)
   const hasChildren = node.children.length > 0
   const selected = node.id === selectedId
@@ -144,7 +147,7 @@ function LayerNode({
   }
 
   const onDragOver = (event: DragEvent<HTMLDivElement>) => {
-    const position = hoverPosition(event, node, root, depth, draggingId.current)
+    const position = hoverPosition(registry, event, node, root, depth, draggingId.current)
     if (!position) return
     event.preventDefault()
     event.stopPropagation()
@@ -155,7 +158,7 @@ function LayerNode({
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     const sourceId = event.dataTransfer.getData(LAYER_DRAG) || draggingId.current
-    const position = hoverPosition(event, node, root, depth, sourceId)
+    const position = hoverPosition(registry, event, node, root, depth, sourceId)
     event.preventDefault()
     event.stopPropagation()
     draggingId.current = null
