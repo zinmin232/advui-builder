@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { writeToClipboard } from '../clipboard'
 import { generateCode } from './codeGenerator'
-import { useBuilderActions, useBuilderState } from '../state/BuilderProvider'
+import { useBuilderActions, useBuilderState, useRegistry } from '../state/BuilderProvider'
 
 export function CodePanel() {
   const state = useBuilderState()
   const actions = useBuilderActions()
-  const code = generateCode(state.document, state.platform)
+  const registry = useRegistry()
+  const code = generateCode(state.document, { registry, platform: state.platform })
   const [copied, setCopied] = useState(false)
 
   const copy = async () => {

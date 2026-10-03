@@ -1,7 +1,7 @@
-import { componentRegistry, createDocument, getMeta, sidebarEntries } from '../registry/componentRegistry'
 import type { ComponentMetadata, ConfigNode, PlatformId, PropMetadata } from '../registry/metadata'
+import type { BuilderRegistry } from '../registry/registry'
 import type { BuilderState } from './state/builderState'
-import { builderReducer, storesValue } from './state/builderState'
+import { createBuilderReducer, storesValue } from './state/builderState'
 
 /**
  * Shareable configuration. Root-only edits stay readable
@@ -21,14 +21,6 @@ export interface BuilderConfiguration {
 const reserved = new Set(['component', 'text', 'platform', 'viewport', 'doc'])
 const MAX_NODES = 500
 const MAX_DEPTH = 24
-
-export function matchComponent(name: string): string | null {
-  const needle = name.toLowerCase()
-  return (
-    sidebarEntries().find((entry) => entry.name.toLowerCase() === needle || entry.slug === needle)?.name ??
-    null
-  )
-}
 
 /** Props a link may set: real component props, not the content or typography editors. */
 function shareableProps(meta: ComponentMetadata): PropMetadata[] {
@@ -75,8 +67,8 @@ function sameBelowRoot(document: ConfigNode, template: ConfigNode): boolean {
   )
 }
 
-export function toConfiguration(state: BuilderState): BuilderConfiguration {
-  const template = createDocument(state.selectedComponent)
+export function toConfiguration(registry: BuilderRegistry, state: BuilderState): BuilderConfiguration {
+  const template = registry.createDocument(state.selectedComponent)
   const nested = !sameBelowRoot(state.document, template)
   return {
     component: state.selectedComponent,
@@ -117,7 +109,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** Parses an untrusted `doc` tree. Unknown components, duplicate ids, or an oversized tree reject it. */
-function parseDocument(raw: string, component: string): ConfigNode | null {
+function parseDocument(registry: BuilderRegistry, raw: string, component: string): ConfigNode | null {
   let data: unknown
   try {
     data = JSON.parse(raw)
@@ -129,10 +121,10 @@ function parseDocument(raw: string, component: string): ConfigNode | null {
     if (depth > MAX_DEPTH || ids.size >= MAX_NODES || !isRecord(value)) return null
     const { id, component: name, label, props, text, children } = value
     if (typeof id !== 'string' || id === '' || ids.has(id)) return null
-    if (typeof name !== 'string' || !Object.hasOwn(componentRegistry, name)) return null
+    if (typeof name !== 'string' || !registry.has(name)) return null
     if (children !== undefined && !Array.isArray(children)) return null
     ids.add(id)
-    const meta = getMeta(name)
+    const meta = registry.get(name)
     const source = isRecord(props) ? props : {}
     const node: ConfigNode = {
       id,
@@ -153,11 +145,11 @@ function parseDocument(raw: string, component: string): ConfigNode | null {
   return root?.component === component ? root : null
 }
 
-export function configurationFromSearch(search: string): BuilderConfiguration | null {
+export function configurationFromSearch(registry: BuilderRegistry, search: string): BuilderConfiguration | null {
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
   const rawComponent = params.get('component')
   if (!rawComponent) return null
-  const component = matchComponent(rawComponent)
+  const component = registry.match(rawComponent)
   if (!component) return null
   const platformValue = params.get('platform')
   const platform =
@@ -167,18 +159,23 @@ export function configurationFromSearch(search: string): BuilderConfiguration | 
   const viewportRaw = params.get('viewport')
   const viewportWidth = viewportRaw ? Number(viewportRaw) : undefined
   const docRaw = params.get('doc')
-  const document = docRaw ? parseDocument(docRaw, component) : null
+  const document = docRaw ? parseDocument(registry, docRaw, component) : null
   if (document) return { component, props: {}, platform, viewportWidth, document }
   return {
     component,
-    props: readProps(getMeta(component), (key) => params.get(key) ?? undefined),
+    props: readProps(registry.get(component), (key) => params.get(key) ?? undefined),
     text: params.get('text') ?? undefined,
     platform,
     viewportWidth,
   }
 }
 
-export function applyConfiguration(state: BuilderState, config: BuilderConfiguration): BuilderState {
+export function applyConfiguration(
+  registry: BuilderRegistry,
+  state: BuilderState,
+  config: BuilderConfiguration,
+): BuilderState {
+  const builderReducer = createBuilderReducer(registry)
   let next = config.document
     ? builderReducer(state, { type: 'apply-document', document: config.document, component: config.component })
     : builderReducer(state, { type: 'select-component', component: config.component })
@@ -194,12 +191,16 @@ export function applyConfiguration(state: BuilderState, config: BuilderConfigura
   return { ...next, past: [], future: [], historyKey: null }
 }
 
-export function stateFromLocation(search: string, base: BuilderState): BuilderState {
-  const config = configurationFromSearch(search)
+export function stateFromLocation(registry: BuilderRegistry, search: string, base: BuilderState): BuilderState {
+  const config = configurationFromSearch(registry, search)
   if (!config) return base
-  return applyConfiguration(base, config)
+  return applyConfiguration(registry, base, config)
 }
 
-export function shareUrl(state: BuilderState, location: Pick<Location, 'origin' | 'pathname'>): string {
-  return `${location.origin}${location.pathname}?${configurationToSearch(toConfiguration(state))}`
+export function shareUrl(
+  registry: BuilderRegistry,
+  state: BuilderState,
+  location: Pick<Location, 'origin' | 'pathname'>,
+): string {
+  return `${location.origin}${location.pathname}?${configurationToSearch(toConfiguration(registry, state))}`
 }

@@ -2,7 +2,10 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { advuiRegistry } from '../registry/componentRegistry'
 import type { ConfigNode } from '../registry/metadata'
+import { createRegistry } from '../registry/registry'
+import { acmeLibrary } from '../test/acmeLibrary'
 import { CodePanel } from './code/CodePanel'
 import { Inspector } from './inspector/Inspector'
 import { LayersPanel } from './layers/LayersPanel'
@@ -55,7 +58,7 @@ function ShortcutHarness() {
 
 function renderCard() {
   return render(
-    <BuilderProvider initial={createBuilderState('Card')} persist={false}>
+    <BuilderProvider registry={advuiRegistry} initial={createBuilderState(advuiRegistry, 'Card')} persist={false}>
       <Harness />
     </BuilderProvider>,
   )
@@ -135,7 +138,11 @@ describe('keyboard shortcuts', () => {
   it('deletes the selected layer with Delete, but not while typing in a field', async () => {
     const user = userEvent.setup()
     render(
-      <BuilderProvider initial={createBuilderState('Card', { selectedId: 'card-button' })} persist={false}>
+      <BuilderProvider
+        registry={advuiRegistry}
+        initial={createBuilderState(advuiRegistry, 'Card', { selectedId: 'card-button' })}
+        persist={false}
+      >
         <ShortcutHarness />
       </BuilderProvider>,
     )
@@ -157,9 +164,10 @@ describe('copy and favorites', () => {
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
     render(
       <BuilderProvider
-        initial={createBuilderState('Button', {
+        registry={advuiRegistry}
+        initial={createBuilderState(advuiRegistry, 'Button', {
           document: {
-            ...createBuilderState('Button').document,
+            ...createBuilderState(advuiRegistry, 'Button').document,
             props: { variant: 'secondary' },
           },
         })}
@@ -177,7 +185,7 @@ describe('copy and favorites', () => {
     const user = userEvent.setup()
     localStorage.clear()
     const first = render(
-      <BuilderProvider initial={createBuilderState('Button')}>
+      <BuilderProvider registry={advuiRegistry} initial={createBuilderState(advuiRegistry, 'Button')}>
         <ComponentSidebar />
       </BuilderProvider>,
     )
@@ -185,7 +193,7 @@ describe('copy and favorites', () => {
     expect(loadPreferences().favorites).toContain('Button')
     first.unmount()
     render(
-      <BuilderProvider initial={createBuilderState('Button')}>
+      <BuilderProvider registry={advuiRegistry} initial={createBuilderState(advuiRegistry, 'Button')}>
         <ComponentSidebar />
       </BuilderProvider>,
     )
@@ -196,7 +204,7 @@ describe('copy and favorites', () => {
     const user = userEvent.setup()
     localStorage.clear()
     render(
-      <BuilderProvider initial={createBuilderState('Button')} persist={false}>
+      <BuilderProvider registry={advuiRegistry} initial={createBuilderState(advuiRegistry, 'Button')} persist={false}>
         <ComponentSidebar />
       </BuilderProvider>,
     )
@@ -207,5 +215,29 @@ describe('copy and favorites', () => {
     expect(screen.queryByRole('button', { name: 'Button' })).not.toBeInTheDocument()
     await user.click(group)
     expect(screen.getByRole('button', { name: 'Button' })).toBeInTheDocument()
+  })
+})
+
+describe('injected registry', () => {
+  it('builds the sidebar, layers, and item actions from the registry it is given', async () => {
+    const user = userEvent.setup()
+    const acme = createRegistry(acmeLibrary)
+    render(
+      <BuilderProvider registry={acme} initial={createBuilderState(acme, 'Menu')} persist={false}>
+        <ComponentSidebar />
+        <Harness />
+      </BuilderProvider>,
+    )
+    const sidebar = screen.getByRole('complementary', { name: 'Components' })
+    expect(within(sidebar).getByRole('button', { name: 'Basics', expanded: true })).toBeInTheDocument()
+    expect(within(sidebar).getAllByRole('button', { name: /^(Panel|Tag|Menu)$/ })).toHaveLength(3)
+    expect(within(sidebar).queryByRole('button', { name: 'Button' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '+ Add entry to Menu' }))
+    expect(screen.getByTestId('node-menu')).toHaveTextContent('Entry 1')
+    const crumbs = screen.getByRole('navigation', { name: 'Selection' })
+    expect(crumbs).toHaveTextContent('Menu')
+    expect(within(crumbs).getByRole('button', { name: 'Entry 1' })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByLabelText('Value')).toHaveValue('entry-1')
   })
 })

@@ -13,7 +13,23 @@ pnpm sync-meta          # regenerate after upgrading @advui/core
 pnpm sync-meta --check  # fail if the snapshot differs from upstream
 ```
 
-Do not edit `sourceMeta.ts` by hand. Builder-specific choices (props upstream types as `ReactNode`, sidebar groups, fixed `aria-label`s) live in `src/registry/componentRegistry.ts`. The tests fail when the snapshot version does not match the installed package, or when a sync drops a prop a starter template uses.
+Do not edit `sourceMeta.ts` by hand. Builder-specific choices (props upstream types as `ReactNode`, sidebar groups, fixed `aria-label`s, starter templates, repeatable items) live in `src/registry/componentRegistry.ts`. The tests fail when the snapshot version does not match the installed package, or when a sync drops a prop a starter template uses.
+
+## Component registry
+
+The Builder core does not import AdvUI. `src/app/App.tsx` supplies it:
+
+```tsx
+function loadAdvuiPreview() {
+  return import('../builder/preview/AdvuiPreview').then((module) => module.advuiPreview)
+}
+
+<BuilderProvider registry={advuiRegistry}>
+  <Builder loadPreview={loadAdvuiPreview} />
+</BuilderProvider>
+```
+
+`registry` comes from `createRegistry({ importSource, components })` in `src/registry/registry.ts`. `loadPreview` returns a `PreviewKit` (`src/builder/preview/previewKit.ts`) that draws the nodes with real components. Both must be stable values: define them at module level, not inline. To embed the Builder somewhere else, such as the AdvUI docs site, pass a different registry and kit.
 
 ```bash
 pnpm install

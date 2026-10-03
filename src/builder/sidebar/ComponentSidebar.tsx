@@ -1,21 +1,28 @@
 import { useMemo, useState } from 'react'
-import { categoryLabels } from '../../registry/advuiMetaTypes'
-import { searchComponents, sidebarEntries } from '../../registry/componentRegistry'
 import { findNode, insertTargetId } from '../selection/selection'
-import { useBuilderActions, useBuilderState, usePreferenceActions, usePreferences } from '../state/BuilderProvider'
+import {
+  useBuilderActions,
+  useBuilderState,
+  usePreferenceActions,
+  usePreferences,
+  useRegistry,
+} from '../state/BuilderProvider'
 
 export function ComponentSidebar() {
   const { selectedComponent, document, selectedId } = useBuilderState()
   const actions = useBuilderActions()
   const preferences = usePreferences()
   const preferenceActions = usePreferenceActions()
+  const registry = useRegistry()
   const [query, setQuery] = useState('')
-  const entries = sidebarEntries()
+  const entries = registry.sidebarEntries()
+  // Groups follow the first entry of each category; the label comes from that entry's metadata.
   const categories = useMemo(() => {
-    const ids = [...new Set(entries.map((entry) => entry.categoryId))]
-    return ids.map((id) => ({ id, label: categoryLabels[id as keyof typeof categoryLabels] ?? id }))
+    const groups = new Map<string, string>()
+    for (const entry of entries) if (!groups.has(entry.categoryId)) groups.set(entry.categoryId, entry.category)
+    return [...groups].map(([id, label]) => ({ id, label }))
   }, [entries])
-  const results = searchComponents(query)
+  const results = registry.search(query)
   const recent = preferences.recent
     .map((name) => entries.find((entry) => entry.name === name))
     .filter((entry) => entry != null)
@@ -23,7 +30,7 @@ export function ComponentSidebar() {
     .map((name) => entries.find((entry) => entry.name === name))
     .filter((entry) => entry != null)
   const showGroups = query.trim() === ''
-  const targetId = insertTargetId(document, selectedId)
+  const targetId = insertTargetId(registry, document, selectedId)
   const target = targetId ? findNode(document, targetId) : null
   const groupProps = {
     selected: selectedComponent,
@@ -58,7 +65,7 @@ export function ComponentSidebar() {
       </label>
       <div className="sidebar-scroll">
         <p className="insert-hint">
-          {target ? `Add inside ${target.label}` : 'Select a layout, Card, Header, Content, or Footer to add a component'}
+          {target ? `Add inside ${target.label}` : 'Select a layer that can hold components to add one'}
         </p>
         {showGroups && favorites.length > 0 ? (
           <ComponentGroup title="Favorites" entries={favorites} {...groupProps} />

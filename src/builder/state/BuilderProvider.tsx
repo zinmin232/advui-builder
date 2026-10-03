@@ -9,9 +9,10 @@ import {
   type Context,
   type ReactNode,
 } from 'react'
-import { matchComponent, stateFromLocation } from '../shareConfig'
+import type { BuilderRegistry } from '../../registry/registry'
+import { stateFromLocation } from '../shareConfig'
 import { loadPreferences, pushRecent, savePreferences, type Preferences } from '../persistence'
-import { builderReducer, createBuilderState, type BuilderAction, type BuilderState } from './builderState'
+import { createBuilderReducer, createBuilderState, type BuilderAction, type BuilderState } from './builderState'
 
 interface Actions {
   selectComponent: (component: string) => void
@@ -39,6 +40,7 @@ interface PreferenceActions {
   toggleFavorite: (component: string) => void
 }
 
+const RegistryContext = createContext<BuilderRegistry | null>(null)
 const BuilderContext = createContext<BuilderState | null>(null)
 const ActionsContext = createContext<Actions | null>(null)
 const PreferencesContext = createContext<Preferences | null>(null)
@@ -46,10 +48,10 @@ const PreferenceActionsContext = createContext<PreferenceActions | null>(null)
 const HoverContext = createContext<string | null>(null)
 const SetHoverContext = createContext<(id: string | null) => void>(() => {})
 
-function initialState(): BuilderState {
+function initialState(registry: BuilderRegistry): BuilderState {
   const preferences = loadPreferences()
-  const component = matchComponent(preferences.lastComponent) ?? 'Button'
-  const base = createBuilderState(component, {
+  const component = registry.match(preferences.lastComponent) ?? registry.defaultComponent
+  const base = createBuilderState(registry, component, {
     platform: preferences.platform,
     viewportWidth: preferences.viewportWidth,
     background: preferences.background,
@@ -57,19 +59,26 @@ function initialState(): BuilderState {
     zoom: preferences.zoom,
   })
   if (typeof window === 'undefined') return base
-  return stateFromLocation(window.location.search, base)
+  return stateFromLocation(registry, window.location.search, base)
 }
 
+/**
+ * Holds the Builder state for one component registry. The registry is the only
+ * place the Builder learns about components; pass a stable object.
+ */
 export function BuilderProvider({
   children,
+  registry,
   initial,
   persist = true,
 }: {
   children: ReactNode
+  registry: BuilderRegistry
   initial?: BuilderState
   persist?: boolean
 }) {
-  const [state, dispatch] = useReducer(builderReducer, undefined, () => initial ?? initialState())
+  const reducer = useMemo(() => createBuilderReducer(registry), [registry])
+  const [state, dispatch] = useReducer(reducer, undefined, () => initial ?? initialState(registry))
   const [preferences, setPreferences] = useState<Preferences>(() => loadPreferences())
   const [hoverId, setHoverId] = useState<string | null>(null)
 
@@ -158,17 +167,19 @@ export function BuilderProvider({
   }, [])
 
   return (
-    <BuilderContext.Provider value={state}>
-      <ActionsContext.Provider value={actions}>
-        <PreferencesContext.Provider value={preferences}>
-          <PreferenceActionsContext.Provider value={preferenceActions}>
-            <HoverContext.Provider value={hoverId}>
-              <SetHoverContext.Provider value={setHover}>{children}</SetHoverContext.Provider>
-            </HoverContext.Provider>
-          </PreferenceActionsContext.Provider>
-        </PreferencesContext.Provider>
-      </ActionsContext.Provider>
-    </BuilderContext.Provider>
+    <RegistryContext.Provider value={registry}>
+      <BuilderContext.Provider value={state}>
+        <ActionsContext.Provider value={actions}>
+          <PreferencesContext.Provider value={preferences}>
+            <PreferenceActionsContext.Provider value={preferenceActions}>
+              <HoverContext.Provider value={hoverId}>
+                <SetHoverContext.Provider value={setHover}>{children}</SetHoverContext.Provider>
+              </HoverContext.Provider>
+            </PreferenceActionsContext.Provider>
+          </PreferencesContext.Provider>
+        </ActionsContext.Provider>
+      </BuilderContext.Provider>
+    </RegistryContext.Provider>
   )
 }
 
@@ -176,6 +187,10 @@ function useRequired<T>(context: Context<T | null>, name: string): T {
   const value = useContext(context)
   if (!value) throw new Error(`${name} must be used within BuilderProvider`)
   return value
+}
+
+export function useRegistry(): BuilderRegistry {
+  return useRequired(RegistryContext, 'useRegistry')
 }
 
 export function useBuilderState(): BuilderState {

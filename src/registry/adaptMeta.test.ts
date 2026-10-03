@@ -1,10 +1,16 @@
 import corePackage from '@advui/core/package.json'
 import { platformNote, propsForPlatform } from './adaptMeta'
-import { acceptsChildren, createDocument, getMeta, sidebarEntries } from './componentRegistry'
+import { advuiRegistry } from './componentRegistry'
 import type { ConfigNode } from './metadata'
 import { advuiMetaVersion } from './sourceMeta'
 import { generateCode } from '../builder/code/codeGenerator'
-import { builderReducer, createBuilderState } from '../builder/state/builderState'
+import { createBuilderReducer, createBuilderState } from '../builder/state/builderState'
+
+const builderReducer = createBuilderReducer(advuiRegistry)
+
+function starterCode(component: string): string {
+  return generateCode(advuiRegistry.createDocument(component), { registry: advuiRegistry })
+}
 
 describe('AdvUI metadata snapshot', () => {
   it('was taken from the installed @advui/core version', () => {
@@ -14,12 +20,12 @@ describe('AdvUI metadata snapshot', () => {
   it('still describes every prop the starter templates and added items set', () => {
     const unknown: string[] = []
     const check = (node: ConfigNode) => {
-      const meta = getMeta(node.component)
+      const meta = advuiRegistry.get(node.component)
       const known = new Set([...meta.props.map((prop) => prop.key), ...Object.keys(meta.staticProps ?? {})])
       for (const key of Object.keys(node.props)) if (!known.has(key)) unknown.push(`${node.component}.${key}`)
       node.children.forEach(check)
     }
-    for (const { name } of sidebarEntries()) check(createDocument(name))
+    for (const { name } of advuiRegistry.sidebarEntries()) check(advuiRegistry.createDocument(name))
     for (const [component, selectedId] of [
       ['Select', 'select'],
       ['RadioGroup', 'radio-group'],
@@ -27,7 +33,7 @@ describe('AdvUI metadata snapshot', () => {
       ['List', 'list'],
       ['DropdownMenu', 'dropdown-content'],
     ]) {
-      check(builderReducer(createBuilderState(component, { selectedId }), { type: 'add-item' }).document)
+      check(builderReducer(createBuilderState(advuiRegistry, component, { selectedId }), { type: 'add-item' }).document)
     }
     expect(unknown, 'A metadata sync dropped these props; add them back as registry extraProps').toEqual([])
   })
@@ -35,7 +41,7 @@ describe('AdvUI metadata snapshot', () => {
 
 describe('platform metadata', () => {
   it('filters web-only properties and swaps notes with the platform', () => {
-    const image = getMeta('Image')
+    const image = advuiRegistry.get('Image')
     expect(propsForPlatform(image, 'web').map((prop) => prop.key)).toContain('loading')
     expect(propsForPlatform(image, 'android').map((prop) => prop.key)).not.toContain('loading')
     expect(propsForPlatform(image, 'ios').map((prop) => prop.key)).not.toContain('loading')
@@ -45,79 +51,79 @@ describe('platform metadata', () => {
   })
 
   it('hides the notes section source when a component has none', () => {
-    expect(platformNote(getMeta('Card'), 'web')).toBeNull()
-    expect(platformNote(getMeta('Button'), 'android')).toMatch(/native/)
-    expect(platformNote(getMeta('Button'), 'web')).toMatch(/Hover/)
+    expect(platformNote(advuiRegistry.get('Card'), 'web')).toBeNull()
+    expect(platformNote(advuiRegistry.get('Button'), 'android')).toMatch(/native/)
+    expect(platformNote(advuiRegistry.get('Button'), 'web')).toMatch(/Hover/)
   })
 
   it('hides the native keyboard control on web', () => {
-    const input = getMeta('Input')
+    const input = advuiRegistry.get('Input')
     expect(propsForPlatform(input, 'web').map((prop) => prop.key)).not.toContain('keyboardType')
     expect(propsForPlatform(input, 'ios').map((prop) => prop.key)).toContain('keyboardType')
   })
 
   it('lists the layout components and gives them a starter document', () => {
-    const names = sidebarEntries().map((entry) => entry.name)
+    const names = advuiRegistry.sidebarEntries().map((entry) => entry.name)
     expect(names).toEqual(expect.arrayContaining(['AspectRatio', 'Container', 'Grid', 'ScrollArea', 'Stack']))
     for (const name of ['AspectRatio', 'Container', 'Grid', 'ScrollArea', 'Stack']) {
-      expect(getMeta(name).categoryId).toBe('layout')
-      expect(acceptsChildren(name)).toBe(true)
-      expect(createDocument(name).children.length).toBeGreaterThan(0)
+      expect(advuiRegistry.get(name).categoryId).toBe('layout')
+      expect(advuiRegistry.acceptsChildren(name)).toBe(true)
+      expect(advuiRegistry.createDocument(name).children.length).toBeGreaterThan(0)
     }
-    expect(getMeta('Grid').props.find((prop) => prop.key === 'columns')?.defaultValue).toBe(1)
-    expect(generateCode(createDocument('Grid'))).toContain('<Grid\n  columns={2}\n>')
-    expect(generateCode(createDocument('Stack'))).toContain('gap={12}')
-    expect(generateCode(createDocument('ScrollArea'))).toContain('aria-label="Notes"')
+    expect(advuiRegistry.get('Grid').props.find((prop) => prop.key === 'columns')?.defaultValue).toBe(1)
+    expect(starterCode('Grid')).toContain('<Grid\n  columns={2}\n>')
+    expect(starterCode('Stack')).toContain('gap={12}')
+    expect(starterCode('ScrollArea')).toContain('aria-label="Notes"')
   })
 
   it('lists the form controls and separator', () => {
-    const names = sidebarEntries().map((entry) => entry.name)
+    const names = advuiRegistry.sidebarEntries().map((entry) => entry.name)
     expect(names).toEqual(expect.arrayContaining(['Label', 'Textarea', 'Checkbox', 'Switch', 'Separator']))
     for (const name of ['Label', 'Textarea', 'Checkbox', 'Switch']) {
-      expect(getMeta(name).categoryId).toBe('forms')
-      expect(acceptsChildren(name)).toBe(false)
+      expect(advuiRegistry.get(name).categoryId).toBe('forms')
+      expect(advuiRegistry.acceptsChildren(name)).toBe(false)
     }
-    expect(getMeta('Separator').categoryId).toBe('layout')
-    expect(acceptsChildren('Separator')).toBe(false)
-    expect(generateCode(createDocument('Label'))).toContain('<Label required>Email address</Label>')
-    expect(generateCode(createDocument('Checkbox'))).toContain('defaultChecked')
-    expect(generateCode(createDocument('Switch'))).toContain('defaultChecked')
-    expect(generateCode(createDocument('Textarea'))).toContain('rows={4}')
-    expect(generateCode(createDocument('Textarea'))).toContain('placeholder="Write a message"')
-    expect(generateCode(createDocument('Separator'))).toContain('width="100%"')
-    expect(generateCode(createDocument('Separator'))).not.toContain('orientation')
+    expect(advuiRegistry.get('Separator').categoryId).toBe('layout')
+    expect(advuiRegistry.acceptsChildren('Separator')).toBe(false)
+    expect(starterCode('Label')).toContain('<Label required>Email address</Label>')
+    expect(starterCode('Checkbox')).toContain('defaultChecked')
+    expect(starterCode('Switch')).toContain('defaultChecked')
+    expect(starterCode('Textarea')).toContain('rows={4}')
+    expect(starterCode('Textarea')).toContain('placeholder="Write a message"')
+    expect(starterCode('Separator')).toContain('width="100%"')
+    expect(starterCode('Separator')).not.toContain('orientation')
   })
 
   it('lists select, tabs, avatar, and slider', () => {
-    const names = sidebarEntries().map((entry) => entry.name)
+    const names = advuiRegistry.sidebarEntries().map((entry) => entry.name)
     expect(names).toEqual(expect.arrayContaining(['Select', 'Tabs', 'Avatar', 'Slider']))
-    expect(getMeta('Select').categoryId).toBe('forms')
-    expect(getMeta('Slider').categoryId).toBe('forms')
-    expect(getMeta('Avatar').categoryId).toBe('data-display')
-    expect(getMeta('Tabs').categoryId).toBe('navigation')
-    expect(acceptsChildren('Select')).toBe(false)
-    expect(acceptsChildren('Tabs')).toBe(false)
-    expect(acceptsChildren('Tabs.Content')).toBe(true)
-    expect(acceptsChildren('Avatar')).toBe(false)
-    expect(acceptsChildren('Slider')).toBe(false)
+    expect(advuiRegistry.get('Select').categoryId).toBe('forms')
+    expect(advuiRegistry.get('Slider').categoryId).toBe('forms')
+    expect(advuiRegistry.get('Avatar').categoryId).toBe('data-display')
+    expect(advuiRegistry.get('Tabs').categoryId).toBe('navigation')
+    expect(advuiRegistry.acceptsChildren('Select')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('Tabs')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('Tabs.Content')).toBe(true)
+    expect(advuiRegistry.acceptsChildren('Avatar')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('Slider')).toBe(false)
 
-    const select = generateCode(createDocument('Select'))
+    const select = starterCode('Select')
     expect(select).toContain('placeholder="Choose a fruit"')
     expect(select).toContain('defaultValue="apple"')
     expect(select).toContain('aria-label="Fruit"')
     expect(select).toContain('<Select.Item value="pear">Pear</Select.Item>')
     expect(select).not.toContain('size=')
 
-    const tabs = generateCode(createDocument('Tabs'))
+    const tabs = starterCode('Tabs')
     expect(tabs).toContain('defaultValue="account"')
     expect(tabs).toContain('<Tabs.Trigger value="account">Account</Tabs.Trigger>')
     expect(tabs).toContain('<Tabs.Content\n    value="password"\n  >')
     expect(tabs).toContain('Password details')
     expect(tabs).not.toContain('variant')
 
-    expect(generateCode(createDocument('Avatar'))).toContain('alt="Ada Lovelace"')
-    expect(generateCode(createDocument('Avatar'))).toContain('size="lg"')
-    const slider = generateCode(createDocument('Slider'))
+    expect(starterCode('Avatar')).toContain('alt="Ada Lovelace"')
+    expect(starterCode('Avatar')).toContain('size="lg"')
+    const slider = starterCode('Slider')
     expect(slider).toContain('defaultValue={40}')
     expect(slider).toContain('aria-label="Volume"')
     expect(slider).toContain('width="280px"')
@@ -125,17 +131,17 @@ describe('platform metadata', () => {
   })
 
   it('lists radio, password, number, and progress', () => {
-    const names = sidebarEntries().map((entry) => entry.name)
+    const names = advuiRegistry.sidebarEntries().map((entry) => entry.name)
     expect(names).toEqual(expect.arrayContaining(['RadioGroup', 'PasswordInput', 'NumberInput', 'Progress']))
-    expect(getMeta('RadioGroup').categoryId).toBe('forms')
-    expect(getMeta('PasswordInput').categoryId).toBe('forms')
-    expect(getMeta('NumberInput').categoryId).toBe('forms')
-    expect(getMeta('Progress').categoryId).toBe('feedback')
+    expect(advuiRegistry.get('RadioGroup').categoryId).toBe('forms')
+    expect(advuiRegistry.get('PasswordInput').categoryId).toBe('forms')
+    expect(advuiRegistry.get('NumberInput').categoryId).toBe('forms')
+    expect(advuiRegistry.get('Progress').categoryId).toBe('feedback')
     for (const name of ['RadioGroup', 'PasswordInput', 'NumberInput', 'Progress']) {
-      expect(acceptsChildren(name)).toBe(false)
+      expect(advuiRegistry.acceptsChildren(name)).toBe(false)
     }
 
-    const radio = generateCode(createDocument('RadioGroup'))
+    const radio = starterCode('RadioGroup')
     expect(radio).toContain('defaultValue="monthly"')
     expect(radio).toContain('aria-label="Billing"')
     expect(radio).toContain('value="yearly"')
@@ -143,20 +149,20 @@ describe('platform metadata', () => {
     expect(radio).toContain('<Label htmlFor="plan-monthly">Monthly</Label>')
     expect(radio).not.toContain('size=')
 
-    const password = generateCode(createDocument('PasswordInput'))
+    const password = starterCode('PasswordInput')
     expect(password).toContain('placeholder="Enter your password"')
     expect(password).toContain('aria-label="Password"')
     expect(password).toContain('width="280px"')
     expect(password).not.toContain('defaultVisible')
 
-    const number = generateCode(createDocument('NumberInput'))
+    const number = starterCode('NumberInput')
     expect(number).toContain('defaultValue={2}')
     expect(number).toContain('min={1}')
     expect(number).toContain('max={10}')
     expect(number).toContain('aria-label="Quantity"')
     expect(number).not.toContain('step=')
 
-    const progress = generateCode(createDocument('Progress'))
+    const progress = starterCode('Progress')
     expect(progress).toContain('value={60}')
     expect(progress).toContain('label="Upload progress"')
     expect(progress).toContain('width="280px"')
@@ -165,31 +171,31 @@ describe('platform metadata', () => {
   })
 
   it('lists spinner, skeleton, alert, and empty state', () => {
-    const names = sidebarEntries().map((entry) => entry.name)
+    const names = advuiRegistry.sidebarEntries().map((entry) => entry.name)
     expect(names).toEqual(expect.arrayContaining(['Spinner', 'Skeleton', 'Alert', 'EmptyState']))
     for (const name of ['Spinner', 'Skeleton', 'Alert', 'EmptyState']) {
-      expect(getMeta(name).categoryId).toBe('feedback')
+      expect(advuiRegistry.get(name).categoryId).toBe('feedback')
     }
-    expect(acceptsChildren('Spinner')).toBe(false)
-    expect(acceptsChildren('Skeleton')).toBe(false)
-    expect(acceptsChildren('Alert')).toBe(false)
-    expect(acceptsChildren('EmptyState')).toBe(true)
+    expect(advuiRegistry.acceptsChildren('Spinner')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('Skeleton')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('Alert')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('EmptyState')).toBe(true)
 
-    const spinner = generateCode(createDocument('Spinner'))
+    const spinner = starterCode('Spinner')
     expect(spinner).toContain('<Spinner size="lg" />')
     expect(spinner).not.toContain('label=')
 
-    const skeleton = generateCode(createDocument('Skeleton'))
+    const skeleton = starterCode('Skeleton')
     expect(skeleton).toContain('width="240px"')
     expect(skeleton).toContain('height="16px"')
     expect(skeleton).not.toContain('circle')
 
-    const alert = generateCode(createDocument('Alert'))
+    const alert = starterCode('Alert')
     expect(alert).toContain('variant="warning"')
     expect(alert).toContain('<Alert.Title>Check your connection</Alert.Title>')
     expect(alert).toContain('<Alert.Description>The last save did not finish. Try again.</Alert.Description>')
 
-    const empty = generateCode(createDocument('EmptyState'))
+    const empty = starterCode('EmptyState')
     expect(empty).toContain('title="No messages"')
     expect(empty).toContain('description="When someone writes to you, it shows up here."')
     expect(empty).toContain('bordered')
@@ -198,28 +204,28 @@ describe('platform metadata', () => {
   })
 
   it('lists search, chip, list, and pagination', () => {
-    const names = sidebarEntries().map((entry) => entry.name)
+    const names = advuiRegistry.sidebarEntries().map((entry) => entry.name)
     expect(names).toEqual(expect.arrayContaining(['Search', 'Chip', 'List', 'Pagination']))
-    expect(getMeta('Search').categoryId).toBe('forms')
-    expect(getMeta('Chip').categoryId).toBe('data-display')
-    expect(getMeta('List').categoryId).toBe('data-display')
-    expect(getMeta('Pagination').categoryId).toBe('navigation')
-    expect(acceptsChildren('Search')).toBe(false)
-    expect(acceptsChildren('Chip')).toBe(false)
-    expect(acceptsChildren('List')).toBe(true)
-    expect(acceptsChildren('List.Item')).toBe(false)
-    expect(acceptsChildren('Pagination')).toBe(false)
+    expect(advuiRegistry.get('Search').categoryId).toBe('forms')
+    expect(advuiRegistry.get('Chip').categoryId).toBe('data-display')
+    expect(advuiRegistry.get('List').categoryId).toBe('data-display')
+    expect(advuiRegistry.get('Pagination').categoryId).toBe('navigation')
+    expect(advuiRegistry.acceptsChildren('Search')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('Chip')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('List')).toBe(true)
+    expect(advuiRegistry.acceptsChildren('List.Item')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('Pagination')).toBe(false)
 
-    const search = generateCode(createDocument('Search'))
+    const search = starterCode('Search')
     expect(search).toContain('defaultValue="messages"')
     expect(search).toContain('placeholder="Search messages"')
     expect(search).not.toContain('value=')
     expect(search).not.toContain('aria-label=')
 
-    const chip = generateCode(createDocument('Chip'))
+    const chip = starterCode('Chip')
     expect(chip).toContain('<Chip defaultSelected>Inbox</Chip>')
 
-    const list = generateCode(createDocument('List'))
+    const list = starterCode('List')
     expect(list).toContain('variant="outline"')
     expect(list).toContain('divided')
     expect(list).toContain('width="320px"')
@@ -227,7 +233,7 @@ describe('platform metadata', () => {
     expect(list).toContain('description="3 new messages"')
     expect(list).toContain('title="Drafts"')
 
-    const pagination = generateCode(createDocument('Pagination'))
+    const pagination = starterCode('Pagination')
     expect(pagination).toContain('count={10}')
     expect(pagination).toContain('defaultPage={3}')
     expect(pagination).not.toContain('page=')
@@ -235,23 +241,23 @@ describe('platform metadata', () => {
   })
 
   it('lists alert dialog, toast, tooltip, and dropdown menu', () => {
-    const names = sidebarEntries().map((entry) => entry.name)
+    const names = advuiRegistry.sidebarEntries().map((entry) => entry.name)
     expect(names).toEqual(expect.arrayContaining(['AlertDialog', 'Toast', 'Tooltip', 'DropdownMenu']))
     for (const name of ['AlertDialog', 'Toast', 'Tooltip', 'DropdownMenu']) {
-      expect(getMeta(name).categoryId).toBe('overlay')
+      expect(advuiRegistry.get(name).categoryId).toBe('overlay')
     }
-    expect(acceptsChildren('AlertDialog')).toBe(false)
-    expect(acceptsChildren('AlertDialog.Content')).toBe(true)
-    expect(acceptsChildren('AlertDialog.Header')).toBe(true)
-    expect(acceptsChildren('AlertDialog.Footer')).toBe(true)
-    expect(acceptsChildren('AlertDialog.Title')).toBe(false)
-    expect(acceptsChildren('Toast')).toBe(false)
-    expect(acceptsChildren('Tooltip')).toBe(false)
-    expect(acceptsChildren('DropdownMenu')).toBe(false)
-    expect(acceptsChildren('DropdownMenu.Content')).toBe(true)
-    expect(acceptsChildren('DropdownMenu.Item')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('AlertDialog')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('AlertDialog.Content')).toBe(true)
+    expect(advuiRegistry.acceptsChildren('AlertDialog.Header')).toBe(true)
+    expect(advuiRegistry.acceptsChildren('AlertDialog.Footer')).toBe(true)
+    expect(advuiRegistry.acceptsChildren('AlertDialog.Title')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('Toast')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('Tooltip')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('DropdownMenu')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('DropdownMenu.Content')).toBe(true)
+    expect(advuiRegistry.acceptsChildren('DropdownMenu.Item')).toBe(false)
 
-    const dialog = generateCode(createDocument('AlertDialog'))
+    const dialog = starterCode('AlertDialog')
     expect(dialog).toContain('import { AlertDialog, Button } from \'@advui/core\'')
     expect(dialog).toContain('defaultOpen')
     expect(dialog).toContain('<AlertDialog')
@@ -264,7 +270,7 @@ describe('platform metadata', () => {
     expect(dialog).not.toContain('size=')
     expect(dialog).not.toContain('open=')
 
-    const toastCode = generateCode(createDocument('Toast'))
+    const toastCode = starterCode('Toast')
     expect(toastCode).toContain('import { Button, toast } from \'@advui/core\'')
     expect(toastCode).toContain(
       'toast.success("Changes saved", { description: "Your profile is up to date." })',
@@ -274,7 +280,7 @@ describe('platform metadata', () => {
     expect(toastCode).not.toContain('<Toast')
 
     const changed = builderReducer(
-      builderReducer(createBuilderState('Toast'), {
+      builderReducer(createBuilderState(advuiRegistry, 'Toast'), {
         type: 'set-prop',
         id: 'toast',
         key: 'type',
@@ -282,11 +288,11 @@ describe('platform metadata', () => {
       }),
       { type: 'set-prop', id: 'toast', key: 'description', value: '' },
     )
-    const errorToast = generateCode(changed.document)
+    const errorToast = generateCode(changed.document, { registry: advuiRegistry })
     expect(errorToast).toContain('toast.error("Changes saved")')
     expect(errorToast).not.toContain('description')
 
-    const hint = generateCode(createDocument('Tooltip'))
+    const hint = starterCode('Tooltip')
     expect(hint).toContain('content="Saves your changes"')
     expect(hint).toContain('defaultOpen')
     expect(hint).toContain('<Button>Save</Button>')
@@ -294,7 +300,7 @@ describe('platform metadata', () => {
     expect(hint).not.toContain('side=')
     expect(hint).not.toContain('open=')
 
-    const menu = generateCode(createDocument('DropdownMenu'))
+    const menu = starterCode('DropdownMenu')
     expect(menu).toContain('import { Button, DropdownMenu } from \'@advui/core\'')
     expect(menu).toContain('<DropdownMenu')
     expect(menu).toContain('defaultOpen')

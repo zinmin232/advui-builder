@@ -4,10 +4,12 @@ import {
   emptyPlatforms,
   toBuilderPlatform,
   type ComponentMetadata,
+  type ItemTemplate,
   type PlatformId,
   type PropMetadata,
   type PropOption,
   type PropType,
+  type TemplateNode,
 } from './metadata'
 
 const groupOrder = ['component', 'typography', 'appearance', 'layout', 'advanced'] as const
@@ -151,6 +153,12 @@ export interface AdaptOptions {
   propOverrides?: Record<string, Partial<PropMetadata>>
   /** Sidebar group, when the builder groups a component differently from AdvUI's docs. */
   category?: CategoryId
+  /** Starter tree opened from the sidebar. */
+  template?: TemplateNode
+  /** Other layers can be inserted or dropped inside it. */
+  acceptsChildren?: boolean
+  /** The repeatable part that "Add item" appends. */
+  item?: ItemTemplate
 }
 
 /**
@@ -242,6 +250,9 @@ export function adaptAdvuiMeta(meta: ComponentMeta, options: AdaptOptions = {}):
     props,
     platforms,
     staticProps: options.staticProps,
+    template: options.template,
+    acceptsChildren: options.acceptsChildren,
+    item: options.item,
     examples: meta.examples.map((example) => ({
       name: example.name,
       title: example.title,

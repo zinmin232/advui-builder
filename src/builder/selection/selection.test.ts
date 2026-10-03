@@ -1,9 +1,9 @@
-import { createDocument } from '../../registry/componentRegistry'
+import { advuiRegistry } from '../../registry/componentRegistry'
 import type { ConfigNode } from '../../registry/metadata'
 import { duplicateNode, findPath, mapTree, placeNode, selectionFrom } from './selection'
 
 describe('selection', () => {
-  const card = createDocument('Card')
+  const card = advuiRegistry.createDocument('Card')
 
   it('builds the Card > Footer > Button path from a nested id', () => {
     const selection = selectionFrom(card, 'card-button')
@@ -52,20 +52,20 @@ describe('selection', () => {
   })
 
   it('reorders a sibling and moves a layer into another container', () => {
-    const reordered = placeNode(card, 'card-footer', 'card-header', 'before')
+    const reordered = placeNode(advuiRegistry, card, 'card-footer', 'card-header', 'before')
     expect(reordered?.children.map((child) => child.id)).toEqual(['card-footer', 'card-header', 'card-content'])
     expect(reordered?.children[0].children.map((child) => child.id)).toEqual(['card-button'])
 
-    const moved = placeNode(card, 'card-button', 'card-content', 'inside')
+    const moved = placeNode(advuiRegistry, card, 'card-button', 'card-content', 'inside')
     const content = moved?.children.find((child) => child.id === 'card-content')
     const footer = moved?.children.find((child) => child.id === 'card-footer')
     expect(content?.children.map((child) => child.id)).toEqual(['card-image', 'card-button'])
     expect(footer?.children).toEqual([])
     expect(content?.children[1].text).toBe('Continue')
 
-    expect(placeNode(card, 'card-content', 'card-footer', 'before')).toBeNull()
-    expect(placeNode(card, 'card-header', 'card-title', 'inside')).toBeNull()
-    expect(placeNode(card, card.id, 'card-content', 'inside')).toBeNull()
+    expect(placeNode(advuiRegistry, card, 'card-content', 'card-footer', 'before')).toBeNull()
+    expect(placeNode(advuiRegistry, card, 'card-header', 'card-title', 'inside')).toBeNull()
+    expect(placeNode(advuiRegistry, card, card.id, 'card-content', 'inside')).toBeNull()
   })
 })
 

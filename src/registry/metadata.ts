@@ -52,6 +52,38 @@ export interface ExampleMetadata {
   description?: string
 }
 
+/**
+ * A node in a starter tree or an item template. Missing ids are allocated;
+ * a missing label is the part name (`Card.Header` → `Header`).
+ */
+export interface TemplateNode {
+  id?: string
+  component: string
+  label?: string
+  props?: Record<string, unknown>
+  text?: string
+  children?: TemplateNode[]
+}
+
+/**
+ * How a host grows by one repeatable part (a Select option, a tab). In labels,
+ * text and string props, `{n}` is the item number, `{value}` the item value and
+ * `{host}` the host id.
+ */
+export interface ItemTemplate {
+  /** Shown as "Add {noun} to …". */
+  noun: string
+  /** The part being counted: `{n}` is one more than how many the host holds. */
+  part: string
+  /** Each item gets the value `${valuePrefix}-{n}`, skipping values already in use. */
+  valuePrefix?: string
+  /**
+   * Added in order; the first one is selected. `into` adds the node inside the
+   * host's child of that component, which is created when missing.
+   */
+  nodes: Array<TemplateNode & { into?: string }>
+}
+
 export interface ComponentMetadata {
   name: string
   slug: string
@@ -69,6 +101,12 @@ export interface ComponentMetadata {
   examples: ExampleMetadata[]
   /** Always applied at render time. Not an inspector field. */
   staticProps?: Record<string, string | number | boolean>
+  /** Starter tree opened from the sidebar. Without one, the bare component opens. */
+  template?: TemplateNode
+  /** Other layers can be inserted or dropped inside it. */
+  acceptsChildren?: boolean
+  /** The repeatable part that "Add item" appends. */
+  item?: ItemTemplate
 }
 
 export interface ConfigNode {

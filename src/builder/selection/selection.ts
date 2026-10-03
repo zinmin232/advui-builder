@@ -1,5 +1,5 @@
 import type { ConfigNode, SelectionContext } from '../../registry/metadata'
-import { acceptsChildren, itemNoun } from '../../registry/componentRegistry'
+import { nextId, type BuilderRegistry } from '../../registry/registry'
 
 export function findPath(root: ConfigNode, id: string): ConfigNode[] | null {
   if (root.id === id) return [root]
@@ -10,14 +10,14 @@ export function findPath(root: ConfigNode, id: string): ConfigNode[] | null {
   return null
 }
 
-export function insertTargetId(root: ConfigNode, selectedId: string): string | null {
+export function insertTargetId(registry: BuilderRegistry, root: ConfigNode, selectedId: string): string | null {
   const path = findPath(root, selectedId)
   if (!path) return null
   const node = path[path.length - 1]
-  if (acceptsChildren(node.component)) return node.id
+  if (registry.acceptsChildren(node.component)) return node.id
   if (path.length < 2) return null
   const parent = path[path.length - 2]
-  return acceptsChildren(parent.component) ? parent.id : null
+  return registry.acceptsChildren(parent.component) ? parent.id : null
 }
 
 export function findNode(root: ConfigNode, id: string): ConfigNode | null {
@@ -68,16 +68,8 @@ function collectIds(node: ConfigNode, used: Set<string>) {
   node.children.forEach((child) => collectIds(child, used))
 }
 
-function uniqueId(used: Set<string>, component: string): string {
-  const base = component.toLowerCase().replace(/\./g, '-')
-  if (!used.has(base)) return base
-  let index = 2
-  while (used.has(`${base}-${index}`)) index += 1
-  return `${base}-${index}`
-}
-
 function cloneNode(node: ConfigNode, used: Set<string>): ConfigNode {
-  const id = uniqueId(used, node.component)
+  const id = nextId(used, node.component)
   used.add(id)
   return {
     id,
@@ -94,7 +86,7 @@ export function idAllocator(root: ConfigNode): (component: string) => string {
   const used = new Set<string>()
   collectIds(root, used)
   return (component) => {
-    const id = uniqueId(used, component)
+    const id = nextId(used, component)
     used.add(id)
     return id
   }
@@ -105,13 +97,13 @@ export function idAllocator(root: ConfigNode): (component: string) => string {
  * the selection itself or the host it belongs to. A container in between
  * (a Tabs panel holding Text) ends the search.
  */
-export function itemHostId(root: ConfigNode, selectedId: string): string | null {
+export function itemHostId(registry: BuilderRegistry, root: ConfigNode, selectedId: string): string | null {
   const path = findPath(root, selectedId)
   if (!path) return null
   for (let index = path.length - 1; index >= 0; index -= 1) {
     const node = path[index]
-    if (itemNoun(node.component)) return node.id
-    if (index < path.length - 1 && acceptsChildren(node.component)) return null
+    if (registry.itemNoun(node.component)) return node.id
+    if (index < path.length - 1 && registry.acceptsChildren(node.component)) return null
   }
   return null
 }
@@ -194,6 +186,7 @@ function containsId(node: ConfigNode, id: string): boolean {
 
 /** Moves a layer beside another sibling or into a container. Returns null when the drop changes nothing. */
 export function placeNode(
+  registry: BuilderRegistry,
   root: ConfigNode,
   sourceId: string,
   targetId: string,
@@ -204,7 +197,7 @@ export function placeNode(
   const target = findNode(root, targetId)
   if (!source || !target || containsId(source, targetId)) return null
   if (position === 'inside') {
-    if (!acceptsChildren(target.component)) return null
+    if (!registry.acceptsChildren(target.component)) return null
   } else if (targetId === root.id) {
     return null
   }

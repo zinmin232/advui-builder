@@ -1,6 +1,6 @@
 import { isSameValue } from '../../registry/adaptMeta'
-import { addItem, createDocument, getMeta } from '../../registry/componentRegistry'
 import type { ConfigNode, PlatformId, PropMetadata } from '../../registry/metadata'
+import type { BuilderRegistry } from '../../registry/registry'
 import { canvasForTheme, DARK_CANVAS, isThemeCanvas } from '../canvasTheme'
 import {
   duplicateNode,
@@ -79,9 +79,13 @@ export function platformWidth(platform: PlatformId): number {
   return 1024
 }
 
-export function createBuilderState(component = 'Button', partial: Partial<BuilderState> = {}): BuilderState {
+export function createBuilderState(
+  registry: BuilderRegistry,
+  component = registry.defaultComponent,
+  partial: Partial<BuilderState> = {},
+): BuilderState {
   const selectedComponent = partial.selectedComponent ?? component
-  const document = partial.document ?? createDocument(selectedComponent)
+  const document = partial.document ?? registry.createDocument(selectedComponent)
   return {
     platform: 'web',
     viewportWidth: 1024,
@@ -108,8 +112,8 @@ export function storesValue(prop: PropMetadata | undefined, value: unknown): boo
   return !(prop && prop.defaultValue !== undefined && isSameValue(value, prop.defaultValue))
 }
 
-function withProp(node: ConfigNode, key: string, value: unknown): ConfigNode {
-  const meta = getMeta(node.component)
+function withProp(registry: BuilderRegistry, node: ConfigNode, key: string, value: unknown): ConfigNode {
+  const meta = registry.get(node.component)
   const prop = meta.props.find((item) => item.key === key)
   if (value === undefined && prop?.required) return node
   const props = { ...node.props }
@@ -170,10 +174,10 @@ function historyKeyFor(action: BuilderAction): string | null {
   return null
 }
 
-function applyAction(state: BuilderState, action: BuilderAction): BuilderState {
+function applyAction(registry: BuilderRegistry, state: BuilderState, action: BuilderAction): BuilderState {
   switch (action.type) {
     case 'select-component': {
-      const document = createDocument(action.component)
+      const document = registry.createDocument(action.component)
       return {
         ...state,
         selectedComponent: action.component,
@@ -185,7 +189,7 @@ function applyAction(state: BuilderState, action: BuilderAction): BuilderState {
       return state.selectedId === action.id ? state : { ...state, selectedId: action.id }
     }
     case 'set-prop': {
-      const document = mapTree(state.document, action.id, (node) => withProp(node, action.key, action.value))
+      const document = mapTree(state.document, action.id, (node) => withProp(registry, node, action.key, action.value))
       return document === state.document ? state : { ...state, document }
     }
     case 'set-text': {
@@ -195,7 +199,7 @@ function applyAction(state: BuilderState, action: BuilderAction): BuilderState {
       return document === state.document ? state : { ...state, document }
     }
     case 'reset': {
-      const document = createDocument(state.selectedComponent)
+      const document = registry.createDocument(state.selectedComponent)
       return { ...state, document, selectedId: document.id }
     }
     case 'set-platform':
@@ -217,9 +221,9 @@ function applyAction(state: BuilderState, action: BuilderAction): BuilderState {
     case 'set-zoom':
       return { ...state, zoom: clampZoom(action.zoom) }
     case 'insert': {
-      const targetId = insertTargetId(state.document, state.selectedId)
+      const targetId = insertTargetId(registry, state.document, state.selectedId)
       if (!targetId) return state
-      const child = freshCopy(state.document, createDocument(action.component))
+      const child = freshCopy(state.document, registry.createDocument(action.component))
       return {
         ...state,
         document: mapTree(state.document, targetId, (node) => ({
@@ -230,9 +234,9 @@ function applyAction(state: BuilderState, action: BuilderAction): BuilderState {
       }
     }
     case 'add-item': {
-      const hostId = itemHostId(state.document, state.selectedId)
+      const hostId = itemHostId(registry, state.document, state.selectedId)
       const host = hostId ? findNode(state.document, hostId) : null
-      const added = host ? addItem(host, idAllocator(state.document)) : null
+      const added = host ? registry.addItem(host, idAllocator(state.document)) : null
       if (!host || !added) return state
       return {
         ...state,
@@ -256,7 +260,7 @@ function applyAction(state: BuilderState, action: BuilderAction): BuilderState {
       return { ...state, document: duplicated.tree, selectedId: duplicated.copyId }
     }
     case 'place': {
-      const document = placeNode(state.document, action.id, action.targetId, action.position)
+      const document = placeNode(registry, state.document, action.id, action.targetId, action.position)
       if (!document) return state
       return { ...state, document, selectedId: action.id }
     }
@@ -272,7 +276,14 @@ function applyAction(state: BuilderState, action: BuilderAction): BuilderState {
   }
 }
 
-export function builderReducer(state: BuilderState, action: BuilderAction): BuilderState {
+export type BuilderReducer = (state: BuilderState, action: BuilderAction) => BuilderState
+
+/** The reducer for one registry. Everything component-specific comes from the registry. */
+export function createBuilderReducer(registry: BuilderRegistry): BuilderReducer {
+  return (state, action) => reduce(registry, state, action)
+}
+
+function reduce(registry: BuilderRegistry, state: BuilderState, action: BuilderAction): BuilderState {
   if (action.type === 'undo') {
     const previous = state.past.at(-1)
     if (!previous) return state
@@ -292,7 +303,7 @@ export function builderReducer(state: BuilderState, action: BuilderAction): Buil
     }
   }
 
-  const next = applyAction(state, action)
+  const next = applyAction(registry, state, action)
   if (next === state) return state
   if (!documentActions.has(action.type)) {
     return state.historyKey ? { ...next, historyKey: null } : next

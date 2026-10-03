@@ -1,6 +1,9 @@
+import { advuiRegistry } from '../../registry/componentRegistry'
 import type { ConfigNode } from '../../registry/metadata'
 import { DARK_CANVAS, LIGHT_CANVAS } from '../canvasTheme'
-import { builderReducer, clampWidth, clampZoom, createBuilderState, WIDTH_PRESETS } from './builderState'
+import { clampWidth, clampZoom, createBuilderReducer, createBuilderState, WIDTH_PRESETS } from './builderState'
+
+const builderReducer = createBuilderReducer(advuiRegistry)
 
 function allIds(node: ConfigNode): string[] {
   return [node.id, ...node.children.flatMap(allIds)]
@@ -8,7 +11,7 @@ function allIds(node: ConfigNode): string[] {
 
 describe('builder state', () => {
   it('stores a property override and reset restores the component defaults only', () => {
-    const start = builderReducer(createBuilderState('Button', { background: '#111111' }), {
+    const start = builderReducer(createBuilderState(advuiRegistry, 'Button', { background: '#111111' }), {
       type: 'set-prop',
       id: 'button',
       key: 'variant',
@@ -28,14 +31,15 @@ describe('builder state', () => {
   })
 
   it('keeps preview background off the component props', () => {
-    const start = createBuilderState('Button')
+    const start = createBuilderState(advuiRegistry, 'Button')
     const next = builderReducer(start, { type: 'set-background', background: '#F5F5F5' })
     expect(next.background).toBe('#F5F5F5')
     expect(next.document).toBe(start.document)
   })
 
   it('switches platform, filters nothing in state, and updates the viewport', () => {
-    const android = builderReducer(createBuilderState('Image'), { type: 'set-platform', platform: 'android' })
+    const image = createBuilderState(advuiRegistry, 'Image')
+    const android = builderReducer(image, { type: 'set-platform', platform: 'android' })
     expect(android.platform).toBe('android')
     expect(android.viewportWidth).toBe(390)
     const ios = builderReducer(android, { type: 'set-platform', platform: 'ios' })
@@ -45,7 +49,7 @@ describe('builder state', () => {
   })
 
   it('defaults to dark and swaps the dotted canvas with the theme', () => {
-    const start = createBuilderState()
+    const start = createBuilderState(advuiRegistry)
     expect(start.theme).toBe('dark')
     expect(start.background).toBe(DARK_CANVAS)
 
@@ -63,14 +67,15 @@ describe('builder state', () => {
     expect(clampWidth(100)).toBe(320)
     expect(clampWidth(2000)).toBe(1440)
     for (const preset of WIDTH_PRESETS) {
-      expect(builderReducer(createBuilderState(), { type: 'set-width', width: preset }).viewportWidth).toBe(preset)
+      const sized = builderReducer(createBuilderState(advuiRegistry), { type: 'set-width', width: preset })
+      expect(sized.viewportWidth).toBe(preset)
     }
     expect(clampZoom(4)).toBe(1.5)
     expect(clampZoom(0.1)).toBe(0.5)
   })
 
   it('inserts a component into the selected layer and selects it', () => {
-    const card = createBuilderState('Card', { selectedId: 'card-image' })
+    const card = createBuilderState(advuiRegistry, 'Card', { selectedId: 'card-image' })
     const next = builderReducer(card, { type: 'insert', component: 'Badge' })
     const content = next.document.children.find((child) => child.id === 'card-content')
     expect(content?.children.map((child) => child.component)).toEqual(['Image', 'Badge'])
@@ -84,7 +89,7 @@ describe('builder state', () => {
   })
 
   it('gives an inserted component ids that no other layer uses', () => {
-    let state = createBuilderState('Stack')
+    let state = createBuilderState(advuiRegistry, 'Stack')
     state = builderReducer(state, { type: 'insert', component: 'Card' })
     state = builderReducer(state, { type: 'select', id: 'stack' })
     state = builderReducer(state, { type: 'insert', component: 'Card' })
@@ -99,7 +104,7 @@ describe('builder state', () => {
   })
 
   it('adds a tab with a trigger and a panel that share a new value', () => {
-    const next = builderReducer(createBuilderState('Tabs'), { type: 'add-item' })
+    const next = builderReducer(createBuilderState(advuiRegistry, 'Tabs'), { type: 'add-item' })
     const [list, ...panels] = next.document.children
     expect(list.children.map((trigger) => trigger.props.value)).toEqual(['account', 'password', 'tab-3'])
     expect(panels.map((panel) => panel.props.value)).toEqual(['account', 'password', 'tab-3'])
@@ -109,44 +114,66 @@ describe('builder state', () => {
   })
 
   it('adds a select option from a selected option, but not from a layer inside a tab panel', () => {
-    const select = builderReducer(createBuilderState('Select', { selectedId: 'select-pear' }), { type: 'add-item' })
+    const pear = createBuilderState(advuiRegistry, 'Select', { selectedId: 'select-pear' })
+    const select = builderReducer(pear, { type: 'add-item' })
     const added = select.document.children.at(-1)
     expect(added).toMatchObject({ component: 'Select.Item', props: { value: 'option-4' }, text: 'Option 4' })
     expect(select.selectedId).toBe(added?.id)
 
-    const inPanel = createBuilderState('Tabs', { selectedId: 'tabs-account-text' })
+    const inPanel = createBuilderState(advuiRegistry, 'Tabs', { selectedId: 'tabs-account-text' })
     expect(builderReducer(inPanel, { type: 'add-item' })).toBe(inPanel)
   })
 
+  it('adds a radio option with a matching label, a list item, and a menu item', () => {
+    const radio = builderReducer(createBuilderState(advuiRegistry, 'RadioGroup'), { type: 'add-item' })
+    const [item, label] = radio.document.children.slice(-2)
+    expect(item).toMatchObject({
+      component: 'RadioGroup.Item',
+      label: 'Option 3',
+      props: { value: 'option-3', id: 'radio-group-option-3' },
+    })
+    expect(label).toMatchObject({ component: 'Label', props: { htmlFor: 'radio-group-option-3' }, text: 'Option 3' })
+    expect(radio.selectedId).toBe(item.id)
+
+    const list = builderReducer(createBuilderState(advuiRegistry, 'List'), { type: 'add-item' })
+    expect(list.document.children.at(-1)).toMatchObject({ component: 'List.Item', props: { title: 'Item 3' } })
+
+    const menu = builderReducer(createBuilderState(advuiRegistry, 'DropdownMenu', { selectedId: 'dropdown-edit' }), {
+      type: 'add-item',
+    })
+    const content = menu.document.children.find((child) => child.id === 'dropdown-content')
+    expect(content?.children.at(-1)).toMatchObject({ component: 'DropdownMenu.Item', text: 'Item 4' })
+  })
+
   it('drops a cleared optional prop but keeps an empty required one', () => {
-    const input = createBuilderState('Input')
+    const input = createBuilderState(advuiRegistry, 'Input')
     expect(input.document.props.width).toBe('280px')
     const cleared = builderReducer(input, { type: 'set-prop', id: 'input', key: 'width', value: '' })
     expect(cleared.document.props).not.toHaveProperty('width')
 
-    const image = createBuilderState('Image')
+    const image = createBuilderState(advuiRegistry, 'Image')
     const decorative = builderReducer(image, { type: 'set-prop', id: 'image', key: 'alt', value: '' })
     expect(decorative.document.props.alt).toBe('')
     expect(builderReducer(image, { type: 'set-prop', id: 'image', key: 'alt', value: undefined })).toBe(image)
   })
 
   it('leaves the document unchanged when the selection cannot hold children', () => {
-    const button = createBuilderState('Button')
+    const button = createBuilderState(advuiRegistry, 'Button')
     expect(builderReducer(button, { type: 'insert', component: 'Text' })).toBe(button)
   })
 
   it('removes the selected component and selects its parent', () => {
-    const start = createBuilderState('Card', { selectedId: 'card-button' })
+    const start = createBuilderState(advuiRegistry, 'Card', { selectedId: 'card-button' })
     const next = builderReducer(start, { type: 'remove' })
     const footer = next.document.children.find((child) => child.id === 'card-footer')
     expect(footer?.children).toEqual([])
     expect(next.selectedId).toBe('card-footer')
-    const root = createBuilderState('Card')
+    const root = createBuilderState(advuiRegistry, 'Card')
     expect(builderReducer(root, { type: 'remove' })).toBe(root)
   })
 
   it('moves the selected layer among its siblings', () => {
-    const card = createBuilderState('Card', { selectedId: 'card-content' })
+    const card = createBuilderState(advuiRegistry, 'Card', { selectedId: 'card-content' })
     const up = builderReducer(card, { type: 'move', direction: 'up' })
     expect(up.document.children.map((child) => child.id)).toEqual(['card-content', 'card-header', 'card-footer'])
     expect(up.selectedId).toBe('card-content')
@@ -159,7 +186,7 @@ describe('builder state', () => {
   })
 
   it('undoes a replaced canvas, a delete, and an insert', () => {
-    const card = createBuilderState('Card', { selectedId: 'card-button' })
+    const card = createBuilderState(advuiRegistry, 'Card', { selectedId: 'card-button' })
     const replaced = builderReducer(card, { type: 'select-component', component: 'Stack' })
     const restored = builderReducer(replaced, { type: 'undo' })
     expect(restored.selectedComponent).toBe('Card')
@@ -190,7 +217,7 @@ describe('builder state', () => {
   })
 
   it('groups repeated edits of one field and drops redo after a new edit', () => {
-    let state = createBuilderState('Button')
+    let state = createBuilderState(advuiRegistry, 'Button')
     state = builderReducer(state, { type: 'set-text', id: 'button', text: 'A' })
     state = builderReducer(state, { type: 'set-text', id: 'button', text: 'AB' })
     state = builderReducer(state, { type: 'set-text', id: 'button', text: 'ABC' })
@@ -198,7 +225,7 @@ describe('builder state', () => {
     expect(undone.document.text).toBe('Click Me')
     expect(builderReducer(undone, { type: 'undo' })).toBe(undone)
 
-    state = createBuilderState('Button')
+    state = createBuilderState(advuiRegistry, 'Button')
     state = builderReducer(state, { type: 'set-prop', id: 'button', key: 'variant', value: 'secondary' })
     state = builderReducer(state, { type: 'set-prop', id: 'button', key: 'size', value: 'lg' })
     const once = builderReducer(state, { type: 'undo' })
@@ -208,7 +235,7 @@ describe('builder state', () => {
   })
 
   it('leaves theme and viewport changes out of undo', () => {
-    const start = createBuilderState('Button')
+    const start = createBuilderState(advuiRegistry, 'Button')
     const edited = builderReducer(start, { type: 'set-text', id: 'button', text: 'Save' })
     const themed = builderReducer(edited, { type: 'set-theme', theme: 'light' })
     const undone = builderReducer(themed, { type: 'undo' })
@@ -221,7 +248,7 @@ describe('builder state', () => {
   })
 
   it('duplicates the selected layer beside it and undo removes the copy', () => {
-    const start = createBuilderState('Card', { selectedId: 'card-button' })
+    const start = createBuilderState(advuiRegistry, 'Card', { selectedId: 'card-button' })
     const copied = builderReducer(start, { type: 'duplicate' })
     const footer = copied.document.children.find((child) => child.id === 'card-footer')
     expect(footer?.children.map((child) => child.text)).toEqual(['Continue', 'Continue'])
@@ -232,12 +259,12 @@ describe('builder state', () => {
     expect(undone.selectedId).toBe('card-button')
     expect(undone.document.children.find((child) => child.id === 'card-footer')?.children).toHaveLength(1)
 
-    const root = createBuilderState('Button')
+    const root = createBuilderState(advuiRegistry, 'Button')
     expect(builderReducer(root, { type: 'duplicate' })).toBe(root)
   })
 
   it('moves a layer into another container and undo puts it back', () => {
-    const start = createBuilderState('Card', { selectedId: 'card-image' })
+    const start = createBuilderState(advuiRegistry, 'Card', { selectedId: 'card-image' })
     const moved = builderReducer(start, { type: 'place', id: 'card-button', targetId: 'card-content', position: 'inside' })
     const content = moved.document.children.find((child) => child.id === 'card-content')
     expect(content?.children.map((child) => child.id)).toEqual(['card-image', 'card-button'])
