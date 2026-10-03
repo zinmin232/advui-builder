@@ -157,6 +157,10 @@ export interface AdaptOptions {
   template?: TemplateNode
   /** Other layers can be inserted or dropped inside it. */
   acceptsChildren?: boolean
+  /** Drop rules: allowed children, allowed parents, and capacity. See `ComponentMetadata`. */
+  accepts?: string[]
+  parents?: string[]
+  maxChildren?: number
   /** The repeatable part that "Add item" appends. */
   item?: ItemTemplate
 }
@@ -252,6 +256,9 @@ export function adaptAdvuiMeta(meta: ComponentMeta, options: AdaptOptions = {}):
     staticProps: options.staticProps,
     template: options.template,
     acceptsChildren: options.acceptsChildren,
+    accepts: options.accepts,
+    parents: options.parents,
+    maxChildren: options.maxChildren,
     item: options.item,
     examples: meta.examples.map((example) => ({
       name: example.name,

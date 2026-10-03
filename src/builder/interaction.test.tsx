@@ -241,3 +241,32 @@ describe('injected registry', () => {
     expect(screen.getByLabelText('Value')).toHaveValue('entry-1')
   })
 })
+
+describe('page mode', () => {
+  it('adds clicked sidebar components to the page, or inside the selected container', async () => {
+    const user = userEvent.setup()
+    render(
+      <BuilderProvider
+        registry={advuiRegistry}
+        initial={createBuilderState(advuiRegistry, 'Button', { mode: 'page' })}
+        persist={false}
+      >
+        <ComponentSidebar />
+        <Harness />
+      </BuilderProvider>,
+    )
+    const sidebar = screen.getByRole('complementary', { name: 'Components' })
+    expect(within(sidebar).getByText('Add inside Page')).toBeInTheDocument()
+    await user.click(within(sidebar).getAllByRole('button', { name: 'Card' })[0])
+    await user.click(within(sidebar).getAllByRole('button', { name: 'Badge' })[0])
+    const layers = within(screen.getByRole('tree', { name: 'Layers' }))
+    expect(layers.getByRole('button', { name: 'Card' })).toBeInTheDocument()
+    // The Card was selected after it was added, so the Badge went inside it.
+    expect(screen.getByTestId('node-card')).toHaveTextContent('Badge')
+
+    await user.click(layers.getByRole('button', { name: 'Title' }))
+    expect(within(sidebar).getByText('Add inside Header')).toBeInTheDocument()
+    expect(within(sidebar).getAllByRole('button', { name: 'Add Text inside Header' })[0]).toBeEnabled()
+  })
+})
+

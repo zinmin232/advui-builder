@@ -751,6 +751,7 @@ const dropdownMenuSeparator = adaptAdvuiMeta(dropdownMenuMeta, {
 
 export const advuiRegistry = createRegistry({
   importSource: '@advui/core',
+  page: node('page', 'Stack', 'Page', { gap: 16, padding: 24 }),
   // Sidebar entries appear in this order. Compound parts follow their component.
   components: [
     button,

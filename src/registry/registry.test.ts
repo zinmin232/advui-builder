@@ -89,4 +89,53 @@ describe('component registry', () => {
     expect(code).toContain('<Menu.Entry value="entry-1">Entry 1</Menu.Entry>')
     expect(code).toContain('<Tag>Hello</Tag>')
   })
+
+  it('offers Page mode only with a page template whose root accepts children', () => {
+    expect(registry.hasPage).toBe(false)
+    expect(() => registry.createPage()).toThrow(/no page template/)
+    const withPage = createRegistry({ ...acmeLibrary, page: { id: 'page', component: 'Panel', label: 'Page' } })
+    expect(withPage.hasPage).toBe(true)
+    expect(withPage.createPage()).toMatchObject({ id: 'page', component: 'Panel', label: 'Page', children: [] })
+    expect(() => createRegistry({ ...acmeLibrary, page: { component: 'Tag' } })).toThrow(/must accept children/)
+    const pageless = createBuilderReducer(registry)
+    const start = createBuilderState(registry)
+    expect(pageless(start, { type: 'set-mode', mode: 'page' })).toBe(start)
+    expect(createBuilderState(registry, 'Tag', { mode: 'page' }).mode).toBe('component')
+  })
+
+  it('applies accepts, parents, capacity, and template placement rules', () => {
+    const rules = createRegistry({
+      importSource: '@acme/ui',
+      components: [
+        meta('Row', { acceptsChildren: true, accepts: ['Cell'], maxChildren: 2 }),
+        meta('Cell', { acceptsChildren: true }),
+        meta('Note', { parents: ['Cell'] }),
+        meta('Box', { acceptsChildren: true, template: { component: 'Box', children: [{ component: 'Box.Slot' }] } }),
+        meta('Box.Slot'),
+      ],
+    })
+    const node = (component: string, count = 0) => ({
+      id: component.toLowerCase(),
+      component,
+      label: component,
+      props: {},
+      children: Array.from({ length: count }, (_, index) => ({
+        id: `child-${index}`,
+        component: 'Cell',
+        label: 'Cell',
+        props: {},
+        children: [],
+      })),
+    })
+    expect(rules.canPlace('Cell', node('Row'))).toBe(true)
+    expect(rules.canPlace('Note', node('Row'))).toBe(false)
+    expect(rules.canPlace('Cell', node('Row', 2))).toBe(false)
+    expect(rules.canPlace('Cell', node('Row', 1), true)).toBe(true)
+    expect(rules.canPlace('Cell', node('Row', 2), true)).toBe(false)
+    expect(rules.canPlace('Note', node('Cell'))).toBe(true)
+    expect(rules.canPlace('Note', node('Box'))).toBe(false)
+    expect(rules.canPlace('Box.Slot', node('Box'))).toBe(true)
+    expect(rules.canPlace('Box.Slot', node('Cell'))).toBe(false)
+    expect(rules.canPlace('Cell', node('Note'))).toBe(false)
+  })
 })

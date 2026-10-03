@@ -1,5 +1,5 @@
 import { Alert, AlertDialog, AspectRatio, Avatar, Badge, Button, Card, Checkbox, Chip, Container, DropdownMenu, EmptyState, Grid, Image, Input, Label, List, NumberInput, Pagination, PasswordInput, Progress, RadioGroup, ScrollArea, Search, Select, Separator, Skeleton, Slider, Spinner, Stack, Switch, Tabs, Text, Textarea, Toaster, Tooltip, UniversalProvider, createUniversalConfig, toast } from '@advui/core'
-import { useEffect, useRef, type ReactNode } from 'react'
+import { Children, useEffect, useRef, type ReactNode } from 'react'
 import type { ConfigNode } from '../../registry/metadata'
 import { resolveProps } from '../../registry/registry'
 import type { PreviewContext, PreviewKit } from './previewKit'
@@ -163,7 +163,8 @@ export function renderAdvuiNode(node: ConfigNode, children: ReactNode, context: 
     if (!only) return <View {...props} />
     return <View {...props}>{only}</View>
   }
-  const hasBody = Boolean(node.text) || node.children.length > 0
+  // `children` can hold the builder's empty-container slot even when the node has no children.
+  const hasBody = Boolean(node.text) || Children.count(children) > 0
   if (!hasBody) return <View {...props} />
   return (
     <View {...props}>

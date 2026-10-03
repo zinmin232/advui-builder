@@ -15,7 +15,10 @@ import { loadPreferences, pushRecent, savePreferences, type Preferences } from '
 import { createBuilderReducer, createBuilderState, type BuilderAction, type BuilderState } from './builderState'
 
 interface Actions {
+  /** Sidebar click: opens the component, or adds it to the page in Page mode. Also records it as recent. */
+  openComponent: (component: string) => void
   selectComponent: (component: string) => void
+  setMode: (mode: BuilderState['mode']) => void
   select: (id: string) => void
   setProp: (id: string, key: string, value: unknown) => void
   setText: (id: string, text: string) => void
@@ -26,6 +29,7 @@ interface Actions {
   setTheme: (theme: BuilderState['theme']) => void
   setZoom: (zoom: number) => void
   insertComponent: (component: string) => void
+  insertAt: (component: string, targetId: string, position: 'before' | 'after' | 'inside') => void
   addItem: () => void
   remove: () => void
   move: (direction: 'up' | 'down') => void
@@ -52,6 +56,7 @@ function initialState(registry: BuilderRegistry): BuilderState {
   const preferences = loadPreferences()
   const component = registry.match(preferences.lastComponent) ?? registry.defaultComponent
   const base = createBuilderState(registry, component, {
+    mode: preferences.mode,
     platform: preferences.platform,
     viewportWidth: preferences.viewportWidth,
     background: preferences.background,
@@ -102,9 +107,11 @@ export function BuilderProvider({
       viewportWidth: state.viewportWidth,
       platform: state.platform,
       lastComponent: state.selectedComponent,
+      mode: state.mode,
     })
   }, [
     persist,
+    state.mode,
     state.background,
     state.theme,
     state.zoom,
@@ -116,15 +123,22 @@ export function BuilderProvider({
 
   const actions = useMemo<Actions>(() => {
     const send = (action: BuilderAction) => dispatch(action)
+    const remember = (component: string) =>
+      setPreferences((current) => {
+        const next = { ...current, recent: pushRecent(current.recent, component) }
+        if (persist) savePreferences(next)
+        return next
+      })
     return {
+      openComponent: (component) => {
+        send({ type: 'open', component })
+        remember(component)
+      },
       selectComponent: (component) => {
         send({ type: 'select-component', component })
-        setPreferences((current) => {
-          const next = { ...current, recent: pushRecent(current.recent, component), lastComponent: component }
-          if (persist) savePreferences(next)
-          return next
-        })
+        remember(component)
       },
+      setMode: (mode) => send({ type: 'set-mode', mode }),
       select: (id) => send({ type: 'select', id }),
       setProp: (id, key, value) => send({ type: 'set-prop', id, key, value }),
       setText: (id, text) => send({ type: 'set-text', id, text }),
@@ -135,6 +149,7 @@ export function BuilderProvider({
       setTheme: (theme) => send({ type: 'set-theme', theme }),
       setZoom: (zoom) => send({ type: 'set-zoom', zoom }),
       insertComponent: (component) => send({ type: 'insert', component }),
+      insertAt: (component, targetId, position) => send({ type: 'insert-at', component, targetId, position }),
       addItem: () => send({ type: 'add-item' }),
       remove: () => send({ type: 'remove' }),
       move: (direction) => send({ type: 'move', direction }),

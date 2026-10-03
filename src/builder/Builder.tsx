@@ -4,6 +4,7 @@ import { clampInspectorWidth, clampSidebarWidth } from './persistence'
 import { shareUrl } from './shareConfig'
 import { LayersPanel } from './layers/LayersPanel'
 import { CodePanel } from './code/CodePanel'
+import { BuilderDnd } from './dnd/BuilderDnd'
 import { Inspector } from './inspector/Inspector'
 import { PlatformSelector } from './preview/PlatformSelector'
 import type { PreviewLoader } from './preview/previewKit'
@@ -132,7 +133,23 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
           </svg>
           <strong>AdvUI Builder</strong>
         </div>
-        <span className="topbar-component">{state.selectedComponent}</span>
+        {registry.hasPage ? (
+          <div className="segment" role="group" aria-label="Mode">
+            {(['component', 'page'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={state.mode === mode ? 'segment-btn active' : 'segment-btn'}
+                aria-pressed={state.mode === mode}
+                title={mode === 'page' ? 'Build a page from many components' : 'Customize one component'}
+                onClick={() => actions.setMode(mode)}
+              >
+                {mode === 'page' ? 'Page' : 'Component'}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <span className="topbar-component">{state.mode === 'page' ? 'Page' : state.selectedComponent}</span>
         <span className="spacer" />
         <div className="segment" role="group" aria-label="History">
           <button
@@ -233,90 +250,92 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
           Reset
         </button>
       </header>
-      <div className="workspace">
-        {preferences.sidebarCollapsed ? (
-          <div className="rail rail-toggle">
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label="Expand components"
-              aria-pressed={true}
-              onClick={() => preferenceActions.update({ sidebarCollapsed: false })}
-            >
-              ☰
-            </button>
-          </div>
-        ) : (
-          <div className="pane" style={{ width: preferences.sidebarWidth }}>
-            <ComponentSidebar />
-          </div>
-        )}
-        {preferences.sidebarCollapsed ? null : (
-          <div
-            className="splitter"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize components"
-            onPointerDown={(event) => onPointerDown('sidebar', event)}
-            onPointerMove={onPointerMove}
-            onPointerUp={endDrag}
-          />
-        )}
-        <div className="center">
-          <div className="workspace-view">
-            {workspaceView === 'preview' ? (
-              <Suspense
-                fallback={
-                  <div className="preview">
-                    {viewBar}
-                    <p className="preview-loading">Loading preview…</p>
-                  </div>
-                }
+      <BuilderDnd>
+        <div className="workspace">
+          {preferences.sidebarCollapsed ? (
+            <div className="rail rail-toggle">
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Expand components"
+                aria-pressed={true}
+                onClick={() => preferenceActions.update({ sidebarCollapsed: false })}
               >
-                <Preview bar={viewBar} />
-              </Suspense>
-            ) : (
-              <>
-                {viewBar}
-                <div className="code-slot">
-                  <CodePanel />
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-        {preferences.inspectorCollapsed ? null : (
-          <div
-            className="splitter"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize inspector"
-            onPointerDown={(event) => onPointerDown('inspector', event)}
-            onPointerMove={onPointerMove}
-            onPointerUp={endDrag}
-          />
-        )}
-        {preferences.inspectorCollapsed ? (
-          <div className="rail rail-toggle rail-toggle-start">
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label="Expand inspector"
-              aria-pressed={true}
-              onClick={() => preferenceActions.update({ inspectorCollapsed: false })}
-            >
-              ☰
-            </button>
-          </div>
-        ) : (
-          <div className="pane inspector-pane" style={{ width: preferences.inspectorWidth }}>
-            <div className="inspector-scroll">
-              <LayersPanel root={state.document} selectedId={state.selectedId} onSelect={actions.select} />
-              <Inspector />
+                ☰
+              </button>
+            </div>
+          ) : (
+            <div className="pane" style={{ width: preferences.sidebarWidth }}>
+              <ComponentSidebar />
+            </div>
+          )}
+          {preferences.sidebarCollapsed ? null : (
+            <div
+              className="splitter"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize components"
+              onPointerDown={(event) => onPointerDown('sidebar', event)}
+              onPointerMove={onPointerMove}
+              onPointerUp={endDrag}
+            />
+          )}
+          <div className="center">
+            <div className="workspace-view">
+              {workspaceView === 'preview' ? (
+                <Suspense
+                  fallback={
+                    <div className="preview">
+                      {viewBar}
+                      <p className="preview-loading">Loading preview…</p>
+                    </div>
+                  }
+                >
+                  <Preview bar={viewBar} />
+                </Suspense>
+              ) : (
+                <>
+                  {viewBar}
+                  <div className="code-slot">
+                    <CodePanel />
+                  </div>
+                </>
+              )}
             </div>
           </div>
-        )}
-      </div>
+          {preferences.inspectorCollapsed ? null : (
+            <div
+              className="splitter"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize inspector"
+              onPointerDown={(event) => onPointerDown('inspector', event)}
+              onPointerMove={onPointerMove}
+              onPointerUp={endDrag}
+            />
+          )}
+          {preferences.inspectorCollapsed ? (
+            <div className="rail rail-toggle rail-toggle-start">
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Expand inspector"
+                aria-pressed={true}
+                onClick={() => preferenceActions.update({ inspectorCollapsed: false })}
+              >
+                ☰
+              </button>
+            </div>
+          ) : (
+            <div className="pane inspector-pane" style={{ width: preferences.inspectorWidth }}>
+              <div className="inspector-scroll">
+                <LayersPanel root={state.document} selectedId={state.selectedId} onSelect={actions.select} />
+                <Inspector />
+              </div>
+            </div>
+          )}
+        </div>
+      </BuilderDnd>
     </div>
   )
 }
