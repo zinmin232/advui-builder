@@ -1,0 +1,211 @@
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
+import { describe, expect, it, vi } from 'vitest'
+import type { ConfigNode } from '../registry/metadata'
+import { CodePanel } from './code/CodePanel'
+import { Inspector } from './inspector/Inspector'
+import { LayersPanel } from './layers/LayersPanel'
+import { ElementTree } from './preview/ElementTree'
+import { PlatformSelector } from './preview/PlatformSelector'
+import { ComponentSidebar } from './sidebar/ComponentSidebar'
+import { createBuilderState } from './state/builderState'
+import { BuilderProvider, useBuilderActions, useBuilderState } from './state/BuilderProvider'
+import { loadPreferences } from './persistence'
+import { useShortcuts } from './useShortcuts'
+
+function renderNode(node: ConfigNode, children: ReactNode) {
+  return (
+    <div data-testid={`node-${node.id}`}>
+      {node.label}:{JSON.stringify(node.props)}
+      {children}
+    </div>
+  )
+}
+
+function Harness() {
+  const state = useBuilderState()
+  const actions = useBuilderActions()
+  return (
+    <>
+      <ElementTree node={state.document} renderNode={renderNode} />
+      <LayersPanel root={state.document} selectedId={state.selectedId} onSelect={actions.select} />
+      <Inspector />
+      <PlatformSelector
+        platform={state.platform}
+        width={state.viewportWidth}
+        onChange={actions.setPlatform}
+        onWidth={actions.setWidth}
+      />
+      <button type="button" onClick={() => actions.reset()}>
+        Reset
+      </button>
+      <button type="button" onClick={() => actions.setBackground('#010101')}>
+        Paint canvas
+      </button>
+      <output data-testid="background">{state.background}</output>
+    </>
+  )
+}
+
+function ShortcutHarness() {
+  useShortcuts()
+  return <Harness />
+}
+
+function renderCard() {
+  return render(
+    <BuilderProvider initial={createBuilderState('Card')} persist={false}>
+      <Harness />
+    </BuilderProvider>,
+  )
+}
+
+describe('selection-driven inspector', () => {
+  it('selects a nested preview element and updates the breadcrumb', async () => {
+    const user = userEvent.setup()
+    renderCard()
+    await user.click(screen.getByTestId('node-card-button'))
+    const crumbs = screen.getByRole('navigation', { name: 'Selection' })
+    expect(crumbs).toHaveTextContent('Card')
+    expect(crumbs).toHaveTextContent('Footer')
+    expect(within(crumbs).getByRole('button', { name: 'Button' })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByLabelText('Variant')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Fit')).not.toBeInTheDocument()
+  })
+
+  it('selects the same element from the layers panel and walks the breadcrumb', async () => {
+    const user = userEvent.setup()
+    renderCard()
+    const layers = screen.getByRole('tree', { name: 'Layers' })
+    await user.click(within(layers).getByRole('button', { name: 'Image' }))
+    const crumbs = screen.getByRole('navigation', { name: 'Selection' })
+    expect(within(crumbs).getByRole('button', { name: 'Image' })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByLabelText('Fit')).toBeInTheDocument()
+    expect(screen.getByLabelText('Source')).toBeInTheDocument()
+    await user.click(within(crumbs).getByRole('button', { name: 'Card' }))
+    expect(within(crumbs).getByRole('button', { name: 'Card' })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByLabelText('Variant')).toHaveValue('outline')
+  })
+
+  it('writes inspector edits into preview state and reset restores defaults', async () => {
+    const user = userEvent.setup()
+    renderCard()
+    await user.click(screen.getByTestId('node-card-button'))
+    await user.selectOptions(screen.getByLabelText('Variant'), 'secondary')
+    await user.selectOptions(screen.getByLabelText('Size'), 'lg')
+    expect(screen.getByTestId('node-card-button')).toHaveTextContent('"variant":"secondary"')
+    expect(screen.getByTestId('node-card-button')).toHaveTextContent('"size":"lg"')
+    await user.click(screen.getByRole('button', { name: 'Reset' }))
+    expect(screen.getByTestId('node-card-button')).toHaveTextContent('{}')
+  })
+
+  it('clears text and number fields back to unset props', async () => {
+    const user = userEvent.setup()
+    renderCard()
+    const layers = screen.getByRole('tree', { name: 'Layers' })
+    await user.click(within(layers).getByRole('button', { name: 'Image' }))
+    await user.clear(screen.getByLabelText('Width'))
+    await user.clear(screen.getByLabelText('Ratio'))
+    const image = screen.getByTestId('node-card-image')
+    expect(image).not.toHaveTextContent('"width"')
+    expect(image).not.toHaveTextContent('"ratio"')
+    expect(screen.getByLabelText('Width')).toHaveValue('')
+    expect(screen.getByLabelText('Ratio')).toHaveValue(null)
+  })
+
+  it('filters platform properties and changes notes without touching the canvas color', async () => {
+    const user = userEvent.setup()
+    renderCard()
+    const layers = screen.getByRole('tree', { name: 'Layers' })
+    await user.click(within(layers).getByRole('button', { name: 'Image' }))
+    expect(screen.getByLabelText('Loading')).toBeInTheDocument()
+    expect(screen.getByText(/before hydration/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Android' }))
+    expect(screen.queryByLabelText('Loading')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Fit')).toBeInTheDocument()
+    expect(screen.getByText(/HTTPS/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Paint canvas' }))
+    expect(screen.getByTestId('background')).toHaveTextContent('#010101')
+    expect(screen.getByTestId('node-card-image').textContent).not.toContain('#010101')
+  })
+})
+
+describe('keyboard shortcuts', () => {
+  it('deletes the selected layer with Delete, but not while typing in a field', async () => {
+    const user = userEvent.setup()
+    render(
+      <BuilderProvider initial={createBuilderState('Card', { selectedId: 'card-button' })} persist={false}>
+        <ShortcutHarness />
+      </BuilderProvider>,
+    )
+    await user.click(screen.getByLabelText('Content'))
+    await user.keyboard('{Backspace}{Delete}')
+    expect(screen.getByTestId('node-card-button')).toBeInTheDocument()
+
+    const layers = screen.getByRole('tree', { name: 'Layers' })
+    await user.click(within(layers).getByRole('button', { name: 'Button' }))
+    await user.keyboard('{Delete}')
+    expect(screen.queryByTestId('node-card-button')).not.toBeInTheDocument()
+  })
+})
+
+describe('copy and favorites', () => {
+  it('copies the generated snippet', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    render(
+      <BuilderProvider
+        initial={createBuilderState('Button', {
+          document: {
+            ...createBuilderState('Button').document,
+            props: { variant: 'secondary' },
+          },
+        })}
+        persist={false}
+      >
+        <CodePanel />
+      </BuilderProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: 'Copy code' }))
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('variant="secondary"'))
+    expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument()
+  })
+
+  it('persists a favorite across a reload of the sidebar', async () => {
+    const user = userEvent.setup()
+    localStorage.clear()
+    const first = render(
+      <BuilderProvider initial={createBuilderState('Button')}>
+        <ComponentSidebar />
+      </BuilderProvider>,
+    )
+    await user.click(screen.getAllByRole('button', { name: 'Add Button favorite' })[0])
+    expect(loadPreferences().favorites).toContain('Button')
+    first.unmount()
+    render(
+      <BuilderProvider initial={createBuilderState('Button')}>
+        <ComponentSidebar />
+      </BuilderProvider>,
+    )
+    expect(screen.getAllByRole('button', { name: 'Remove Button favorite' }).length).toBeGreaterThan(0)
+  })
+
+  it('collapses and expands a component group', async () => {
+    const user = userEvent.setup()
+    localStorage.clear()
+    render(
+      <BuilderProvider initial={createBuilderState('Button')} persist={false}>
+        <ComponentSidebar />
+      </BuilderProvider>,
+    )
+    const group = screen.getByRole('button', { name: 'Buttons & Actions', expanded: true })
+    expect(screen.getByRole('button', { name: 'Button' })).toBeInTheDocument()
+    await user.click(group)
+    expect(group).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('button', { name: 'Button' })).not.toBeInTheDocument()
+    await user.click(group)
+    expect(screen.getByRole('button', { name: 'Button' })).toBeInTheDocument()
+  })
+})

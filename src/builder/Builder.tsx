@@ -1,0 +1,304 @@
+import { lazy, Suspense, useRef, useState, type PointerEvent } from 'react'
+import { writeToClipboard } from './clipboard'
+import { clampInspectorWidth, clampSidebarWidth } from './persistence'
+import { shareUrl } from './shareConfig'
+import { LayersPanel } from './layers/LayersPanel'
+import { CodePanel } from './code/CodePanel'
+import { Inspector } from './inspector/Inspector'
+import { PlatformSelector } from './preview/PlatformSelector'
+import { PreviewToolbar } from './preview/PreviewToolbar'
+import { ComponentSidebar } from './sidebar/ComponentSidebar'
+import { useBuilderActions, useBuilderState, usePreferenceActions, usePreferences } from './state/BuilderProvider'
+import { useShortcuts } from './useShortcuts'
+
+// The preview pulls in AdvUI, Tamagui and React Native Web. Loading it separately lets the panels appear first.
+const PreviewWorkspace = lazy(() =>
+  import('./preview/PreviewWorkspace').then((module) => ({ default: module.PreviewWorkspace })),
+)
+
+export function Builder() {
+  const state = useBuilderState()
+  const actions = useBuilderActions()
+  const preferences = usePreferences()
+  const preferenceActions = usePreferenceActions()
+  const drag = useRef<{ kind: 'sidebar' | 'inspector'; start: number; origin: number } | null>(null)
+  const [workspaceView, setWorkspaceView] = useState<'preview' | 'code'>('preview')
+  const [linkCopied, setLinkCopied] = useState(false)
+
+  const onPointerDown = (kind: 'sidebar' | 'inspector', event: PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const origin = kind === 'sidebar' ? preferences.sidebarWidth : preferences.inspectorWidth
+    drag.current = { kind, start: event.clientX, origin }
+  }
+
+  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const current = drag.current
+    if (!current) return
+    if (current.kind === 'sidebar') {
+      preferenceActions.update({ sidebarWidth: clampSidebarWidth(current.origin + (event.clientX - current.start)) })
+    } else {
+      preferenceActions.update({ inspectorWidth: clampInspectorWidth(current.origin - (event.clientX - current.start)) })
+    }
+  }
+
+  const endDrag = () => {
+    drag.current = null
+  }
+
+  useShortcuts()
+
+  const copyLink = async () => {
+    await writeToClipboard(shareUrl(state, window.location))
+    setLinkCopied(true)
+    window.setTimeout(() => setLinkCopied(false), 1600)
+  }
+
+  const viewBar = (
+    <div className="view-bar">
+      <PlatformSelector
+        platform={state.platform}
+        width={state.viewportWidth}
+        onChange={actions.setPlatform}
+        onWidth={actions.setWidth}
+      />
+      <PreviewToolbar
+        width={state.viewportWidth}
+        background={state.background}
+        theme={state.theme}
+        zoom={state.zoom}
+        onWidth={actions.setWidth}
+        onBackground={actions.setBackground}
+        onZoom={actions.setZoom}
+      />
+      <div className="view-tabs" role="tablist" aria-label="Workspace view">
+        <button
+          type="button"
+          role="tab"
+          className={workspaceView === 'preview' ? 'view-tab active' : 'view-tab'}
+          aria-selected={workspaceView === 'preview'}
+          onClick={() => setWorkspaceView('preview')}
+        >
+          Preview
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={workspaceView === 'code' ? 'view-tab active' : 'view-tab'}
+          aria-selected={workspaceView === 'code'}
+          onClick={() => setWorkspaceView('code')}
+        >
+          Code
+        </button>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="app" data-theme={state.theme}>
+      <header className="topbar">
+        <div className="brand">
+          <svg className="brand-mark" viewBox="0 0 32 32" width="28" height="28" role="img" aria-label="AdvUI">
+            <rect width="32" height="32" rx="8" fill="#1d4ed8" />
+            <text
+              x="16"
+              y="21"
+              textAnchor="middle"
+              fill="#ffffff"
+              fontFamily="Segoe UI, system-ui, sans-serif"
+              fontSize="13"
+              fontWeight="700"
+              letterSpacing="-0.6"
+            >
+              aUI
+            </text>
+          </svg>
+          <strong>AdvUI Builder</strong>
+        </div>
+        <span className="topbar-component">{state.selectedComponent}</span>
+        <span className="spacer" />
+        <div className="segment" role="group" aria-label="History">
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => actions.undo()}
+            disabled={state.past.length === 0}
+            aria-label="Undo"
+            title="Undo (Ctrl+Z)"
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+              <path
+                d="M3 7v6h6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => actions.redo()}
+            disabled={state.future.length === 0}
+            aria-label="Redo"
+            title="Redo (Ctrl+Shift+Z)"
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+              <path
+                d="M21 7v6h-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label={state.theme === 'light' ? 'Light' : 'Dark'}
+          title={state.theme === 'light' ? 'Light. Switch to dark' : 'Dark. Switch to light'}
+          onClick={() => actions.setTheme(state.theme === 'light' ? 'dark' : 'light')}
+        >
+          {state.theme === 'light' ? (
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+              <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
+              <path
+                d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+              <path
+                d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
+        </button>
+        <button
+          type="button"
+          className="text-btn"
+          title="Copy a link that opens this design"
+          onClick={() => void copyLink()}
+        >
+          {linkCopied ? 'Link copied' : 'Copy link'}
+        </button>
+        <button type="button" className="text-btn" onClick={() => actions.reset()}>
+          Reset
+        </button>
+      </header>
+      <div className="workspace">
+        {preferences.sidebarCollapsed ? (
+          <div className="rail rail-toggle">
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Expand components"
+              aria-pressed={true}
+              onClick={() => preferenceActions.update({ sidebarCollapsed: false })}
+            >
+              ☰
+            </button>
+          </div>
+        ) : (
+          <div className="pane" style={{ width: preferences.sidebarWidth }}>
+            <ComponentSidebar />
+          </div>
+        )}
+        {preferences.sidebarCollapsed ? null : (
+          <div
+            className="splitter"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize components"
+            onPointerDown={(event) => onPointerDown('sidebar', event)}
+            onPointerMove={onPointerMove}
+            onPointerUp={endDrag}
+          />
+        )}
+        <div className="center">
+          <div className="workspace-view">
+            {workspaceView === 'preview' ? (
+              <Suspense
+                fallback={
+                  <div className="preview">
+                    {viewBar}
+                    <p className="preview-loading">Loading preview…</p>
+                  </div>
+                }
+              >
+                <PreviewWorkspace bar={viewBar} />
+              </Suspense>
+            ) : (
+              <>
+                {viewBar}
+                <div className="code-slot">
+                  <CodePanel />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+        {preferences.inspectorCollapsed ? null : (
+          <div
+            className="splitter"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize inspector"
+            onPointerDown={(event) => onPointerDown('inspector', event)}
+            onPointerMove={onPointerMove}
+            onPointerUp={endDrag}
+          />
+        )}
+        {preferences.inspectorCollapsed ? (
+          <div className="rail rail-toggle rail-toggle-start">
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Expand inspector"
+              aria-pressed={true}
+              onClick={() => preferenceActions.update({ inspectorCollapsed: false })}
+            >
+              ☰
+            </button>
+          </div>
+        ) : (
+          <div className="pane inspector-pane" style={{ width: preferences.inspectorWidth }}>
+            <div className="inspector-scroll">
+              <LayersPanel root={state.document} selectedId={state.selectedId} onSelect={actions.select} />
+              <Inspector />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
