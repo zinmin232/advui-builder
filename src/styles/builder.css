@@ -171,6 +171,7 @@ button { cursor: pointer; }
   background: transparent;
   border-radius: 4px;
   padding: 6px 8px 6px 20px;
+  touch-action: none;
 }
 .star { border: 0; background: transparent; color: var(--builder-muted); padding: 4px; }
 .star.on { color: #a16207; }
@@ -492,6 +493,70 @@ button { cursor: pointer; }
   right: 0;
   background: #9f1239;
 }
+.outline-handle {
+  border: 0;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  z-index: 2;
+}
+.outline-handle:active { cursor: grabbing; }
+.canvas-drop-line {
+  position: absolute;
+  height: 0;
+  border-top: 2px solid var(--builder-accent);
+  margin-top: -1px;
+  z-index: 3;
+}
+.canvas-drop-line.upright { width: 0; border-top: 0; border-left: 2px solid var(--builder-accent); margin: 0 0 0 -1px; }
+.canvas-drop-line::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 6px;
+  height: 6px;
+  border: 2px solid var(--builder-accent);
+  border-radius: 999px;
+  background: var(--builder-panel);
+}
+.canvas-drop-line.upright::before { top: -4px; left: -4px; }
+.canvas-drop-box {
+  position: absolute;
+  outline: 2px dashed var(--builder-accent);
+  outline-offset: -1px;
+  background: rgba(29, 78, 216, 0.08);
+  z-index: 3;
+}
+.drag-chip {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 650;
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.28);
+  pointer-events: none;
+  white-space: nowrap;
+  cursor: grabbing;
+}
+.drag-chip.blocked { background: #6b7280; }
+.builder-dragging, .builder-dragging * { user-select: none; cursor: grabbing; }
+.empty-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 120px;
+  padding: 8px 12px;
+  border: 1px dashed rgba(128, 128, 128, 0.65);
+  border-radius: 4px;
+  color: rgba(128, 128, 128, 0.95);
+  font: 12px/1.3 "Segoe UI", system-ui, sans-serif;
+  text-align: center;
+}
+.empty-slot.root { min-height: 160px; font-size: 13px; }
 
 .inspector-pane { border-left: 0; background: var(--builder-panel); min-width: 0; }
 .inspector { padding: 4px 16px 28px; min-width: 0; }
@@ -582,7 +647,8 @@ button { cursor: pointer; }
 .layers > h3 { margin: 10px 0 6px; }
 .layer-add { display: block; margin: 6px 0 4px; font-size: 12px; }
 .layer { display: flex; align-items: stretch; width: 100%; min-height: 24px; cursor: pointer; }
-.layer[draggable="true"] { cursor: grab; }
+.layer[aria-roledescription] { cursor: grab; touch-action: none; }
+.layer.dragging { opacity: 0.5; }
 .layer.drop-before { box-shadow: inset 0 2px 0 var(--builder-accent); }
 .layer.drop-after { box-shadow: inset 0 -2px 0 var(--builder-accent); }
 .layer.drop-inside { outline: 1px solid var(--builder-accent); outline-offset: -1px; }

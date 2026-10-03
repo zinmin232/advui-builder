@@ -1,6 +1,6 @@
 import { DARK_CANVAS } from './canvasTheme'
 import type { PlatformId } from '../registry/metadata'
-import { clampWidth, clampZoom } from './state/builderState'
+import { clampWidth, clampZoom, type BuilderMode } from './state/builderState'
 
 const KEY = 'advui-builder.preferences.v1'
 
@@ -18,6 +18,7 @@ export interface Preferences {
   viewportWidth: number
   platform: PlatformId
   lastComponent: string
+  mode: BuilderMode
 }
 
 export const defaultPreferences: Preferences = {
@@ -34,6 +35,7 @@ export const defaultPreferences: Preferences = {
   viewportWidth: 1024,
   platform: 'web',
   lastComponent: 'Button',
+  mode: 'component',
 }
 
 function isLegacyDefault(theme: Preferences['theme'] | undefined, background: unknown): boolean {
@@ -92,6 +94,7 @@ export function sanitizePreferences(value: unknown): Preferences {
     viewportWidth: typeof source.viewportWidth === 'number' ? clampWidth(source.viewportWidth) : 1024,
     platform,
     lastComponent: typeof source.lastComponent === 'string' ? source.lastComponent : 'Button',
+    mode: source.mode === 'page' ? 'page' : 'component',
   }
 }
 

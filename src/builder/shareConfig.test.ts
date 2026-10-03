@@ -46,4 +46,27 @@ describe('shareable configuration', () => {
     expect(shared({ id: 'card', component: 'Button', label: 'Dup' })).toBeUndefined()
     expect(shared({ id: 'ok', component: 'Button', label: 'Ok' })?.children).toHaveLength(1)
   })
+
+  it('round-trips a page and falls back to an empty page when its tree is not a page', () => {
+    let state = createBuilderState(advuiRegistry, 'Input', { mode: 'page' })
+    state = builderReducer(state, { type: 'open', component: 'Card' })
+    state = builderReducer(state, { type: 'open', component: 'Badge' })
+    const search = configurationToSearch(toConfiguration(advuiRegistry, state))
+    expect(search).toContain('mode=page')
+    expect(search).toContain('component=Input')
+
+    const config = configurationFromSearch(advuiRegistry, search)!
+    const restored = applyConfiguration(advuiRegistry, createBuilderState(advuiRegistry, 'Button'), config)
+    expect(restored.mode).toBe('page')
+    expect(restored.document).toEqual(state.document)
+    expect(restored.selectedComponent).toBe('Input')
+    expect(restored.past).toEqual([])
+
+    const card = encodeURIComponent(JSON.stringify({ id: 'card', component: 'Card', label: 'Card' }))
+    const wrong = configurationFromSearch(advuiRegistry, `?component=button&mode=page&doc=${card}`)!
+    expect(wrong.document).toBeUndefined()
+    const empty = applyConfiguration(advuiRegistry, createBuilderState(advuiRegistry), wrong)
+    expect(empty.mode).toBe('page')
+    expect(empty.document.children).toEqual([])
+  })
 })

@@ -3,16 +3,20 @@ import type { ConfigNode, PlatformId, PropMetadata } from '../../registry/metada
 import type { BuilderRegistry } from '../../registry/registry'
 import { canvasForTheme, DARK_CANVAS, isThemeCanvas } from '../canvasTheme'
 import {
+  canDrop,
   duplicateNode,
   findNode,
   freshCopy,
   idAllocator,
+  insertAt,
   insertTargetId,
   itemHostId,
   mapTree,
   moveNode,
+  parentOf,
   placeNode,
   removeNode,
+  type PlacePosition,
 } from '../selection/selection'
 
 export const MIN_WIDTH = 320
@@ -21,13 +25,27 @@ export const WIDTH_PRESETS = [320, 375, 768, 1024, 1440] as const
 export const MIN_ZOOM = 0.5
 export const MAX_ZOOM = 1.5
 
+/** Component mode edits one component and its parts. Page mode builds a page from many components. */
+export type BuilderMode = 'component' | 'page'
+
+/** The document of the mode that is not showing, kept so switching back does not lose it. */
+interface ParkedDocument {
+  mode: BuilderMode
+  document: ConfigNode
+  selectedId: string
+}
+
 interface DocumentSnapshot {
   document: ConfigNode
   selectedId: string
   selectedComponent: string
+  mode: BuilderMode
+  parked: ParkedDocument | null
 }
 
 export interface BuilderState {
+  mode: BuilderMode
+  /** The component Component mode shows. Page mode keeps it for switching back. */
   selectedComponent: string
   selectedId: string
   platform: PlatformId
@@ -36,6 +54,7 @@ export interface BuilderState {
   theme: 'light' | 'dark'
   zoom: number
   document: ConfigNode
+  parked: ParkedDocument | null
   past: DocumentSnapshot[]
   future: DocumentSnapshot[]
   /** Groups repeated edits of one field into a single undo step. */
@@ -44,6 +63,9 @@ export interface BuilderState {
 
 export type BuilderAction =
   | { type: 'select-component'; component: string }
+  /** A sidebar click: opens the component in Component mode, adds it to the page in Page mode. */
+  | { type: 'open'; component: string }
+  | { type: 'set-mode'; mode: BuilderMode }
   | { type: 'select'; id: string }
   | { type: 'set-prop'; id: string; key: string; value: unknown }
   | { type: 'set-text'; id: string; text: string }
@@ -54,11 +76,13 @@ export type BuilderAction =
   | { type: 'set-theme'; theme: 'light' | 'dark' }
   | { type: 'set-zoom'; zoom: number }
   | { type: 'insert'; component: string }
+  /** A drop from the sidebar: a new component inside or beside a layer. */
+  | { type: 'insert-at'; component: string; targetId: string; position: PlacePosition }
   | { type: 'add-item' }
   | { type: 'remove' }
   | { type: 'move'; direction: 'up' | 'down' }
   | { type: 'duplicate' }
-  | { type: 'place'; id: string; targetId: string; position: 'before' | 'after' | 'inside' }
+  | { type: 'place'; id: string; targetId: string; position: PlacePosition }
   | { type: 'apply-document'; document: ConfigNode; component: string }
   | { type: 'undo' }
   | { type: 'redo' }
@@ -85,8 +109,11 @@ export function createBuilderState(
   partial: Partial<BuilderState> = {},
 ): BuilderState {
   const selectedComponent = partial.selectedComponent ?? component
-  const document = partial.document ?? registry.createDocument(selectedComponent)
+  const mode: BuilderMode = partial.mode === 'page' && registry.hasPage ? 'page' : 'component'
+  const document =
+    partial.document ?? (mode === 'page' ? registry.createPage() : registry.createDocument(selectedComponent))
   return {
+    parked: null,
     platform: 'web',
     viewportWidth: 1024,
     background: DARK_CANVAS,
@@ -96,10 +123,17 @@ export function createBuilderState(
     future: [],
     historyKey: null,
     ...partial,
+    mode,
     selectedComponent,
     document,
     selectedId: partial.selectedId ?? document.id,
   }
+}
+
+/** Where a new component goes: inside the selected container or its parent, or the page itself in Page mode. */
+export function insertionTarget(registry: BuilderRegistry, state: BuilderState): string | null {
+  const target = insertTargetId(registry, state.document, state.selectedId)
+  return target ?? (state.mode === 'page' ? state.document.id : null)
 }
 
 /**
@@ -138,10 +172,13 @@ const HISTORY_LIMIT = 100
 
 const documentActions = new Set<BuilderAction['type']>([
   'select-component',
+  'open',
+  'set-mode',
   'set-prop',
   'set-text',
   'reset',
   'insert',
+  'insert-at',
   'add-item',
   'remove',
   'move',
@@ -155,6 +192,8 @@ function snapshot(state: BuilderState): DocumentSnapshot {
     document: state.document,
     selectedId: state.selectedId,
     selectedComponent: state.selectedComponent,
+    mode: state.mode,
+    parked: state.parked,
   }
 }
 
@@ -164,8 +203,32 @@ function restore(state: BuilderState, snap: DocumentSnapshot): BuilderState {
     document: snap.document,
     selectedId: snap.selectedId,
     selectedComponent: snap.selectedComponent,
+    mode: snap.mode,
+    parked: snap.parked,
     historyKey: null,
   }
+}
+
+function insertComponent(registry: BuilderRegistry, state: BuilderState, component: string): BuilderState {
+  const targetId = insertionTarget(registry, state)
+  const target = targetId ? findNode(state.document, targetId) : null
+  if (!targetId || !target || !registry.canPlace(component, target)) return state
+  const child = freshCopy(state.document, registry.createDocument(component))
+  return {
+    ...state,
+    document: mapTree(state.document, targetId, (node) => ({ ...node, children: [...node.children, child] })),
+    selectedId: child.id,
+  }
+}
+
+function switchMode(registry: BuilderRegistry, state: BuilderState, mode: BuilderMode): BuilderState {
+  if (mode === state.mode || (mode === 'page' && !registry.hasPage)) return state
+  const parked: ParkedDocument = { mode: state.mode, document: state.document, selectedId: state.selectedId }
+  if (state.parked?.mode === mode) {
+    return { ...state, mode, document: state.parked.document, selectedId: state.parked.selectedId, parked }
+  }
+  const document = mode === 'page' ? registry.createPage() : registry.createDocument(state.selectedComponent)
+  return { ...state, mode, document, selectedId: document.id, parked }
 }
 
 function historyKeyFor(action: BuilderAction): string | null {
@@ -177,14 +240,26 @@ function historyKeyFor(action: BuilderAction): string | null {
 function applyAction(registry: BuilderRegistry, state: BuilderState, action: BuilderAction): BuilderState {
   switch (action.type) {
     case 'select-component': {
+      // Opening a component always shows Component mode; a page in progress is parked, not lost.
       const document = registry.createDocument(action.component)
+      const parked: ParkedDocument | null =
+        state.mode === 'page'
+          ? { mode: state.mode, document: state.document, selectedId: state.selectedId }
+          : state.parked
       return {
         ...state,
+        mode: 'component',
+        parked,
         selectedComponent: action.component,
         document,
         selectedId: document.id,
       }
     }
+    case 'open':
+      if (state.mode === 'page') return insertComponent(registry, state, action.component)
+      return applyAction(registry, state, { type: 'select-component', component: action.component })
+    case 'set-mode':
+      return switchMode(registry, state, action.mode)
     case 'select': {
       return state.selectedId === action.id ? state : { ...state, selectedId: action.id }
     }
@@ -199,7 +274,8 @@ function applyAction(registry: BuilderRegistry, state: BuilderState, action: Bui
       return document === state.document ? state : { ...state, document }
     }
     case 'reset': {
-      const document = registry.createDocument(state.selectedComponent)
+      const document =
+        state.mode === 'page' ? registry.createPage() : registry.createDocument(state.selectedComponent)
       return { ...state, document, selectedId: document.id }
     }
     case 'set-platform':
@@ -220,18 +296,13 @@ function applyAction(registry: BuilderRegistry, state: BuilderState, action: Bui
       }
     case 'set-zoom':
       return { ...state, zoom: clampZoom(action.zoom) }
-    case 'insert': {
-      const targetId = insertTargetId(registry, state.document, state.selectedId)
-      if (!targetId) return state
+    case 'insert':
+      return insertComponent(registry, state, action.component)
+    case 'insert-at': {
+      if (!canDrop(registry, state.document, action.component, action.targetId, action.position)) return state
       const child = freshCopy(state.document, registry.createDocument(action.component))
-      return {
-        ...state,
-        document: mapTree(state.document, targetId, (node) => ({
-          ...node,
-          children: [...node.children, child],
-        })),
-        selectedId: child.id,
-      }
+      const document = insertAt(state.document, child, action.targetId, action.position)
+      return document ? { ...state, document, selectedId: child.id } : state
     }
     case 'add-item': {
       const hostId = itemHostId(registry, state.document, state.selectedId)
@@ -255,6 +326,9 @@ function applyAction(registry: BuilderRegistry, state: BuilderState, action: Bui
       return { ...state, document }
     }
     case 'duplicate': {
+      const parent = parentOf(state.document, state.selectedId)
+      const node = findNode(state.document, state.selectedId)
+      if (!parent || !node || !registry.canPlace(node.component, parent, true)) return state
       const duplicated = duplicateNode(state.document, state.selectedId)
       if (!duplicated) return state
       return { ...state, document: duplicated.tree, selectedId: duplicated.copyId }

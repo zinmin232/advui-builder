@@ -25,6 +25,11 @@ export function findNode(root: ConfigNode, id: string): ConfigNode | null {
   return path ? path[path.length - 1] : null
 }
 
+export function parentOf(root: ConfigNode, id: string): ConfigNode | null {
+  const path = findPath(root, id)
+  return path && path.length > 1 ? path[path.length - 2] : null
+}
+
 export function selectionFrom(root: ConfigNode, id: string): SelectionContext | null {
   const path = findPath(root, id)
   if (!path) return null
@@ -184,6 +189,41 @@ function containsId(node: ConfigNode, id: string): boolean {
   return node.id === id || node.children.some((child) => containsId(child, id))
 }
 
+/**
+ * Whether `component` may land at a drop position. Moving a layer among its own siblings is always
+ * allowed; anything else follows the registry's drop rules for the new parent.
+ */
+export function canDrop(
+  registry: BuilderRegistry,
+  root: ConfigNode,
+  component: string,
+  targetId: string,
+  position: PlacePosition,
+  movingId?: string,
+): boolean {
+  const target = findNode(root, targetId)
+  if (!target) return false
+  if (position !== 'inside' && targetId === root.id) return false
+  const parent = position === 'inside' ? target : parentOf(root, targetId)
+  if (!parent) return false
+  if (movingId && parentOf(root, movingId)?.id === parent.id) return true
+  return registry.canPlace(component, parent)
+}
+
+/** Puts `node` inside `targetId` (last) or beside it. Returns null when the target is missing. */
+export function insertAt(
+  root: ConfigNode,
+  node: ConfigNode,
+  targetId: string,
+  position: PlacePosition,
+): ConfigNode | null {
+  if (position === 'inside') {
+    if (!findNode(root, targetId)) return null
+    return mapTree(root, targetId, (target) => ({ ...target, children: [...target.children, node] }))
+  }
+  return insertBeside(root, targetId, node, position)
+}
+
 /** Moves a layer beside another sibling or into a container. Returns null when the drop changes nothing. */
 export function placeNode(
   registry: BuilderRegistry,
@@ -194,20 +234,12 @@ export function placeNode(
 ): ConfigNode | null {
   if (sourceId === root.id || sourceId === targetId) return null
   const source = findNode(root, sourceId)
-  const target = findNode(root, targetId)
-  if (!source || !target || containsId(source, targetId)) return null
-  if (position === 'inside') {
-    if (!registry.acceptsChildren(target.component)) return null
-  } else if (targetId === root.id) {
-    return null
-  }
+  if (!source || containsId(source, targetId)) return null
+  if (!canDrop(registry, root, source.component, targetId, position, sourceId)) return null
 
   const removed = removeNode(root, sourceId)
-  if (!removed || !findNode(removed.tree, targetId)) return null
-  const next =
-    position === 'inside'
-      ? mapTree(removed.tree, targetId, (node) => ({ ...node, children: [...node.children, source] }))
-      : insertBeside(removed.tree, targetId, source, position)
+  if (!removed) return null
+  const next = insertAt(removed.tree, source, targetId, position)
   if (!next || sameOrder(root, next)) return null
   return next
 }

@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
-import { findNode, insertTargetId } from '../selection/selection'
+import { useDragSource } from '../dnd/BuilderDnd'
+import { findNode } from '../selection/selection'
+import { insertionTarget } from '../state/builderState'
 import {
   useBuilderActions,
   useBuilderState,
@@ -9,7 +11,8 @@ import {
 } from '../state/BuilderProvider'
 
 export function ComponentSidebar() {
-  const { selectedComponent, document, selectedId } = useBuilderState()
+  const state = useBuilderState()
+  const { document, mode } = state
   const actions = useBuilderActions()
   const preferences = usePreferences()
   const preferenceActions = usePreferenceActions()
@@ -30,15 +33,17 @@ export function ComponentSidebar() {
     .map((name) => entries.find((entry) => entry.name === name))
     .filter((entry) => entry != null)
   const showGroups = query.trim() === ''
-  const targetId = insertTargetId(registry, document, selectedId)
+  const targetId = insertionTarget(registry, state)
   const target = targetId ? findNode(document, targetId) : null
   const groupProps = {
-    selected: selectedComponent,
+    // In Page mode a click adds to the page, so no entry is the "open" one.
+    selected: mode === 'page' ? null : state.selectedComponent,
     favorites: preferences.favorites,
-    onOpen: actions.selectComponent,
+    onOpen: actions.openComponent,
     onFavorite: preferenceActions.toggleFavorite,
     onInsert: actions.insertComponent,
     insertLabel: target?.label ?? null,
+    canInsert: (name: string) => target != null && registry.canPlace(name, target),
   }
 
   return (
@@ -104,15 +109,17 @@ function ComponentGroup({
   onFavorite,
   onInsert,
   insertLabel,
+  canInsert,
 }: {
   title: string
   entries: { name: string; description: string }[]
-  selected: string
+  selected: string | null
   favorites: string[]
   onOpen: (name: string) => void
   onFavorite: (name: string) => void
   onInsert: (name: string) => void
   insertLabel: string | null
+  canInsert: (name: string) => boolean
 }) {
   const [open, setOpen] = useState(true)
   if (entries.length === 0) return null
@@ -134,19 +141,24 @@ function ComponentGroup({
           const favorite = favorites.includes(entry.name)
           return (
             <li key={`${title}-${entry.name}`}>
-              <button
-                type="button"
-                className={selected === entry.name ? 'component-item active' : 'component-item'}
-                onClick={() => onOpen(entry.name)}
-              >
-                <span>{entry.name}</span>
-              </button>
+              <PaletteItem
+                group={title}
+                name={entry.name}
+                active={selected === entry.name}
+                onOpen={() => onOpen(entry.name)}
+              />
               <button
                 type="button"
                 className="insert"
                 aria-label={insertLabel ? `Add ${entry.name} inside ${insertLabel}` : `Add ${entry.name}`}
-                title={insertLabel ? `Add inside ${insertLabel}` : 'Select a layer that can hold components'}
-                disabled={insertLabel == null}
+                title={
+                  insertLabel == null
+                    ? 'Select a layer that can hold components'
+                    : canInsert(entry.name)
+                      ? `Add inside ${insertLabel}`
+                      : `${insertLabel} cannot hold ${entry.name}`
+                }
+                disabled={!canInsert(entry.name)}
                 onClick={() => onInsert(entry.name)}
               >
                 +
@@ -165,5 +177,37 @@ function ComponentGroup({
         })}
       </ul> : null}
     </section>
+  )
+}
+
+/** A sidebar entry: click to open or add it, or drag it onto the canvas or the Layers tree. */
+function PaletteItem({
+  group,
+  name,
+  active,
+  onOpen,
+}: {
+  group: string
+  name: string
+  active: boolean
+  onOpen: () => void
+}) {
+  // The same component can be listed under Favorites, Recent, and its category, so the id includes the group.
+  const { setNodeRef, listeners, attributes } = useDragSource(`palette:${group}:${name}`, {
+    kind: 'palette',
+    component: name,
+    label: name,
+  })
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      className={active ? 'component-item active' : 'component-item'}
+      {...attributes}
+      {...listeners}
+      onClick={onOpen}
+    >
+      <span>{name}</span>
+    </button>
   )
 }

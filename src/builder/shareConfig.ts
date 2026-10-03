@@ -6,10 +6,12 @@ import { createBuilderReducer, storesValue } from './state/builderState'
 /**
  * Shareable configuration. Root-only edits stay readable
  * (`?component=button&variant=secondary`); any edit below the root
- * carries the whole tree in `doc`.
+ * carries the whole tree in `doc`. A page (`mode=page`) always carries `doc`.
  */
 export interface BuilderConfiguration {
   component: string
+  /** Set for a page. `component` is then the component Component mode returns to. */
+  mode?: 'page'
   props: Record<string, unknown>
   text?: string
   platform?: PlatformId
@@ -18,7 +20,7 @@ export interface BuilderConfiguration {
   document?: ConfigNode
 }
 
-const reserved = new Set(['component', 'text', 'platform', 'viewport', 'doc'])
+const reserved = new Set(['component', 'mode', 'text', 'platform', 'viewport', 'doc'])
 const MAX_NODES = 500
 const MAX_DEPTH = 24
 
@@ -68,6 +70,16 @@ function sameBelowRoot(document: ConfigNode, template: ConfigNode): boolean {
 }
 
 export function toConfiguration(registry: BuilderRegistry, state: BuilderState): BuilderConfiguration {
+  if (state.mode === 'page') {
+    return {
+      component: state.selectedComponent,
+      mode: 'page',
+      props: {},
+      platform: state.platform,
+      viewportWidth: state.viewportWidth,
+      document: state.document,
+    }
+  }
   const template = registry.createDocument(state.selectedComponent)
   const nested = !sameBelowRoot(state.document, template)
   return {
@@ -91,6 +103,7 @@ function compact(node: ConfigNode): Record<string, unknown> {
 export function configurationToSearch(config: BuilderConfiguration): string {
   const params = new URLSearchParams()
   params.set('component', config.component)
+  if (config.mode) params.set('mode', config.mode)
   if (config.text != null) params.set('text', config.text)
   if (config.platform) params.set('platform', config.platform)
   if (config.viewportWidth) params.set('viewport', String(config.viewportWidth))
@@ -159,6 +172,10 @@ export function configurationFromSearch(registry: BuilderRegistry, search: strin
   const viewportRaw = params.get('viewport')
   const viewportWidth = viewportRaw ? Number(viewportRaw) : undefined
   const docRaw = params.get('doc')
+  if (params.get('mode') === 'page' && registry.hasPage) {
+    const page = docRaw ? parseDocument(registry, docRaw, registry.createPage().component) : null
+    return { component, mode: 'page', props: {}, platform, viewportWidth, document: page ?? undefined }
+  }
   const document = docRaw ? parseDocument(registry, docRaw, component) : null
   if (document) return { component, props: {}, platform, viewportWidth, document }
   return {
@@ -176,9 +193,12 @@ export function applyConfiguration(
   config: BuilderConfiguration,
 ): BuilderState {
   const builderReducer = createBuilderReducer(registry)
-  let next = config.document
-    ? builderReducer(state, { type: 'apply-document', document: config.document, component: config.component })
-    : builderReducer(state, { type: 'select-component', component: config.component })
+  let next = builderReducer(state, { type: 'select-component', component: config.component })
+  // A page opens on top of its component, so switching to Component mode shows that component.
+  if (config.mode === 'page') next = builderReducer(next, { type: 'set-mode', mode: 'page' })
+  if (config.document) {
+    next = builderReducer(next, { type: 'apply-document', document: config.document, component: config.component })
+  }
   const rootId = next.document.id
   for (const [key, value] of Object.entries(config.props)) {
     next = builderReducer(next, { type: 'set-prop', id: rootId, key, value })

@@ -1,5 +1,6 @@
 import { Component, useCallback, useState, type ErrorInfo, type ReactNode } from 'react'
 import type { ConfigNode } from '../../registry/metadata'
+import { useDropSurface } from '../dnd/BuilderDnd'
 import { useBuilderActions, useBuilderState, useHoverId, useRegistry, useSetHover } from '../state/BuilderProvider'
 import { CanvasGuides } from './CanvasGuides'
 import { ElementTree } from './ElementTree'
@@ -15,6 +16,8 @@ export function PreviewWorkspace({ kit, bar }: { kit: PreviewKit; bar: ReactNode
   const setHover = useSetHover()
   const [canvas, setCanvas] = useState<HTMLDivElement | null>(null)
   const [frame, setFrame] = useState<HTMLDivElement | null>(null)
+  // The whole scroll area accepts drops: empty space around the page counts as the page itself.
+  useDropSurface('canvas', canvas)
 
   const renderNode = useCallback(
     (node: ConfigNode, children: ReactNode) => kit.renderNode(node, children, { platform: state.platform, registry }),

@@ -9,12 +9,16 @@ export interface RegistryDefinition {
   importSource: string
   /** Every component and compound part. Sidebar entries are listed in this order. */
   components: ComponentMetadata[]
+  /** Starter tree for Page mode. Its root must accept children. Without it, only Component mode is offered. */
+  page?: TemplateNode
 }
 
 export interface BuilderRegistry {
   readonly importSource: string
   /** First sidebar entry. Opens when nothing else is chosen. */
   readonly defaultComponent: string
+  /** Whether the registry defines a page template, so Page mode can be offered. */
+  readonly hasPage: boolean
   has(component: string): boolean
   /** Throws for an unknown component. */
   get(component: string): ComponentMetadata
@@ -24,7 +28,14 @@ export interface BuilderRegistry {
   match(name: string): string | null
   /** A fresh starter tree. Ids are the same every time for a given template. */
   createDocument(component: string): ConfigNode
+  /** A fresh, empty page. Throws when the registry has no page template. */
+  createPage(): ConfigNode
   acceptsChildren(component: string): boolean
+  /**
+   * Whether one more `component` may go inside `parent`: container, `accepts`, `parents` and
+   * `maxChildren` rules. `sibling` checks room only, for a copy of a child the parent already holds.
+   */
+  canPlace(component: string, parent: ConfigNode, sibling?: boolean): boolean
   itemNoun(component: string): string | null
   /** Appends one item to a host. `idFor` hands out unused ids. Returns the new host and the node to select. */
   addItem(host: ConfigNode, idFor: (component: string) => string): { node: ConfigNode; selectedId: string } | null
@@ -115,6 +126,32 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
     if (meta.template) checkTemplate(meta.name, meta.template)
     if (meta.item) checkItem(meta.name, meta.item)
   }
+  const page = definition.page
+  if (page) {
+    checkTemplate('Page', page)
+    if (!byName.get(page.component)?.acceptsChildren) {
+      throw new Error(`Page root ${page.component} must accept children`)
+    }
+  }
+
+  // Where the templates put each compound part. A part may only be placed there unless it lists `parents`.
+  const templateParents = new Map<string, Set<string>>()
+  const record = (parent: string, node: TemplateNode) => {
+    if (!byName.get(node.component)?.sidebar) {
+      const seen = templateParents.get(node.component) ?? new Set<string>()
+      seen.add(parent)
+      templateParents.set(node.component, seen)
+    }
+    node.children?.forEach((child) => record(node.component, child))
+  }
+  for (const meta of byName.values()) {
+    meta.template?.children?.forEach((child) => record(meta.name, child))
+    meta.item?.nodes.forEach(({ into, ...node }) => {
+      if (into) record(meta.name, { component: into })
+      record(into ?? meta.name, node)
+    })
+  }
+  page?.children?.forEach((child) => record(page.component, child))
 
   const sidebar = definition.components.filter((meta) => meta.sidebar)
   if (sidebar.length === 0) throw new Error('A registry needs at least one sidebar component')
@@ -122,6 +159,7 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
   return {
     importSource: definition.importSource,
     defaultComponent: sidebar[0].name,
+    hasPage: page != null,
     has: (component) => byName.has(component),
     get,
     sidebarEntries: () => sidebar,
@@ -143,7 +181,22 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
       const template = meta.template ?? { component, label: meta.name, text: meta.defaultText }
       return instantiate(template, allocator(templateIds(template)), keep)
     },
+    createPage() {
+      if (!page) throw new Error('This registry has no page template')
+      return instantiate(page, allocator(templateIds(page)), keep)
+    },
     acceptsChildren: (component) => byName.get(component)?.acceptsChildren === true,
+    canPlace(component, parent, sibling = false) {
+      const host = byName.get(parent.component)
+      const meta = byName.get(component)
+      if (!host || !meta) return false
+      if (host.maxChildren != null && parent.children.length >= host.maxChildren) return false
+      if (sibling) return true
+      if (!host.acceptsChildren) return false
+      if (host.accepts && !host.accepts.includes(component)) return false
+      const parents = meta.parents ?? (meta.sidebar ? undefined : [...(templateParents.get(component) ?? [])])
+      return !parents || parents.includes(parent.component)
+    },
     itemNoun: (component) => byName.get(component)?.item?.noun ?? null,
     addItem(host, idFor) {
       const item = byName.get(host.component)?.item

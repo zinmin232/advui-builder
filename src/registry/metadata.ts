@@ -105,6 +105,15 @@ export interface ComponentMetadata {
   template?: TemplateNode
   /** Other layers can be inserted or dropped inside it. */
   acceptsChildren?: boolean
+  /** When set, only these components may go inside. */
+  accepts?: string[]
+  /**
+   * When set, it may only go inside these components. Compound parts without it may only go where the
+   * templates put them (`Card.Title` inside `Card.Header`).
+   */
+  parents?: string[]
+  /** Most children it can hold. */
+  maxChildren?: number
   /** The repeatable part that "Add item" appends. */
   item?: ItemTemplate
 }

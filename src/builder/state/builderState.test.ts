@@ -1,7 +1,14 @@
 import { advuiRegistry } from '../../registry/componentRegistry'
 import type { ConfigNode } from '../../registry/metadata'
 import { DARK_CANVAS, LIGHT_CANVAS } from '../canvasTheme'
-import { clampWidth, clampZoom, createBuilderReducer, createBuilderState, WIDTH_PRESETS } from './builderState'
+import {
+  clampWidth,
+  clampZoom,
+  createBuilderReducer,
+  createBuilderState,
+  WIDTH_PRESETS,
+  type BuilderState,
+} from './builderState'
 
 const builderReducer = createBuilderReducer(advuiRegistry)
 
@@ -94,7 +101,9 @@ describe('builder state', () => {
     state = builderReducer(state, { type: 'select', id: 'stack' })
     state = builderReducer(state, { type: 'insert', component: 'Card' })
     const second = state.document.children.at(-1)!
-    state = builderReducer(state, { type: 'place', id: second.children[0].id, targetId: 'stack', position: 'inside' })
+    const button = second.children.at(-1)!.children[0]
+    state = builderReducer(state, { type: 'place', id: button.id, targetId: 'stack', position: 'inside' })
+    expect(state.document.children.at(-1)?.id).toBe(button.id)
     state = builderReducer(state, { type: 'select', id: second.id })
     state = builderReducer(state, { type: 'remove' })
     state = builderReducer(state, { type: 'insert', component: 'Card' })
@@ -276,5 +285,122 @@ describe('builder state', () => {
       'card-button',
     ])
     expect(builderReducer(start, { type: 'place', id: 'card-content', targetId: 'card-footer', position: 'before' })).toBe(start)
+  })
+})
+
+describe('page mode', () => {
+  const ids = (node: ConfigNode) => node.children.map((child) => child.component)
+
+  it('opens an empty page and keeps each mode\'s document when switching back and forth', () => {
+    let state = createBuilderState(advuiRegistry, 'Card', { selectedId: 'card-button' })
+    state = builderReducer(state, { type: 'set-prop', id: 'card-button', key: 'variant', value: 'secondary' })
+    state = builderReducer(state, { type: 'set-mode', mode: 'page' })
+    expect(state.mode).toBe('page')
+    expect(state.document).toMatchObject({ id: 'page', component: 'Stack', label: 'Page', children: [] })
+    expect(state.selectedId).toBe('page')
+
+    state = builderReducer(state, { type: 'open', component: 'Button' })
+    expect(ids(state.document)).toEqual(['Button'])
+    state = builderReducer(state, { type: 'set-mode', mode: 'component' })
+    expect(state.document.id).toBe('card')
+    expect(state.selectedId).toBe('card-button')
+    expect(state.document.children.at(-1)?.children[0].props).toEqual({ variant: 'secondary' })
+
+    state = builderReducer(state, { type: 'set-mode', mode: 'page' })
+    expect(ids(state.document)).toEqual(['Button'])
+    expect(builderReducer(state, { type: 'set-mode', mode: 'page' })).toBe(state)
+  })
+
+  it('adds sidebar components to the selected container, or to the page', () => {
+    let state = createBuilderState(advuiRegistry, 'Button', { mode: 'page' })
+    state = builderReducer(state, { type: 'open', component: 'Card' })
+    const card = state.document.children[0]
+    expect(state.selectedId).toBe(card.id)
+
+    const content = card.children.find((child) => child.component === 'Card.Content')!
+    state = builderReducer(state, { type: 'select', id: content.id })
+    state = builderReducer(state, { type: 'open', component: 'Badge' })
+    const contentAfter = state.document.children[0].children.find((child) => child.id === content.id)!
+    expect(ids(contentAfter)).toEqual(['Image', 'Badge'])
+
+    // A Button cannot hold children and the page is its parent, so the next one lands on the page.
+    state = builderReducer(state, { type: 'select', id: 'page' })
+    state = builderReducer(state, { type: 'open', component: 'Button' })
+    state = builderReducer(state, { type: 'open', component: 'Text' })
+    expect(ids(state.document)).toEqual(['Card', 'Button', 'Text'])
+    expect(state.selectedComponent).toBe('Button')
+  })
+
+  it('resets to an empty page, and undo brings the page back', () => {
+    let state = createBuilderState(advuiRegistry, 'Button', { mode: 'page' })
+    state = builderReducer(state, { type: 'open', component: 'Card' })
+    state = builderReducer(state, { type: 'reset' })
+    expect(state.document.children).toEqual([])
+    state = builderReducer(state, { type: 'undo' })
+    expect(ids(state.document)).toEqual(['Card'])
+  })
+
+  it('parks the page when a component is opened directly, and undo returns to the page', () => {
+    let state = createBuilderState(advuiRegistry, 'Button', { mode: 'page' })
+    state = builderReducer(state, { type: 'open', component: 'Badge' })
+    state = builderReducer(state, { type: 'select-component', component: 'Input' })
+    expect(state.mode).toBe('component')
+    expect(state.document.component).toBe('Input')
+    const back = builderReducer(state, { type: 'undo' })
+    expect(back.mode).toBe('page')
+    expect(ids(back.document)).toEqual(['Badge'])
+    expect(ids(builderReducer(state, { type: 'set-mode', mode: 'page' }).document)).toEqual(['Badge'])
+  })
+})
+
+describe('drop rules', () => {
+  type Position = 'before' | 'after' | 'inside'
+  const insertAt = (state: BuilderState, component: string, targetId: string, position: Position) =>
+    builderReducer(state, { type: 'insert-at', component, targetId, position })
+  const place = (state: BuilderState, id: string, targetId: string, position: Position) =>
+    builderReducer(state, { type: 'place', id, targetId, position })
+
+  it('inserts a dragged component before, after, or inside a layer, and selects it', () => {
+    const card = createBuilderState(advuiRegistry, 'Card')
+    const before = insertAt(card, 'Badge', 'card-content', 'before')
+    expect(before.document.children.map((child) => child.component)).toEqual([
+      'Card.Header',
+      'Badge',
+      'Card.Content',
+      'Card.Footer',
+    ])
+    expect(before.selectedId).toBe(before.document.children[1].id)
+
+    const after = insertAt(card, 'Badge', 'card-button', 'after')
+    const footer = after.document.children.find((child) => child.id === 'card-footer')
+    expect(footer?.children.map((child) => child.component)).toEqual(['Button', 'Badge'])
+
+    const inside = insertAt(card, 'Text', 'card-content', 'inside')
+    const content = inside.document.children.find((child) => child.id === 'card-content')
+    expect(content?.children.map((child) => child.component)).toEqual(['Image', 'Text'])
+
+    expect(builderReducer(inside, { type: 'undo' }).document).toBe(card.document)
+  })
+
+  it('refuses drops into non-containers, beside the root, and parts outside their family', () => {
+    const card = createBuilderState(advuiRegistry, 'Card')
+    expect(insertAt(card, 'Badge', 'card-button', 'inside')).toBe(card)
+    expect(insertAt(card, 'Badge', 'card', 'before')).toBe(card)
+    // Card.Title lives in Card.Header in the template, so it may not move into Card.Content.
+    expect(place(card, 'card-title', 'card-content', 'inside')).toBe(card)
+    expect(place(card, 'card-title', 'card-image', 'after')).toBe(card)
+
+    const stack = createBuilderState(advuiRegistry, 'Stack')
+    expect(insertAt(stack, 'Badge', 'stack', 'inside').document.children).toHaveLength(3)
+  })
+
+  it('still reorders parts among their own siblings and duplicates them', () => {
+    const select = createBuilderState(advuiRegistry, 'Select', { selectedId: 'select-pear' })
+    const moved = place(select, 'select-pear', 'select-apple', 'before')
+    expect(moved.document.children.map((child) => child.id)).toEqual(['select-pear', 'select-apple', 'select-orange'])
+    const copied = builderReducer(select, { type: 'duplicate' })
+    expect(copied.document.children).toHaveLength(4)
+    // Select is not a container, so new layers cannot be dropped into it from outside.
+    expect(insertAt(select, 'Badge', 'select-pear', 'after')).toBe(select)
   })
 })

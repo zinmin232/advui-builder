@@ -2,6 +2,9 @@
 
 Selection-driven visual builder for [AdvUI](https://github.com/zinmin232/advui). Click an element in the preview, edit it in the inspector, and copy the TSX.
 
+- **Component mode** customizes one component and its parts.
+- **Page mode** builds a page. Drag components from the sidebar onto the canvas or the Layers tree, or click one to add it. To move an element, select it and drag its name tag, or drag its row in Layers. A line or box shows where it will land, and drops a component can't accept are refused.
+
 Components render from `@advui/core`. The `advui` package is the published CLI.
 
 ## Component metadata
@@ -40,6 +43,7 @@ pnpm dev
 pnpm test
 pnpm typecheck
 pnpm build
+pnpm e2e    # browser tests; run `pnpm exec playwright install chromium` once first
 ```
 
 Open `http://localhost:5173`. A nested Card (Header, Title, Image, Footer, Button) is the reference composition for click-to-select.
