@@ -25,8 +25,9 @@ export const ElementTree = memo(function ElementTree({
 }) {
   const registry = useRegistry()
   const empty = node.children.length === 0 && registry.acceptsChildren(node.component)
+  const invisible = registry.has(node.component) && registry.get(node.component).invisible === true
   return (
-    <Selectable id={node.id}>
+    <Selectable id={node.id} invisible={invisible}>
       {renderNode(
         node,
         empty

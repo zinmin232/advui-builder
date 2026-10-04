@@ -116,6 +116,8 @@ export interface ComponentMetadata {
   maxChildren?: number
   /** The repeatable part that "Add item" appends. */
   item?: ItemTemplate
+  /** Draws nothing of its own (a Spacer), so the canvas outlines it. The outline does not change its size. */
+  invisible?: boolean
 }
 
 export interface ConfigNode {

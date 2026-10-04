@@ -84,14 +84,25 @@ function splitDocs(docs: PropDoc[]): PropDoc[] {
   return split.filter((doc) => !names.has(`default${doc.name.charAt(0).toUpperCase()}${doc.name.slice(1)}`))
 }
 
+/**
+ * The select options: the documented closed list (0.8.0), or the literals of a
+ * string union. A list of numbers (`1 | 2`) is left out, since a select edits strings.
+ */
+function selectOptions(doc: PropDoc): PropOption[] | null {
+  const numeric = doc.options?.every((value) => /^-?\d+(\.\d+)?$/.test(value)) && !doc.type.includes("'")
+  if (doc.options?.length && !numeric) {
+    return doc.options.map((value) => ({ label: titleCase(value), value }))
+  }
+  return unionOptions(doc.type)
+}
+
 function editorType(doc: PropDoc): PropType | null {
   if (doc.type.includes('=>') || doc.type.includes('ReactNode') || doc.type.includes('ReactElement')) {
     return null
   }
   // Event handlers and shorthand rows (`$sm / $md …`) have no editor.
   if (!/^[A-Za-z][\w-]*$/.test(doc.name) || /^on[A-Z]/.test(doc.name)) return null
-  const options = unionOptions(doc.type)
-  if (options) return 'select'
+  if (selectOptions(doc)) return 'select'
   if (doc.type === 'boolean') return 'boolean'
   if (doc.type === 'number') return 'number'
   if (/^string( \||$)/.test(doc.type)) return 'string'
@@ -101,7 +112,7 @@ function editorType(doc: PropDoc): PropType | null {
 function propFromDoc(doc: PropDoc): PropMetadata | null {
   const type = editorType(doc)
   if (!type) return null
-  const options = type === 'select' ? unionOptions(doc.type) ?? undefined : undefined
+  const options = type === 'select' ? selectOptions(doc) ?? undefined : undefined
   const documented = parseLiteralDefault(doc.default)
   return {
     key: doc.name,
@@ -112,6 +123,8 @@ function propFromDoc(doc: PropDoc): PropMetadata | null {
     defaultValue: documented === undefined && type === 'boolean' ? false : documented,
     options,
     required: doc.required,
+    ...(type === 'number' ? { min: doc.min, max: doc.max, step: doc.step } : {}),
+    platforms: doc.platforms?.map(toBuilderPlatform),
   }
 }
 
@@ -153,6 +166,8 @@ export interface AdaptOptions {
   propOverrides?: Record<string, Partial<PropMetadata>>
   /** Sidebar group, when the builder groups a component differently from AdvUI's docs. */
   category?: CategoryId
+  /** Documented props left out of the inspector, such as raw style props a short prop already sets. */
+  omit?: string[]
   /** Starter tree opened from the sidebar. */
   template?: TemplateNode
   /** Other layers can be inserted or dropped inside it. */
@@ -163,6 +178,8 @@ export interface AdaptOptions {
   maxChildren?: number
   /** The repeatable part that "Add item" appends. */
   item?: ItemTemplate
+  /** Draws nothing of its own, so the canvas outlines it. */
+  invisible?: boolean
 }
 
 /**
@@ -194,6 +211,7 @@ export function adaptAdvuiMeta(meta: ComponentMeta, options: AdaptOptions = {}):
   }
 
   for (const doc of splitDocs(part?.props ?? [])) {
+    if (options.omit?.includes(doc.name)) continue
     const base = propFromDoc(doc)
     if (!base || props.some((prop) => prop.key === base.key)) continue
     const control = controls.get(doc.name)
@@ -260,6 +278,7 @@ export function adaptAdvuiMeta(meta: ComponentMeta, options: AdaptOptions = {}):
     parents: options.parents,
     maxChildren: options.maxChildren,
     item: options.item,
+    invisible: options.invisible,
     examples: meta.examples.map((example) => ({
       name: example.name,
       title: example.title,

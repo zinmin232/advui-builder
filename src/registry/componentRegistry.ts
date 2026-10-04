@@ -1,7 +1,7 @@
-import { adaptAdvuiMeta } from './adaptMeta'
+import { adaptAdvuiMeta, type AdaptOptions } from './adaptMeta'
 import type { PropMetadata, TemplateNode } from './metadata'
 import { createRegistry } from './registry'
-import { alertDialogMeta, alertMeta, avatarMeta, badgeMeta, buttonMeta, cardMeta, chipMeta, dropdownMenuMeta, emptyStateMeta, imageMeta, inputMeta, listMeta, paginationMeta, searchMeta, typographyMeta, toastMeta, tooltipMeta, aspectRatioMeta, checkboxMeta, containerMeta, gridMeta, labelMeta, numberInputMeta, passwordInputMeta, progressMeta, radioGroupMeta, scrollAreaMeta, selectMeta, separatorMeta, skeletonMeta, sliderMeta, spinnerMeta, stackMeta, switchMeta, tabsMeta, textareaMeta } from './sourceMeta'
+import { alertDialogMeta, alertMeta, avatarMeta, badgeMeta, buttonMeta, cardMeta, chipMeta, dropdownMenuMeta, emptyStateMeta, imageMeta, inputMeta, listMeta, paginationMeta, searchMeta, typographyMeta, toastMeta, tooltipMeta, aspectRatioMeta, checkboxMeta, containerMeta, gridMeta, labelMeta, numberInputMeta, passwordInputMeta, progressMeta, radioGroupMeta, scrollAreaMeta, selectMeta, separatorMeta, skeletonMeta, sliderMeta, spinnerMeta, stackMeta, switchMeta, tabsMeta, textareaMeta, wrapMeta } from './sourceMeta'
 import {
   backgroundProp,
   borderColorProp,
@@ -222,60 +222,75 @@ const scrollArea = adaptAdvuiMeta(scrollAreaMeta, {
   acceptsChildren: true,
 })
 
-// Upstream documents Box, Stack and HStack together, with open-ended flex types (`'row' | 'column' | …`).
-const stack = adaptAdvuiMeta(stackMeta, {
-  part: 'Stack',
-  sidebar: true,
-  importName: 'Stack',
-  extraProps: [
-    {
-      key: 'flexDirection',
-      type: 'select',
-      label: 'Flex Direction',
-      description: 'Column stacks downward. Row lays children side by side.',
-      group: 'component',
-      defaultValue: 'column',
-      options: [
-        { label: 'Column', value: 'column' },
-        { label: 'Row', value: 'row' },
-      ],
-    },
-    {
-      key: 'alignItems',
-      type: 'select',
-      label: 'Align Items',
-      description: 'Alignment on the cross axis.',
-      group: 'component',
-      defaultValue: 'stretch',
-      options: [
-        { label: 'Stretch', value: 'stretch' },
-        { label: 'Flex Start', value: 'flex-start' },
-        { label: 'Center', value: 'center' },
-        { label: 'Flex End', value: 'flex-end' },
-      ],
-    },
-    {
-      key: 'justifyContent',
-      type: 'select',
-      label: 'Justify Content',
-      description: 'Alignment on the main axis.',
-      group: 'component',
-      defaultValue: 'flex-start',
-      options: [
-        { label: 'Flex Start', value: 'flex-start' },
-        { label: 'Center', value: 'center' },
-        { label: 'Flex End', value: 'flex-end' },
-        { label: 'Space Between', value: 'space-between' },
-      ],
-    },
-    gapProp,
-    paddingProp,
-    widthProp,
-  ],
+// `direction`, `align`, `distribute` and `wrap` set the same styles as the raw
+// props upstream also documents, so the inspector shows only the short ones.
+const rawFlexProps = ['flexDirection', 'alignItems', 'justifyContent', 'flexWrap']
+
+// Upstream documents Box, Stack, HStack, VStack, Center and Spacer on one page; each is its own entry here.
+function stackPart(part: string, options: AdaptOptions = {}) {
+  return adaptAdvuiMeta(stackMeta, {
+    part,
+    sidebar: true,
+    importName: part,
+    omit: rawFlexProps,
+    extraProps: [gapProp, paddingProp, widthProp],
+    acceptsChildren: true,
+    ...options,
+  })
+}
+
+const stack = stackPart('Stack', {
   template: node('stack', 'Stack', 'Stack', { gap: 12 }, [
     node('stack-text', 'Text', 'Text', {}, [], 'First'),
     node('stack-button', 'Button', 'Button', {}, [], 'Second'),
   ]),
+})
+
+const hStack = stackPart('HStack', {
+  template: node('hstack', 'HStack', 'HStack', { gap: 12, width: '100%' }, [
+    node('hstack-text', 'Text', 'Text', {}, [], 'Left'),
+    node('hstack-spacer', 'Spacer', 'Spacer'),
+    node('hstack-button', 'Button', 'Button', {}, [], 'Right'),
+  ]),
+})
+
+const vStack = stackPart('VStack', {
+  template: node('vstack', 'VStack', 'VStack', { gap: 12, width: '320px' }, [
+    node('vstack-title', 'Text', 'Text', { weight: 'semibold' }, [], 'Title'),
+    node('vstack-text', 'Text', 'Text', {}, [], 'Children stack downward.'),
+    node('vstack-button', 'Button', 'Button', {}, [], 'Action'),
+  ]),
+})
+
+// Box and Center document no props of their own; they take View style props.
+const boxProps = [paddingProp, widthProp, heightProp, backgroundProp, radiusProp]
+
+const box = stackPart('Box', {
+  extraProps: boxProps,
+  template: node('box', 'Box', 'Box', { padding: 16, backgroundColor: '$muted', borderRadius: 8 }, [
+    node('box-text', 'Text', 'Text', {}, [], 'A Box takes any style prop.'),
+  ]),
+})
+
+const center = stackPart('Center', {
+  extraProps: boxProps,
+  template: node('center', 'Center', 'Center', {
+    width: '320px',
+    height: '160px',
+    backgroundColor: '$muted',
+    borderRadius: 8,
+  }, [node('center-text', 'Text', 'Text', {}, [], 'Centered')]),
+})
+
+const spacer = stackPart('Spacer', { extraProps: [], acceptsChildren: false, invisible: true })
+
+const wrap = adaptAdvuiMeta(wrapMeta, {
+  extraProps: [gapProp, paddingProp, widthProp],
+  template: node('wrap', 'Wrap', 'Wrap', { width: '320px' },
+    ['Design', 'Research', 'Engineering', 'Marketing', 'Support'].map((tag) =>
+      node(`wrap-${tag.toLowerCase()}`, 'Badge', tag, {}, [], tag),
+    ),
+  ),
   acceptsChildren: true,
 })
 
@@ -811,6 +826,12 @@ export const advuiRegistry = createRegistry({
     dropdownMenuItem,
     dropdownMenuSeparator,
     stack,
+    hStack,
+    vStack,
+    box,
+    center,
+    spacer,
+    wrap,
     grid,
     container,
     aspectRatio,

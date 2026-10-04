@@ -7,7 +7,8 @@
  *   pnpm sync-meta --check   exit 1 when the snapshot does not match upstream
  *
  * Meta files are parsed, never executed: each one is a single
- * `export default defineMeta({...})` object literal of plain data.
+ * `export default defineMeta({...})` object literal of plain data, which may
+ * use the file's own `const`s and one-expression helper functions.
  * Set GITHUB_TOKEN to raise the GitHub API rate limit.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -33,6 +34,7 @@ const SLUGS = [
   'grid',
   'scroll-area',
   'stack',
+  'wrap',
   'label',
   'textarea',
   'checkbox',
@@ -104,12 +106,69 @@ function fail(file, node, message) {
   return new Error(`${file.fileName}:${line + 1}: ${message}`)
 }
 
-/** Converts a data-only expression (literals, arrays, objects) to a value. */
-function literal(node, file) {
-  if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node)) {
-    return literal(node.expression, file)
+function unwrap(node) {
+  return ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node)
+    ? unwrap(node.expression)
+    : node
+}
+
+/**
+ * A helper the meta file declares to repeat a prop list, such as
+ * `function stackProps({ direction }) { return [...] }` or `(verb) => [...]`.
+ * Its body must be one data expression; calling it evaluates that expression
+ * with the arguments bound, the same way as the rest of the file.
+ */
+class Helper {
+  constructor(fn, file, scope) {
+    this.fn = fn
+    this.file = file
+    this.scope = scope
   }
+
+  call(args, at) {
+    const { fn, file } = this
+    let body = fn.body
+    if (ts.isBlock(body)) {
+      const [only, extra] = body.statements
+      if (!only || extra || !ts.isReturnStatement(only) || !only.expression) {
+        throw fail(file, at, 'a helper must be a single `return` of plain data')
+      }
+      body = only.expression
+    }
+    const local = new Map(this.scope)
+    fn.parameters.forEach((parameter, index) => {
+      const value = args[index] ?? (parameter.initializer ? literal(parameter.initializer, file, local) : undefined)
+      bind(parameter.name, value, file, local)
+    })
+    return literal(body, file, local)
+  }
+}
+
+function bind(name, value, file, scope) {
+  if (ts.isIdentifier(name)) {
+    scope.set(name.text, value)
+    return
+  }
+  if (!ts.isObjectBindingPattern(name)) throw fail(file, name, 'only plain and `{ a, b }` parameters are supported')
+  for (const element of name.elements) {
+    const key = (element.propertyName ?? element.name).getText(file)
+    let item = value?.[key]
+    if (item === undefined && element.initializer) item = literal(element.initializer, file, scope)
+    bind(element.name, item, file, scope)
+  }
+}
+
+/**
+ * Converts a data-only expression (literals, arrays, objects, template
+ * strings) to a value. Names resolve to the file's own `const`s and helpers.
+ */
+function literal(node, file, scope = new Map()) {
+  const value = (child) => literal(child, file, scope)
+  node = unwrap(node)
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text
+  if (ts.isTemplateExpression(node)) {
+    return node.templateSpans.reduce((text, span) => `${text}${value(span.expression)}${span.literal.text}`, node.head.text)
+  }
   if (ts.isNumericLiteral(node)) return Number(node.text)
   if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.MinusToken && ts.isNumericLiteral(node.operand)) {
     return -Number(node.operand.text)
@@ -117,18 +176,59 @@ function literal(node, file) {
   if (node.kind === ts.SyntaxKind.TrueKeyword) return true
   if (node.kind === ts.SyntaxKind.FalseKeyword) return false
   if (node.kind === ts.SyntaxKind.NullKeyword) return null
-  if (ts.isArrayLiteralExpression(node)) return node.elements.map((element) => literal(element, file))
+  if (ts.isIdentifier(node)) {
+    if (node.text === 'undefined') return undefined
+    const bound = scope.get(node.text)
+    if (!scope.has(node.text) || bound instanceof Helper) throw fail(file, node, `unknown value \`${node.text}\``)
+    return bound
+  }
+  if (ts.isArrayLiteralExpression(node)) {
+    return node.elements.flatMap((element) => (ts.isSpreadElement(element) ? value(element.expression) : [value(element)]))
+  }
   if (ts.isObjectLiteralExpression(node)) {
-    const value = {}
-    for (const property of node.properties) {
-      if (!ts.isPropertyAssignment(property) || !(ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))) {
-        throw fail(file, property, 'only plain `key: value` properties are supported')
-      }
-      value[property.name.text] = literal(property.initializer, file)
+    const object = {}
+    const set = (name, item) => {
+      if (item !== undefined) object[name] = item
     }
-    return value
+    for (const property of node.properties) {
+      if (ts.isSpreadAssignment(property)) Object.assign(object, value(property.expression))
+      else if (ts.isShorthandPropertyAssignment(property)) set(property.name.text, value(property.name))
+      else if (ts.isPropertyAssignment(property) && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))) {
+        set(property.name.text, value(property.initializer))
+      } else throw fail(file, property, 'only plain `key: value` properties are supported')
+    }
+    return object
+  }
+  if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+    const helper = scope.get(node.expression.text)
+    if (helper instanceof Helper) return helper.call(node.arguments.map(value), node)
   }
   throw fail(file, node, `unsupported syntax: ${node.getText(file).slice(0, 60)}`)
+}
+
+/** The file's top-level `const`s and helper functions, by name. Imports and types are skipped. */
+function fileScope(file) {
+  const scope = new Map()
+  for (const statement of file.statements) {
+    if (ts.isFunctionDeclaration(statement) && statement.name && statement.body) {
+      scope.set(statement.name.text, new Helper(statement, file, scope))
+    } else if (ts.isVariableStatement(statement) && statement.declarationList.flags & ts.NodeFlags.Const) {
+      for (const declaration of statement.declarationList.declarations) {
+        if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue
+        const init = unwrap(declaration.initializer)
+        if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) {
+          scope.set(declaration.name.text, new Helper(init, file, scope))
+          continue
+        }
+        try {
+          scope.set(declaration.name.text, literal(init, file, scope))
+        } catch {
+          // Not data. The meta object can't use it, and reports it as unknown if it tries.
+        }
+      }
+    }
+  }
+  return scope
 }
 
 function parseMeta(path, source) {
@@ -138,7 +238,7 @@ function parseMeta(path, source) {
   if (!call || !ts.isCallExpression(call) || call.expression.getText(file) !== 'defineMeta' || !call.arguments[0]) {
     throw new Error(`${path}: expected \`export default defineMeta({...})\``)
   }
-  return literal(call.arguments[0], file)
+  return literal(call.arguments[0], file, fileScope(file))
 }
 
 function pick(meta) {
