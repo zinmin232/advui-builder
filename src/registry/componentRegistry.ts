@@ -26,6 +26,7 @@ function advuiMeta(slug: string): ComponentMeta {
 const alertDialogMeta = advuiMeta('alert-dialog')
 const alertMeta = advuiMeta('alert')
 const aspectRatioMeta = advuiMeta('aspect-ratio')
+const autoGridMeta = advuiMeta('auto-grid')
 const avatarMeta = advuiMeta('avatar')
 const badgeMeta = advuiMeta('badge')
 const buttonMeta = advuiMeta('button')
@@ -47,12 +48,15 @@ const progressMeta = advuiMeta('progress')
 const radioGroupMeta = advuiMeta('radio-group')
 const scrollAreaMeta = advuiMeta('scroll-area')
 const searchMeta = advuiMeta('search')
+const sectionMeta = advuiMeta('section')
 const selectMeta = advuiMeta('select')
 const separatorMeta = advuiMeta('separator')
+const showHideMeta = advuiMeta('show-hide')
 const skeletonMeta = advuiMeta('skeleton')
 const sliderMeta = advuiMeta('slider')
 const spinnerMeta = advuiMeta('spinner')
 const stackMeta = advuiMeta('stack')
+const stickyMeta = advuiMeta('sticky')
 const switchMeta = advuiMeta('switch')
 const tabsMeta = advuiMeta('tabs')
 const textareaMeta = advuiMeta('textarea')
@@ -241,6 +245,60 @@ const gridItem = adaptAdvuiMeta(gridMeta, {
   propOverrides: { span: { max: 12 }, offset: { max: 11 } },
 })
 
+const tile = (id: string, label: string) =>
+  node(id, 'Box', label, { padding: 16, backgroundColor: '$muted', borderRadius: 8 }, [
+    node(`${id}-text`, 'Text', 'Text', {}, [], label),
+  ])
+
+// As many equal columns as fit at `minChildWidth`, from the AutoGrid's own width.
+const autoGrid = adaptAdvuiMeta(autoGridMeta, {
+  extraProps: [gapProp],
+  template: node('auto-grid', 'AutoGrid', 'Auto grid', { minChildWidth: 160 }, [
+    tile('auto-grid-one', 'One'),
+    tile('auto-grid-two', 'Two'),
+    tile('auto-grid-three', 'Three'),
+    tile('auto-grid-four', 'Four'),
+  ]),
+})
+
+const section = adaptAdvuiMeta(sectionMeta, {
+  template: node('section', 'Section', 'Section', { background: 'muted' }, [
+    node('section-content', 'VStack', 'Content', { gap: 8 }, [
+      node('section-title', 'Text', 'Title', { size: '2xl', weight: 'bold' }, [], 'Section title'),
+      node('section-text', 'Text', 'Text', { tone: 'muted' }, [], 'A band of the page with its own spacing.'),
+    ]),
+  ]),
+})
+
+const sticky = adaptAdvuiMeta(stickyMeta, {
+  template: node('sticky', 'Sticky', 'Sticky', {}, [
+    node('sticky-bar', 'HStack', 'Bar', { gap: 12, padding: 12, width: '100%', backgroundColor: '$background' }, [
+      node('sticky-brand', 'Text', 'Brand', { weight: 'semibold' }, [], 'Brand'),
+      node('sticky-spacer', 'Spacer', 'Spacer'),
+      node('sticky-action', 'Button', 'Button', {}, [], 'Sign in'),
+    ]),
+  ]),
+})
+
+// Show and Hide are documented on one page; each is its own entry here.
+const show = adaptAdvuiMeta(showHideMeta, {
+  part: 'Show',
+  sidebar: true,
+  importName: 'Show',
+  template: node('show', 'Show', 'Show', { above: 'md' }, [
+    node('show-text', 'Text', 'Text', {}, [], 'Shown from md up'),
+  ]),
+})
+
+const hide = adaptAdvuiMeta(showHideMeta, {
+  part: 'Hide',
+  sidebar: true,
+  importName: 'Hide',
+  template: node('hide', 'Hide', 'Hide', { below: 'md' }, [
+    node('hide-text', 'Text', 'Text', {}, [], 'Hidden below md'),
+  ]),
+})
+
 // A ScrollArea holds one child, its scrolling content.
 const scrollArea = adaptAdvuiMeta(scrollAreaMeta, {
   extraProps: [heightProp, widthProp],
@@ -267,8 +325,8 @@ function stackPart(part: string, options: AdaptOptions = {}) {
     sidebar: true,
     importName: part,
     omit: rawFlexProps,
-    extraProps: [gapProp, paddingProp, widthProp, flexProp],
-      ...options,
+    extraProps: [gapProp, paddingProp, widthProp, flexProp, backgroundProp],
+    ...options,
   })
 }
 
@@ -886,7 +944,12 @@ export const advuiRegistry = createRegistry({
     wrap,
     grid,
     gridItem,
+    autoGrid,
     container,
+    section,
+    sticky,
+    show,
+    hide,
     aspectRatio,
     scrollArea,
     separator,

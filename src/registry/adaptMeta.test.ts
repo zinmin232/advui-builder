@@ -75,7 +75,23 @@ describe('platform metadata', () => {
   })
 
   it('lists the layout components and gives them a starter document', () => {
-    const layout = ['AspectRatio', 'Container', 'Grid', 'ScrollArea', 'Stack', 'HStack', 'VStack', 'Box', 'Center', 'Wrap']
+    const layout = [
+      'AspectRatio',
+      'Container',
+      'Grid',
+      'ScrollArea',
+      'Stack',
+      'HStack',
+      'VStack',
+      'Box',
+      'Center',
+      'Wrap',
+      'AutoGrid',
+      'Section',
+      'Sticky',
+      'Show',
+      'Hide',
+    ]
     const names = advuiRegistry.sidebarEntries().map((entry) => entry.name)
     expect(names).toEqual(expect.arrayContaining([...layout, 'Spacer']))
     for (const name of layout) {
@@ -87,6 +103,10 @@ describe('platform metadata', () => {
     expect(starterCode('Grid')).toContain('<Grid\n  columns={2}\n>')
     expect(starterCode('Stack')).toContain('gap={12}')
     expect(starterCode('ScrollArea')).toContain('aria-label="Notes"')
+    expect(starterCode('Show')).toContain('<Show\n  above="md"\n>')
+    expect(starterCode('Hide')).toContain("import { Hide, Text } from '@advui/core'")
+    expect(starterCode('AutoGrid')).toContain('minChildWidth={160}')
+    expect(starterCode('Section')).toContain('background="muted"')
   })
 
   it('edits each stack with the short flex props, with that stack’s defaults', () => {

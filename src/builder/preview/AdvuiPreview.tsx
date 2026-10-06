@@ -1,7 +1,8 @@
-import { Alert, AlertDialog, AspectRatio, Avatar, Badge, Box, Button, Card, Center, Checkbox, Chip, Container, DropdownMenu, EmptyState, Grid, HStack, Image, Input, Label, List, NumberInput, Pagination, PasswordInput, Progress, RadioGroup, ScrollArea, Search, Select, Separator, Skeleton, Slider, Spacer, Spinner, Stack, Switch, Tabs, Text, Textarea, Toaster, Tooltip, UniversalProvider, VStack, Wrap, createUniversalConfig, toast } from '@advui/core'
+import { Alert, AlertDialog, AspectRatio, AutoGrid, Avatar, Badge, Box, Button, Card, Center, Checkbox, Chip, Container, DropdownMenu, EmptyState, Grid, Hide, HStack, Image, Input, Label, List, NumberInput, Pagination, PasswordInput, Progress, RadioGroup, ScrollArea, Search, Section, Select, Separator, Show, Skeleton, Slider, Spacer, Spinner, Stack, Sticky, Switch, Tabs, Text, Textarea, Toaster, Tooltip, UniversalProvider, VStack, Wrap, createUniversalConfig, toast } from '@advui/core'
 import { Children, useEffect, useRef, type ReactNode } from 'react'
 import type { ConfigNode } from '../../registry/metadata'
 import { resolveProps } from '../../registry/registry'
+import { inRange } from '../../registry/responsive'
 import type { PreviewContext, PreviewKit } from './previewKit'
 
 const config = createUniversalConfig({ preset: 'indigo', radius: 'md' })
@@ -28,6 +29,11 @@ const views: Record<string, ViewComponent> = {
   Container: asView(Container),
   Grid: asView(Grid),
   'Grid.Item': asView(Grid.Item),
+  AutoGrid: asView(AutoGrid),
+  Section: asView(Section),
+  Sticky: asView(Sticky),
+  Show: asView(Show),
+  Hide: asView(Hide),
   ScrollArea: asView(ScrollArea),
   Stack: asView(Stack),
   HStack: asView(HStack),
@@ -188,6 +194,11 @@ export function renderAdvuiNode(node: ConfigNode, children: ReactNode, context: 
     ...resolveProps(meta, node.props, context.platform, context.screen),
   }
   if (node.component === 'Grid') return renderGrid(node, children, props, context)
+  // Show and Hide use media queries, which follow the browser window. The preview decides from its own width.
+  if (node.component === 'Show' || node.component === 'Hide') {
+    const shown = inRange(context.screen.breakpoint, context.screen.keys, props) === (node.component === 'Show')
+    return <Box display={shown ? 'contents' : 'none'}>{children}</Box>
+  }
   if (node.component === 'Grid.Item') {
     return (
       <Box flex={1} minWidth={0}>

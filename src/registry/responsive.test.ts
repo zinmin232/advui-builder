@@ -1,4 +1,4 @@
-import { breakpointAt, breakpointKeys, valueAt, valueForScreen, withValueAt } from './responsive'
+import { breakpointAt, breakpointKeys, inRange, valueAt, valueForScreen, withValueAt } from './responsive'
 
 const breakpoints = [
   { name: 'sm', minWidth: 640 },
@@ -32,6 +32,16 @@ describe('responsive values', () => {
     expect(withValueAt({ base: 'column', md: 'row' }, 'md', undefined, keys)).toBe('column')
     expect(withValueAt({ md: 8 }, 'md', undefined, keys)).toBeUndefined()
     expect(withValueAt('column', 'base', 'row', keys)).toBe('row')
+  })
+
+  it('tells whether a breakpoint is within an above / below range', () => {
+    expect(inRange('md', keys, { above: 'md' })).toBe(true)
+    expect(inRange('sm', keys, { above: 'md' })).toBe(false)
+    expect(inRange('sm', keys, { below: 'md' })).toBe(true)
+    expect(inRange('md', keys, { below: 'md' })).toBe(false)
+    expect(inRange('md', keys, { above: 'sm', below: 'lg' })).toBe(true)
+    expect(inRange('lg', keys, { above: 'sm', below: 'lg' })).toBe(false)
+    expect(inRange('base', keys, {})).toBe(true)
   })
 
   it('gives the preview the value for its breakpoint, or an empty map below a map without base', () => {

@@ -58,6 +58,14 @@ export function withValueAt(value: unknown, key: string, next: unknown, keys: re
   return ordered
 }
 
+/** Whether breakpoint `key` is in a range: from `above` (inclusive) up to `below` (exclusive). */
+export function inRange(key: string, keys: readonly string[], range: { above?: unknown; below?: unknown }): boolean {
+  const at = keys.indexOf(key)
+  const from = typeof range.above === 'string' ? keys.indexOf(range.above) : -1
+  const to = typeof range.below === 'string' ? keys.indexOf(range.below) : -1
+  return (from < 0 || at >= from) && (to < 0 || at < to)
+}
+
 /**
  * The value a component should get to look as it does on a screen at breakpoint `key`, without media queries:
  * the value that applies there, or an empty map below the first breakpoint of a map without `base`, which the
