@@ -173,11 +173,14 @@ export interface AdaptOptions {
   omit?: string[]
   /** Starter tree opened from the sidebar. */
   template?: TemplateNode
-  /** Other layers can be inserted or dropped inside it. */
+  /**
+   * Drop rules, which default to the part's upstream `children`, `parents` and `within`. Set `acceptsChildren:
+   * false` where upstream allows elements but the builder edits the part as text. See `ComponentMetadata`.
+   */
   acceptsChildren?: boolean
-  /** Drop rules: allowed children, allowed parents, and capacity. See `ComponentMetadata`. */
   accepts?: string[]
   parents?: string[]
+  within?: string
   maxChildren?: number
   /** The repeatable part that "Add item" appends. */
   item?: ItemTemplate
@@ -251,6 +254,9 @@ export function adaptAdvuiMeta(meta: ComponentMeta, options: AdaptOptions = {}):
     }
   }
 
+  const rules = part?.children
+  const holds = rules != null && rules.accepts !== 'text' && rules.accepts !== 'none'
+
   const platforms = emptyPlatforms()
   for (const platform of meta.platforms) {
     const note = meta.platformNotes?.[platform]
@@ -275,10 +281,11 @@ export function adaptAdvuiMeta(meta: ComponentMeta, options: AdaptOptions = {}):
     platforms,
     staticProps: options.staticProps,
     template: options.template,
-    acceptsChildren: options.acceptsChildren,
-    accepts: options.accepts,
-    parents: options.parents,
-    maxChildren: options.maxChildren,
+    acceptsChildren: options.acceptsChildren ?? holds,
+    accepts: options.accepts ?? (Array.isArray(rules?.accepts) ? rules.accepts : undefined),
+    parents: options.parents ?? part?.parents,
+    within: options.within ?? part?.within,
+    maxChildren: options.maxChildren ?? rules?.max,
     item: options.item,
     invisible: options.invisible,
     examples: meta.examples.map((example) => ({

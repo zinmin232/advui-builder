@@ -106,10 +106,12 @@ export interface ComponentMetadata {
   /** When set, only these components may go inside. */
   accepts?: string[]
   /**
-   * When set, it may only go inside these components. Compound parts without it may only go where the
-   * templates put them (`Card.Title` inside `Card.Header`).
+   * When set, it may only go directly inside these components. Compound parts without it or `within` may only
+   * go where the templates put them (`Card.Title` inside `Card.Header`).
    */
   parents?: string[]
+  /** When set, it must sit somewhere inside this component, because it reads its context. */
+  within?: string
   /** Most children it can hold. */
   maxChildren?: number
   /** The repeatable part that "Add item" appends. */

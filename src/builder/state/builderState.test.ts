@@ -431,7 +431,30 @@ describe('drop rules', () => {
     expect(moved.document.children.map((child) => child.id)).toEqual(['select-pear', 'select-apple', 'select-orange'])
     const copied = builderReducer(select, { type: 'duplicate' })
     expect(copied.document.children).toHaveLength(4)
-    // Select is not a container, so new layers cannot be dropped into it from outside.
+    // Select holds only its options, so other layers cannot be dropped into it.
     expect(insertAt(select, 'Badge', 'select-pear', 'after')).toBe(select)
+  })
+
+  it('keeps parts that read a component’s context inside it when their layer moves', () => {
+    const radio = createBuilderState(advuiRegistry, 'RadioGroup')
+    const row = insertAt(radio, 'HStack', 'radio-group', 'inside')
+    const rowId = row.selectedId
+    const moved = place(row, 'radio-monthly', rowId, 'inside')
+    expect(moved.document.children.find((child) => child.id === rowId)?.children.at(-1)?.id).toBe('radio-monthly')
+
+    // Moved into a Box outside the group, the stack would take the radio item out of its RadioGroup.
+    const page = builderReducer(createBuilderState(advuiRegistry, 'Button', { mode: 'page' }), {
+      type: 'apply-document',
+      component: 'Button',
+      document: {
+        id: 'page',
+        component: 'Stack',
+        label: 'Page',
+        props: {},
+        children: [moved.document, { id: 'outside', component: 'Box', label: 'Box', props: {}, children: [] }],
+      },
+    })
+    expect(place(page, rowId, 'outside', 'inside')).toBe(page)
+    expect(place(page, 'radio-yearly-label', 'outside', 'inside').document.children[1].children).toHaveLength(1)
   })
 })

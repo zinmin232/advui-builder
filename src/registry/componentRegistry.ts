@@ -121,7 +121,6 @@ const card = adaptAdvuiMeta(cardMeta, {
       node('card-button', 'Button', 'Button', {}, [], 'Continue'),
     ]),
   ]),
-  acceptsChildren: true,
 })
 
 const cardHeader = adaptAdvuiMeta(cardMeta, {
@@ -129,7 +128,6 @@ const cardHeader = adaptAdvuiMeta(cardMeta, {
   sidebar: false,
   importName: 'Card',
   extraProps: [gapProp, paddingProp, backgroundProp],
-  acceptsChildren: true,
 })
 
 const cardTitle = adaptAdvuiMeta(cardMeta, {
@@ -153,7 +151,6 @@ const cardContent = adaptAdvuiMeta(cardMeta, {
   sidebar: false,
   importName: 'Card',
   extraProps: [gapProp, paddingProp],
-  acceptsChildren: true,
 })
 
 const cardFooter = adaptAdvuiMeta(cardMeta, {
@@ -161,7 +158,6 @@ const cardFooter = adaptAdvuiMeta(cardMeta, {
   sidebar: false,
   importName: 'Card',
   extraProps: [gapProp, paddingProp],
-  acceptsChildren: true,
 })
 
 const input = adaptAdvuiMeta(inputMeta, {
@@ -219,7 +215,6 @@ const aspectRatio = adaptAdvuiMeta(aspectRatioMeta, {
       height: '100%',
     }),
   ]),
-  acceptsChildren: true,
 })
 
 const container = adaptAdvuiMeta(containerMeta, {
@@ -227,7 +222,6 @@ const container = adaptAdvuiMeta(containerMeta, {
   template: node('container', 'Container', 'Container', {}, [
     node('container-text', 'Text', 'Text', {}, [], 'Page content sits inside the container.'),
   ]),
-  acceptsChildren: true,
 })
 
 // Upstream types `columns` as `number | { sm?, md?, … }`; the builder edits the plain number.
@@ -252,20 +246,21 @@ const grid = adaptAdvuiMeta(gridMeta, {
     node('grid-three', 'Badge', 'Badge', {}, [], 'Three'),
     node('grid-four', 'Button', 'Button', {}, [], 'Four'),
   ]),
-  acceptsChildren: true,
 })
 
+// A ScrollArea holds one child, its scrolling content.
 const scrollArea = adaptAdvuiMeta(scrollAreaMeta, {
   extraProps: [heightProp, widthProp],
   template: node('scroll-area', 'ScrollArea', 'Scroll Area', { height: '120px', 'aria-label': 'Notes' }, [
-    node('scroll-one', 'Text', 'Text', {}, [], 'First note. Add components here to fill the scrolling area.'),
-    node('scroll-two', 'Text', 'Text', {}, [], 'Second note stays inside the fixed height.'),
-    node('scroll-three', 'Text', 'Text', {}, [], 'Third note is reached by scrolling.'),
-    node('scroll-four', 'Text', 'Text', {}, [], 'Fourth note sits below the fold.'),
-    node('scroll-five', 'Text', 'Text', {}, [], 'Fifth note keeps the list long enough to scroll.'),
-    node('scroll-six', 'Button', 'Button', {}, [], 'Action'),
+    node('scroll-content', 'VStack', 'Content', { gap: 8 }, [
+      node('scroll-one', 'Text', 'Text', {}, [], 'First note. Add components here to fill the scrolling area.'),
+      node('scroll-two', 'Text', 'Text', {}, [], 'Second note stays inside the fixed height.'),
+      node('scroll-three', 'Text', 'Text', {}, [], 'Third note is reached by scrolling.'),
+      node('scroll-four', 'Text', 'Text', {}, [], 'Fourth note sits below the fold.'),
+      node('scroll-five', 'Text', 'Text', {}, [], 'Fifth note keeps the list long enough to scroll.'),
+      node('scroll-six', 'Button', 'Button', {}, [], 'Action'),
+    ]),
   ]),
-  acceptsChildren: true,
 })
 
 // `direction`, `align`, `distribute` and `wrap` set the same styles as the raw
@@ -280,8 +275,7 @@ function stackPart(part: string, options: AdaptOptions = {}) {
     importName: part,
     omit: rawFlexProps,
     extraProps: [gapProp, paddingProp, widthProp, flexProp],
-    acceptsChildren: true,
-    ...options,
+      ...options,
   })
 }
 
@@ -328,7 +322,7 @@ const center = stackPart('Center', {
   }, [node('center-text', 'Text', 'Text', {}, [], 'Centered')]),
 })
 
-const spacer = stackPart('Spacer', { extraProps: [], acceptsChildren: false, invisible: true })
+const spacer = stackPart('Spacer', { extraProps: [], invisible: true })
 
 const wrap = adaptAdvuiMeta(wrapMeta, {
   extraProps: [gapProp, paddingProp, widthProp],
@@ -337,7 +331,6 @@ const wrap = adaptAdvuiMeta(wrapMeta, {
       node(`wrap-${tag.toLowerCase()}`, 'Badge', tag, {}, [], tag),
     ),
   ),
-  acceptsChildren: true,
 })
 
 const label = adaptAdvuiMeta(labelMeta, {
@@ -451,7 +444,6 @@ const tabsContent = adaptAdvuiMeta(tabsMeta, {
   part: 'Tabs.Content',
   sidebar: false,
   importName: 'Tabs',
-  acceptsChildren: true,
 })
 
 const avatar = adaptAdvuiMeta(avatarMeta, {
@@ -565,6 +557,8 @@ const alertDescription = adaptAdvuiMeta(alertMeta, {
   sidebar: false,
   importName: 'Alert',
   textDefault: 'The last save did not finish. Try again.',
+  // Upstream lets it hold elements; the builder edits it as text.
+  acceptsChildren: false,
 })
 
 // Upstream types title and description as ReactNode; the builder edits text.
@@ -586,7 +580,6 @@ const emptyState = adaptAdvuiMeta(emptyStateMeta, {
     },
     [node('empty-action', 'Button', 'Button', {}, [], 'Create one')],
   ),
-  acceptsChildren: true,
 })
 
 const search = adaptAdvuiMeta(searchMeta, {
@@ -608,7 +601,6 @@ const list = adaptAdvuiMeta(listMeta, {
     node('list-inbox', 'List.Item', 'Inbox', { title: 'Inbox', description: '3 new messages' }),
     node('list-drafts', 'List.Item', 'Drafts', { title: 'Drafts', description: '1 unsent draft' }),
   ]),
-  acceptsChildren: true,
   item: {
     noun: 'item',
     part: 'List.Item',
@@ -624,6 +616,8 @@ const listItem = adaptAdvuiMeta(listMeta, {
     stringProp('title', 'Title', 'Main line of the row.', true),
     stringProp('description', 'Description', 'Muted second line.'),
   ],
+  // Upstream lets a row hold elements; the builder edits it through title and description.
+  acceptsChildren: false,
 })
 
 const pagination = adaptAdvuiMeta(paginationMeta, {
@@ -663,20 +657,20 @@ const alertDialogTrigger = adaptAdvuiMeta(alertDialogMeta, {
   sidebar: false,
   importName: 'AlertDialog',
   textDefault: 'Delete project',
+  // Upstream lets it hold one element; the builder edits it as text.
+  acceptsChildren: false,
 })
 
 const alertDialogContent = adaptAdvuiMeta(alertDialogMeta, {
   part: 'AlertDialog.Content',
   sidebar: false,
   importName: 'AlertDialog',
-  acceptsChildren: true,
 })
 
 const alertDialogHeader = adaptAdvuiMeta(alertDialogMeta, {
   part: 'AlertDialog.Header',
   sidebar: false,
   importName: 'AlertDialog',
-  acceptsChildren: true,
 })
 
 const alertDialogTitle = adaptAdvuiMeta(alertDialogMeta, {
@@ -697,7 +691,6 @@ const alertDialogFooter = adaptAdvuiMeta(alertDialogMeta, {
   part: 'AlertDialog.Footer',
   sidebar: false,
   importName: 'AlertDialog',
-  acceptsChildren: true,
 })
 
 const alertDialogCancel = adaptAdvuiMeta(alertDialogMeta, {
@@ -782,7 +775,6 @@ const dropdownMenuContent = adaptAdvuiMeta(dropdownMenuMeta, {
   part: 'DropdownMenu.Content',
   sidebar: false,
   importName: 'DropdownMenu',
-  acceptsChildren: true,
   item: {
     noun: 'item',
     part: 'DropdownMenu.Item',

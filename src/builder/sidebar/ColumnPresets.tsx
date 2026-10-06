@@ -8,7 +8,7 @@ import { useBuilderActions, useRegistry } from '../state/BuilderProvider'
  * Layout presets: rows of columns whose spans add up to 12. Click one to add it inside the insertion
  * target, or drag it onto the canvas or the Layers tree. Shown only when the registry builds columns.
  */
-export function ColumnPresets({ target }: { target: ConfigNode | null }) {
+export function ColumnPresets({ targetPath }: { targetPath: readonly ConfigNode[] | null }) {
   const registry = useRegistry()
   const actions = useBuilderActions()
   const [open, setOpen] = useState(true)
@@ -20,7 +20,8 @@ export function ColumnPresets({ target }: { target: ConfigNode | null }) {
     [registry],
   )
   if (!root) return null
-  const canInsert = target != null && registry.canPlace(root, target)
+  const target = targetPath?.at(-1) ?? null
+  const canInsert = targetPath != null && registry.canPlace(root, targetPath)
   const hint = target == null
     ? 'Select a layer that can hold components, or drag onto the canvas'
     : canInsert

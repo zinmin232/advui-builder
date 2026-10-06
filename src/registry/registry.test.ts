@@ -122,7 +122,7 @@ describe('component registry', () => {
     expect(() => createRegistry({ ...acmeLibrary, columns: () => ({ component: 'Grid' }) })).toThrow(/unknown component Grid/)
   })
 
-  it('applies accepts, parents, capacity, and template placement rules', () => {
+  it('applies accepts, parents, within, capacity, and template placement rules', () => {
     const rules = createRegistry({
       importSource: '@acme/ui',
       components: [
@@ -131,6 +131,8 @@ describe('component registry', () => {
         meta('Note', { parents: ['Cell'] }),
         meta('Box', { acceptsChildren: true, template: { component: 'Box', children: [{ component: 'Box.Slot' }] } }),
         meta('Box.Slot'),
+        meta('Box.Hint', { within: 'Box' }),
+        meta('Badge', { acceptsChildren: true, accepts: ['Badge.Icon'] }),
       ],
     })
     const node = (component: string, count = 0) => ({
@@ -146,15 +148,25 @@ describe('component registry', () => {
         children: [],
       })),
     })
-    expect(rules.canPlace('Cell', node('Row'))).toBe(true)
-    expect(rules.canPlace('Note', node('Row'))).toBe(false)
-    expect(rules.canPlace('Cell', node('Row', 2))).toBe(false)
-    expect(rules.canPlace('Cell', node('Row', 1), true)).toBe(true)
-    expect(rules.canPlace('Cell', node('Row', 2), true)).toBe(false)
-    expect(rules.canPlace('Note', node('Cell'))).toBe(true)
-    expect(rules.canPlace('Note', node('Box'))).toBe(false)
-    expect(rules.canPlace('Box.Slot', node('Box'))).toBe(true)
-    expect(rules.canPlace('Box.Slot', node('Cell'))).toBe(false)
-    expect(rules.canPlace('Cell', node('Note'))).toBe(false)
+    expect(rules.canPlace('Cell', [node('Row')])).toBe(true)
+    expect(rules.canPlace('Note', [node('Row')])).toBe(false)
+    expect(rules.canPlace('Cell', [node('Row', 2)])).toBe(false)
+    expect(rules.canPlace('Cell', [node('Row', 1)], true)).toBe(true)
+    expect(rules.canPlace('Cell', [node('Row', 2)], true)).toBe(false)
+    expect(rules.canPlace('Note', [node('Cell')])).toBe(true)
+    expect(rules.canPlace('Note', [node('Box')])).toBe(false)
+    expect(rules.canPlace('Box.Slot', [node('Box')])).toBe(true)
+    expect(rules.canPlace('Box.Slot', [node('Cell')])).toBe(false)
+    expect(rules.canPlace('Cell', [node('Note')])).toBe(false)
+    expect(rules.canPlace('Cell', [])).toBe(false)
+    // `within` looks at every ancestor, not only the parent, and replaces the template placement.
+    expect(rules.canPlace('Box.Hint', [node('Box'), node('Cell')])).toBe(true)
+    expect(rules.canPlace('Box.Hint', [node('Row'), node('Cell')])).toBe(false)
+
+    expect(rules.acceptsAny('Cell')).toBe(true)
+    expect(rules.acceptsAny('Row')).toBe(false)
+    expect(rules.acceptsChildren('Row')).toBe(true)
+    // Every part Badge lists is missing from this registry, so it holds nothing here.
+    expect(rules.acceptsChildren('Badge')).toBe(false)
   })
 })

@@ -7,6 +7,7 @@ import {
   canDrop,
   duplicateNode,
   findNode,
+  findPath,
   freshCopy,
   idAllocator,
   insertAt,
@@ -14,7 +15,6 @@ import {
   itemHostId,
   mapTree,
   moveNode,
-  parentOf,
   placeNode,
   removeNode,
   type PlacePosition,
@@ -218,8 +218,8 @@ function restore(state: BuilderState, snap: DocumentSnapshot): BuilderState {
 /** Adds a new tree (a component's starter tree, or a row of columns) at the end of the insertion target. */
 function insertTree(registry: BuilderRegistry, state: BuilderState, tree: ConfigNode): BuilderState {
   const targetId = insertionTarget(registry, state)
-  const target = targetId ? findNode(state.document, targetId) : null
-  if (!targetId || !target || !registry.canPlace(tree.component, target)) return state
+  const path = targetId ? findPath(state.document, targetId) : null
+  if (!targetId || !path || !registry.canPlace(tree.component, path)) return state
   const child = freshCopy(state.document, tree)
   return {
     ...state,
@@ -359,9 +359,9 @@ function applyAction(registry: BuilderRegistry, state: BuilderState, action: Bui
       return { ...state, document }
     }
     case 'duplicate': {
-      const parent = parentOf(state.document, state.selectedId)
-      const node = findNode(state.document, state.selectedId)
-      if (!parent || !node || !registry.canPlace(node.component, parent, true)) return state
+      const path = findPath(state.document, state.selectedId)
+      const node = path?.at(-1)
+      if (!path || !node || !registry.canPlace(node.component, path.slice(0, -1), true)) return state
       const duplicated = duplicateNode(state.document, state.selectedId)
       if (!duplicated) return state
       return { ...state, document: duplicated.tree, selectedId: duplicated.copyId }

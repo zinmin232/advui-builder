@@ -10,14 +10,16 @@ export function findPath(root: ConfigNode, id: string): ConfigNode[] | null {
   return null
 }
 
+/**
+ * Where a sidebar insert goes: the selection, or its nearest ancestor, that takes any component. Hosts that hold
+ * only their own parts (a Select, a Tabs list) are passed over.
+ */
 export function insertTargetId(registry: BuilderRegistry, root: ConfigNode, selectedId: string): string | null {
-  const path = findPath(root, selectedId)
-  if (!path) return null
-  const node = path[path.length - 1]
-  if (registry.acceptsChildren(node.component)) return node.id
-  if (path.length < 2) return null
-  const parent = path[path.length - 2]
-  return registry.acceptsChildren(parent.component) ? parent.id : null
+  const path = findPath(root, selectedId) ?? []
+  for (let index = path.length - 1; index >= 0; index -= 1) {
+    if (registry.acceptsAny(path[index].component)) return path[index].id
+  }
+  return null
 }
 
 export function findNode(root: ConfigNode, id: string): ConfigNode | null {
@@ -99,8 +101,8 @@ export function idAllocator(root: ConfigNode): (component: string) => string {
 
 /**
  * The Select, RadioGroup, Tabs, List or menu that an "add item" applies to:
- * the selection itself or the host it belongs to. A container in between
- * (a Tabs panel holding Text) ends the search.
+ * the selection itself or the host it belongs to. A container in between that
+ * takes any component (a Tabs panel holding Text) ends the search.
  */
 export function itemHostId(registry: BuilderRegistry, root: ConfigNode, selectedId: string): string | null {
   const path = findPath(root, selectedId)
@@ -108,7 +110,7 @@ export function itemHostId(registry: BuilderRegistry, root: ConfigNode, selected
   for (let index = path.length - 1; index >= 0; index -= 1) {
     const node = path[index]
     if (registry.itemNoun(node.component)) return node.id
-    if (index < path.length - 1 && registry.acceptsChildren(node.component)) return null
+    if (index < path.length - 1 && registry.acceptsAny(node.component)) return null
   }
   return null
 }
@@ -201,13 +203,26 @@ export function canDrop(
   position: PlacePosition,
   movingId?: string,
 ): boolean {
-  const target = findNode(root, targetId)
-  if (!target) return false
+  const targetPath = findPath(root, targetId)
+  if (!targetPath) return false
   if (position !== 'inside' && targetId === root.id) return false
-  const parent = position === 'inside' ? target : parentOf(root, targetId)
+  const path = position === 'inside' ? targetPath : targetPath.slice(0, -1)
+  const parent = path.at(-1)
   if (!parent) return false
   if (movingId && parentOf(root, movingId)?.id === parent.id) return true
-  return registry.canPlace(component, parent)
+  if (!registry.canPlace(component, path)) return false
+  const moving = movingId ? findNode(root, movingId) : null
+  return !moving || keepsContext(registry, moving, path)
+}
+
+/** Parts deeper in a moved layer that read a component's context (`within`) must still sit inside it. */
+function keepsContext(registry: BuilderRegistry, node: ConfigNode, ancestors: readonly ConfigNode[]): boolean {
+  const chain = [...ancestors, node]
+  return node.children.every((child) => {
+    const within = registry.get(child.component).within
+    if (within && !chain.some((item) => item.component === within)) return false
+    return keepsContext(registry, child, chain)
+  })
 }
 
 /** Puts `node` inside `targetId` (last) or beside it. Returns null when the target is missing. */
