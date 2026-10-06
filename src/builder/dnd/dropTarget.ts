@@ -78,6 +78,12 @@ export function resolveDrop(
     if (container && position !== 'inside' && accepts('inside')) {
       return { id: node.id, position: 'inside', axis: measured.axis }
     }
+    // An empty container is all "inside". What cannot go in it (a sibling column) lands beside it instead.
+    if (position === 'inside' && index > 0) {
+      const leaf = { container: false, empty: false, root: false, axis: measured.axis }
+      const edge = dropPosition(measured.box, pointer, leaf)
+      if (accepts(edge)) return { id: node.id, position: edge, axis: measured.axis }
+    }
   }
   return null
 }

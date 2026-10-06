@@ -103,22 +103,27 @@ describe('platform metadata', () => {
     expect(starterCode('HStack')).toContain("import { Button, HStack, Spacer, Text } from '@advui/core'")
   })
 
-  it('writes a layout preset as an HStack of Boxes that share the row by their spans', () => {
+  it('writes a layout preset as a 12-column Grid whose items stack below md', () => {
     expect(generateCode(advuiRegistry.createColumns([8, 4]), { registry: advuiRegistry })).toBe(
       [
-        "import { Box, HStack } from '@advui/core'",
+        "import { Grid } from '@advui/core'",
         '',
-        '<HStack',
-        '  align="stretch"',
-        '  gap={16}',
-        '  width="100%"',
+        '<Grid',
+        '  columns={12}',
         '>',
-        '  <Box flex={8} />',
-        '  <Box flex={4} />',
-        '</HStack>',
+        '  <Grid.Item span={{ base: 12, md: 8 }} />',
+        '  <Grid.Item span={{ base: 12, md: 4 }} />',
+        '</Grid>',
         '',
       ].join('\n'),
     )
+    expect(advuiRegistry.createColumns([12]).children[0].props).toEqual({ span: 12 })
+
+    const span = advuiRegistry.get('Grid.Item').props.find((prop) => prop.key === 'span')
+    expect(span).toMatchObject({ type: 'number', defaultValue: 1, min: 1, max: 12, responsive: true })
+    const grid = advuiRegistry.createDocument('Grid')
+    expect(advuiRegistry.canPlace('Grid.Item', [grid])).toBe(true)
+    expect(advuiRegistry.canPlace('Grid.Item', [advuiRegistry.createDocument('Stack')])).toBe(false)
   })
 
   it('puts a Spacer beside the selected layer, and marks only the Spacer as invisible', () => {

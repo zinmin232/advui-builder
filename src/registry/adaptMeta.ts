@@ -107,7 +107,8 @@ function editorType(doc: PropDoc): PropType | null {
   if (!/^[A-Za-z][\w-]*$/.test(doc.name) || /^on[A-Z]/.test(doc.name)) return null
   if (selectOptions(doc)) return 'select'
   if (doc.type === 'boolean') return 'boolean'
-  if (doc.type === 'number') return 'number'
+  // A number that also takes keywords (`number | 'full' | 'auto'`) is edited as the number.
+  if (/^number( \| '[^']*')*$/.test(doc.type)) return 'number'
   if (/^string( \||$)/.test(doc.type)) return 'string'
   return null
 }

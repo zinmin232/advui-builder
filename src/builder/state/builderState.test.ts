@@ -359,8 +359,11 @@ describe('layout presets', () => {
     const page = createBuilderState(advuiRegistry, 'Button', { mode: 'page' })
     const added = builderReducer(page, { type: 'insert-columns', spans: [8, 4] })
     const row = added.document.children[0]
-    expect(row).toMatchObject({ component: 'HStack', label: 'Columns 8 4', props: { align: 'stretch' } })
-    expect(row.children.map((column) => [column.component, column.props.flex])).toEqual([['Box', 8], ['Box', 4]])
+    expect(row).toMatchObject({ component: 'Grid', label: 'Columns 8 4', props: { columns: 12 } })
+    expect(row.children.map((column) => [column.component, column.props.span])).toEqual([
+      ['Grid.Item', { base: 12, md: 8 }],
+      ['Grid.Item', { base: 12, md: 4 }],
+    ])
     expect(added.selectedId).toBe(row.id)
 
     const nested = builderReducer({ ...added, selectedId: row.children[1].id }, { type: 'insert-columns', spans: [6, 6] })
@@ -370,7 +373,7 @@ describe('layout presets', () => {
     expect(builderReducer(added, { type: 'undo' }).document.children).toEqual([])
   })
 
-  it('ignores spans that do not add up to 12, and drops a row only where a stack may go', () => {
+  it('ignores spans that do not add up to 12, and drops a row only where a grid may go', () => {
     const page = createBuilderState(advuiRegistry, 'Button', { mode: 'page' })
     expect(builderReducer(page, { type: 'insert-columns', spans: [6, 5] })).toBe(page)
     const card = builderReducer(page, { type: 'insert', component: 'Card' })
@@ -379,7 +382,7 @@ describe('layout presets', () => {
 
     const beside = builderReducer(card, { ...inside, spans: [4, 4, 4], position: 'before' })
     const footer = beside.document.children[0].children.find((child) => child.component === 'Card.Footer')!
-    expect(footer.children.map((child) => child.component)).toEqual(['HStack', 'Button'])
+    expect(footer.children.map((child) => child.component)).toEqual(['Grid', 'Button'])
     expect(footer.children[0].children).toHaveLength(3)
   })
 })

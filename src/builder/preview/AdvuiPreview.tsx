@@ -27,6 +27,7 @@ const views: Record<string, ViewComponent> = {
   AspectRatio: asView(AspectRatio),
   Container: asView(Container),
   Grid: asView(Grid),
+  'Grid.Item': asView(Grid.Item),
   ScrollArea: asView(ScrollArea),
   Stack: asView(Stack),
   HStack: asView(HStack),
@@ -149,6 +150,34 @@ function renderSelectItem(child: ConfigNode, context: PreviewContext): ReactNode
   )
 }
 
+/**
+ * Grid sizes its Grid.Item children by type, so a cell cannot sit inside a selection wrapper. The Grid draws
+ * each cell around the item's layer, and the layer draws a body that fills the cell. The cell lays the body out
+ * in a row, so drops between items follow the grid's rows.
+ */
+function renderGrid(node: ConfigNode, children: ReactNode, props: Record<string, unknown>, context: PreviewContext) {
+  const layers = Children.toArray(children)
+  if (node.children.length === 0) return <Grid {...props}>{children}</Grid>
+  const itemMeta = context.registry.get('Grid.Item')
+  return (
+    <Grid {...props}>
+      {node.children.map((child, index) =>
+        child.component === 'Grid.Item' ? (
+          <Grid.Item
+            key={child.id}
+            {...resolveProps(itemMeta, child.props, context.platform, context.screen)}
+            flexDirection="row"
+          >
+            {layers[index]}
+          </Grid.Item>
+        ) : (
+          layers[index]
+        ),
+      )}
+    </Grid>
+  )
+}
+
 export function renderAdvuiNode(node: ConfigNode, children: ReactNode, context: PreviewContext): ReactNode {
   if (node.component === 'Toast') return <ToastPreview node={node} context={context} />
   const View = views[node.component]
@@ -157,6 +186,14 @@ export function renderAdvuiNode(node: ConfigNode, children: ReactNode, context: 
   const props = {
     ...(meta.staticProps ?? {}),
     ...resolveProps(meta, node.props, context.platform, context.screen),
+  }
+  if (node.component === 'Grid') return renderGrid(node, children, props, context)
+  if (node.component === 'Grid.Item') {
+    return (
+      <Box flex={1} minWidth={0}>
+        {children}
+      </Box>
+    )
   }
   // Select matches option elements by type, so items cannot sit inside the selection wrapper.
   if (node.component === 'Select') {

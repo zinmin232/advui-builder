@@ -234,6 +234,13 @@ const grid = adaptAdvuiMeta(gridMeta, {
   ]),
 })
 
+const gridItem = adaptAdvuiMeta(gridMeta, {
+  part: 'Grid.Item',
+  sidebar: false,
+  importName: 'Grid',
+  propOverrides: { span: { max: 12 }, offset: { max: 11 } },
+})
+
 // A ScrollArea holds one child, its scrolling content.
 const scrollArea = adaptAdvuiMeta(scrollAreaMeta, {
   extraProps: [heightProp, widthProp],
@@ -800,13 +807,17 @@ export const advuiRegistry = createRegistry({
     { name: 'xxl', minWidth: 1536 },
   ],
   page: node('page', 'Stack', 'Page', { gap: 16, padding: 24 }),
-  // A 12-column row: Boxes share the width of an HStack by their spans. Move to Grid columns once
-  // AdvUI adds `Grid.Item span`.
+  // A 12-column Grid row. Like Bootstrap's `col-md-*`, the columns sit side by side from md up and stack on
+  // smaller screens.
   columns: (spans) => ({
-    component: 'HStack',
+    component: 'Grid',
     label: `Columns ${spans.join(' ')}`,
-    props: { gap: 16, width: '100%', align: 'stretch' },
-    children: spans.map((span, index) => ({ component: 'Box', label: `Column ${index + 1}`, props: { flex: span } })),
+    props: { columns: 12 },
+    children: spans.map((span, index) => ({
+      component: 'Grid.Item',
+      label: `Column ${index + 1}`,
+      props: { span: span === 12 ? 12 : { base: 12, md: span } },
+    })),
   }),
   // Sidebar entries appear in this order. Compound parts follow their component.
   components: [
@@ -874,6 +885,7 @@ export const advuiRegistry = createRegistry({
     spacer,
     wrap,
     grid,
+    gridItem,
     container,
     aspectRatio,
     scrollArea,
