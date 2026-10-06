@@ -23,13 +23,13 @@ pnpm sync-meta --check  # fail if the snapshot differs from upstream
 
 Before committing, run `pnpm typecheck && pnpm test && pnpm build`, plus `pnpm e2e` when you touch drag-and-drop, the canvas, or Layers. There is no ESLint or Prettier config. Match the existing style by hand.
 
-CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`. One job runs typecheck, unit tests and `sync-meta --check`; the other runs `pnpm build`, then `pnpm e2e` against that build. On CI, Playwright serves `dist/` with `vite preview`, because a cold dev server can take longer than the test timeout on the first page load. To reproduce that run locally, use `pnpm build && CI=1 pnpm e2e`. Traces from failed browser tests are uploaded as the `playwright-traces` artifact.
+CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`, with Node 22 and pnpm 12.8.1. One job runs typecheck, unit tests and `sync-meta --check`; the other runs `pnpm build`, then `pnpm e2e` against that build. On CI, Playwright serves `dist/` with `vite preview`, because a cold dev server can take longer than the test timeout on the first page load. To reproduce that run locally, use `pnpm build && CI=1 pnpm e2e`. Traces from failed browser tests are uploaded as the `playwright-traces` artifact.
 
 On a fresh machine, run `pnpm exec playwright install chromium` once before `pnpm e2e`. Cloud sessions already have Chromium at `/opt/pw-browsers`, which matches the pinned `@playwright/test@1.56.1`.
 
 ## Stack
 
-- Node >= 20 (CI uses 22), pnpm 10 or later (CI pins 12.8.1), React 19.2, TypeScript 5.9 (`strict`, `noUnusedLocals`, `noUnusedParameters`), Vite 6.
+- Node >= 20, pnpm 10, React 19.2, TypeScript 5.9 (`strict`, `noUnusedLocals`, `noUnusedParameters`), Vite 6.
 - Real AdvUI components from `@advui/core@0.6.0` (Tamagui 2.7.7). `react-native` is aliased to `react-native-web` in `vite.config.ts`, and `.web.*` extensions resolve first.
 - Tests: Vitest 3 with globals, jsdom, Testing Library, and user-event. Setup is in `src/test/setup.ts`.
 - State is plain React (`useReducer` and context). Don't add a state library.
