@@ -2,7 +2,7 @@ import { generateCode } from '../builder/code/codeGenerator'
 import { createBuilderReducer, createBuilderState } from '../builder/state/builderState'
 import { acmeLibrary, meta } from '../test/acmeLibrary'
 import type { ComponentMetadata } from './metadata'
-import { createRegistry } from './registry'
+import { createRegistry, resolveProps } from './registry'
 
 describe('component registry', () => {
   const registry = createRegistry(acmeLibrary)
@@ -168,5 +168,35 @@ describe('component registry', () => {
     expect(rules.acceptsChildren('Row')).toBe(true)
     // Every part Badge lists is missing from this registry, so it holds nothing here.
     expect(rules.acceptsChildren('Badge')).toBe(false)
+  })
+
+  it('checks breakpoints, and resolves responsive props for the preview breakpoint only', () => {
+    const tile = meta('Tile', {
+      props: [
+        { key: 'columns', type: 'number', label: 'Columns', group: 'component', responsive: true, defaultValue: 1 },
+        { key: 'cells', type: 'number', label: 'Cells', group: 'component' },
+      ],
+    })
+    const sized = createRegistry({
+      importSource: '@acme/ui',
+      components: [tile],
+      breakpoints: [
+        { name: 'md', minWidth: 768 },
+        { name: 'lg', minWidth: 1024 },
+      ],
+    })
+    expect(sized.breakpoints.map((breakpoint) => breakpoint.name)).toEqual(['md', 'lg'])
+    expect(createRegistry(acmeLibrary).breakpoints).toEqual([])
+    const props = { columns: { base: 1, lg: 3 }, cells: 2 }
+    const screen = { breakpoint: 'md', keys: ['base', 'md', 'lg'] }
+    expect(resolveProps(tile, props, 'web', screen)).toEqual({ columns: 1, cells: 2 })
+    expect(resolveProps(tile, props, 'web', { ...screen, breakpoint: 'lg' })).toEqual({ columns: 3, cells: 2 })
+    // Without a screen (code, other callers) the map passes through for the component to resolve.
+    expect(resolveProps(tile, props, 'web')).toEqual(props)
+
+    const define = (breakpoints: { name: string; minWidth: number }[]) => () =>
+      createRegistry({ importSource: '@acme/ui', components: [tile], breakpoints })
+    expect(define([{ name: 'lg', minWidth: 1024 }, { name: 'md', minWidth: 768 }])).toThrow(/smallest first/)
+    expect(define([{ name: 'base', minWidth: 300 }])).toThrow(/unique/)
   })
 })

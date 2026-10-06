@@ -1,5 +1,6 @@
-import { Component, useCallback, useState, type ErrorInfo, type ReactNode } from 'react'
+import { Component, useCallback, useMemo, useState, type ErrorInfo, type ReactNode } from 'react'
 import type { ConfigNode } from '../../registry/metadata'
+import { breakpointAt, breakpointKeys } from '../../registry/responsive'
 import { useDropSurface } from '../dnd/BuilderDnd'
 import { useBuilderActions, useBuilderState, useHoverId, useRegistry, useSetHover } from '../state/BuilderProvider'
 import { CanvasGuides } from './CanvasGuides'
@@ -19,9 +20,12 @@ export function PreviewWorkspace({ kit, bar }: { kit: PreviewKit; bar: ReactNode
   // The whole scroll area accepts drops: empty space around the page counts as the page itself.
   useDropSurface('canvas', canvas)
 
+  const breakpoint = breakpointAt(registry.breakpoints, state.viewportWidth)
+  const screen = useMemo(() => ({ breakpoint, keys: breakpointKeys(registry.breakpoints) }), [breakpoint, registry])
   const renderNode = useCallback(
-    (node: ConfigNode, children: ReactNode) => kit.renderNode(node, children, { platform: state.platform, registry }),
-    [kit, registry, state.platform],
+    (node: ConfigNode, children: ReactNode) =>
+      kit.renderNode(node, children, { platform: state.platform, registry, screen }),
+    [kit, registry, screen, state.platform],
   )
 
   return (

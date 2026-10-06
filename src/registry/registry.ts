@@ -1,5 +1,13 @@
 import { isValidSpans } from './columns'
-import type { ComponentMetadata, ConfigNode, ItemTemplate, PlatformId, TemplateNode } from './metadata'
+import type {
+  BreakpointMetadata,
+  ComponentMetadata,
+  ConfigNode,
+  ItemTemplate,
+  PlatformId,
+  TemplateNode,
+} from './metadata'
+import { BASE, valueForScreen } from './responsive'
 
 /**
  * Everything the Builder knows about a component library. The Builder core never
@@ -17,6 +25,8 @@ export interface RegistryDefinition {
    * must accept children. Without it, no layout presets are offered.
    */
   columns?: (spans: number[]) => TemplateNode
+  /** Min-width breakpoints for responsive props, smallest first. Without them, responsive props take one value. */
+  breakpoints?: BreakpointMetadata[]
 }
 
 export interface BuilderRegistry {
@@ -27,6 +37,8 @@ export interface BuilderRegistry {
   readonly hasPage: boolean
   /** Whether the registry builds layout presets (`columns`). */
   readonly hasColumns: boolean
+  /** Breakpoints for responsive props, smallest first. Empty when the library has none. */
+  readonly breakpoints: readonly BreakpointMetadata[]
   has(component: string): boolean
   /** Throws for an unknown component. */
   get(component: string): ComponentMetadata
@@ -187,11 +199,23 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
   const sidebar = definition.components.filter((meta) => meta.sidebar)
   if (sidebar.length === 0) throw new Error('A registry needs at least one sidebar component')
 
+  const breakpoints = definition.breakpoints ?? []
+  breakpoints.forEach((breakpoint, index) => {
+    const previous = breakpoints[index - 1]
+    if (breakpoint.name === BASE || breakpoints.findIndex((item) => item.name === breakpoint.name) !== index) {
+      throw new Error(`Breakpoint names must be unique and not "${BASE}": ${breakpoint.name}`)
+    }
+    if (!(breakpoint.minWidth > (previous?.minWidth ?? 0))) {
+      throw new Error(`Breakpoints must be listed smallest first: ${breakpoint.name}`)
+    }
+  })
+
   return {
     importSource: definition.importSource,
     defaultComponent: sidebar[0].name,
     hasPage: page != null,
     hasColumns: columns != null,
+    breakpoints,
     has: (component) => byName.has(component),
     get,
     sidebarEntries: () => sidebar,
@@ -277,17 +301,29 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
   }
 }
 
-/** Props passed to the rendered component: stored values over metadata defaults, filtered by platform. */
+/** The breakpoint the preview shows, and every breakpoint key smallest first (`base` first). */
+export interface PreviewScreen {
+  breakpoint: string
+  keys: readonly string[]
+}
+
+/**
+ * Props passed to the rendered component: stored values over metadata defaults, filtered by platform. With a
+ * `screen`, responsive maps become the value for that breakpoint, so the preview follows its own width instead of
+ * the browser window's media queries.
+ */
 export function resolveProps(
   meta: ComponentMetadata,
   props: Record<string, unknown>,
   platform: PlatformId,
+  screen?: PreviewScreen,
 ): Record<string, unknown> {
   const resolved: Record<string, unknown> = {}
   for (const prop of meta.props) {
     if (prop.textContent || prop.type === 'typography') continue
     if (prop.platforms && !prop.platforms.includes(platform)) continue
-    const value = props[prop.key] !== undefined ? props[prop.key] : prop.defaultValue
+    let value = props[prop.key] !== undefined ? props[prop.key] : prop.defaultValue
+    if (screen && prop.responsive) value = valueForScreen(value, screen.breakpoint, screen.keys)
     if (value !== undefined) resolved[prop.key] = value
   }
   return resolved

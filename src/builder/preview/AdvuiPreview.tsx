@@ -104,7 +104,7 @@ function fireToast(type: string, title: string, description: string, duration: n
 }
 
 function ToastPreview({ node, context }: { node: ConfigNode; context: PreviewContext }) {
-  const props = resolveProps(context.registry.get('Toast'), node.props, context.platform)
+  const props = resolveProps(context.registry.get('Toast'), node.props, context.platform, context.screen)
   const title = typeof props.title === 'string' ? props.title : 'Changes saved'
   const description = typeof props.description === 'string' ? props.description : ''
   const type = typeof props.type === 'string' ? props.type : 'success'
@@ -140,7 +140,7 @@ export function AdvuiFrame({ theme, children }: { theme: 'light' | 'dark'; child
 
 function renderSelectItem(child: ConfigNode, context: PreviewContext): ReactNode {
   if (child.component !== 'Select.Item') return null
-  const props = resolveProps(context.registry.get('Select.Item'), child.props, context.platform)
+  const props = resolveProps(context.registry.get('Select.Item'), child.props, context.platform, context.screen)
   const value = typeof props.value === 'string' ? props.value : ''
   return (
     <Select.Item key={child.id} value={value} disabled={props.disabled === true}>
@@ -156,7 +156,7 @@ export function renderAdvuiNode(node: ConfigNode, children: ReactNode, context: 
   const meta = context.registry.get(node.component)
   const props = {
     ...(meta.staticProps ?? {}),
-    ...resolveProps(meta, node.props, context.platform),
+    ...resolveProps(meta, node.props, context.platform, context.screen),
   }
   // Select matches option elements by type, so items cannot sit inside the selection wrapper.
   if (node.component === 'Select') {

@@ -11,6 +11,23 @@ function starterCode(component: string): string {
 }
 
 describe('AdvUI metadata', () => {
+  it('marks responsive props', () => {
+    expect(advuiRegistry.get('HStack').props.find((prop) => prop.key === 'direction')?.responsive).toBe(true)
+    expect(advuiRegistry.get('Grid').props.find((prop) => prop.key === 'columns')).toMatchObject({
+      type: 'number',
+      responsive: true,
+      min: 1,
+      max: 12,
+    })
+    expect(advuiRegistry.get('HStack').props.find((prop) => prop.key === 'gap')?.responsive).toBeUndefined()
+  })
+
+  it('writes a responsive value as an object literal', () => {
+    const stack = advuiRegistry.createDocument('Stack')
+    stack.props.direction = { base: 'column', md: 'row' }
+    expect(generateCode(stack, { registry: advuiRegistry })).toContain('direction={{ base: "column", md: "row" }}')
+  })
+
   it('still describes every prop the starter templates and added items set', () => {
     const unknown: string[] = []
     const check = (node: ConfigNode) => {

@@ -224,22 +224,8 @@ const container = adaptAdvuiMeta(containerMeta, {
   ]),
 })
 
-// Upstream types `columns` as `number | { sm?, md?, … }`; the builder edits the plain number.
 const grid = adaptAdvuiMeta(gridMeta, {
-  extraProps: [
-    {
-      key: 'columns',
-      type: 'number',
-      label: 'Columns',
-      description: 'How many equal columns. Children wrap onto the next row.',
-      group: 'component',
-      defaultValue: 1,
-      min: 1,
-      max: 6,
-      step: 1,
-    },
-    gapProp,
-  ],
+  extraProps: [gapProp],
   template: node('grid', 'Grid', 'Grid', { columns: 2 }, [
     node('grid-one', 'Text', 'Text', {}, [], 'One'),
     node('grid-two', 'Text', 'Text', {}, [], 'Two'),
@@ -804,6 +790,15 @@ const dropdownMenuSeparator = adaptAdvuiMeta(dropdownMenuMeta, {
 
 export const advuiRegistry = createRegistry({
   importSource: '@advui/core',
+  // `breakpoints` from @advui/theme, which responsive props are keyed by. A test keeps them in step.
+  breakpoints: [
+    { name: 'xs', minWidth: 460 },
+    { name: 'sm', minWidth: 640 },
+    { name: 'md', minWidth: 768 },
+    { name: 'lg', minWidth: 1024 },
+    { name: 'xl', minWidth: 1280 },
+    { name: 'xxl', minWidth: 1536 },
+  ],
   page: node('page', 'Stack', 'Page', { gap: 16, padding: 24 }),
   // A 12-column row: Boxes share the width of an HStack by their spans. Move to Grid columns once
   // AdvUI adds `Grid.Item span`.

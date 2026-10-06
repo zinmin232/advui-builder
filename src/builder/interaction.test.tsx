@@ -117,6 +117,29 @@ describe('selection-driven inspector', () => {
     expect(screen.getByLabelText('Ratio')).toHaveValue(null)
   })
 
+  it('sets a responsive prop per breakpoint, and folds it back to the value the preview shows', async () => {
+    const user = userEvent.setup()
+    render(
+      <BuilderProvider registry={advuiRegistry} initial={createBuilderState(advuiRegistry, 'HStack')} persist={false}>
+        <Harness />
+      </BuilderProvider>,
+    )
+    const toggle = screen.getByRole('button', { name: 'Direction per breakpoint' })
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await user.click(toggle)
+    const rows = screen.getByRole('group', { name: 'Direction by breakpoint' })
+    // The preview is 1024 pixels wide, so the lg row is the one it shows.
+    expect(within(rows).getByLabelText('Direction at lg').closest('[aria-current]')).toBeInTheDocument()
+    await user.selectOptions(within(rows).getByLabelText('Direction at md'), 'column')
+    expect(screen.getByTestId('node-hstack')).toHaveTextContent('"direction":{"md":"column"}')
+    expect(within(rows).getByLabelText('Direction at lg')).toHaveDisplayValue('Inherit (Column)')
+
+    await user.click(toggle)
+    expect(screen.getByTestId('node-hstack')).toHaveTextContent('"direction":"column"')
+    expect(screen.queryByRole('group', { name: 'Direction by breakpoint' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Direction')).toHaveValue('column')
+  })
+
   it('filters platform properties and changes notes without touching the canvas color', async () => {
     const user = userEvent.setup()
     renderCard()

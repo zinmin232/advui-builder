@@ -33,10 +33,18 @@ export interface PropMetadata {
   max?: number
   step?: number
   required?: boolean
+  /** Also takes a mobile-first map keyed by the registry's breakpoints, `{ base: 1, md: 2 }`. */
+  responsive?: boolean
   /** Editor writes `ConfigNode.text` instead of a component prop. */
   textContent?: boolean
   /** Typography editor writes these real AdvUI props (size, weight, tone). */
   fields?: string[]
+}
+
+/** A min-width breakpoint for responsive props, such as `md` from 768 pixels. */
+export interface BreakpointMetadata {
+  name: string
+  minWidth: number
 }
 
 export interface PlatformMetadata {

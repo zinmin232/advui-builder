@@ -5,14 +5,46 @@ import {
   JsonEditor,
   NumberEditor,
   RadiusEditor,
+  ResponsiveEditor,
+  responsiveTypes,
   SelectEditor,
   SpacingEditor,
   StringEditor,
   TypographyEditor,
 } from '../../components/property-editors/editors'
-import type { ComponentMetadata, PropMetadata } from '../../registry/metadata'
+import type { BreakpointMetadata, ComponentMetadata, PropMetadata } from '../../registry/metadata'
 
 export function PropertyEditor({
+  prop,
+  meta,
+  values,
+  onChange,
+  breakpoints = [],
+  breakpoint = 'base',
+}: {
+  prop: PropMetadata
+  meta: ComponentMetadata
+  values: Record<string, unknown>
+  onChange: (key: string, value: unknown) => void
+  /** The registry's breakpoints and the one the preview is at, for responsive props. */
+  breakpoints?: readonly BreakpointMetadata[]
+  breakpoint?: string
+}) {
+  const single = <SingleEditor prop={prop} meta={meta} values={values} onChange={onChange} />
+  if (!prop.responsive || breakpoints.length === 0 || !responsiveTypes.has(prop.type)) return single
+  return (
+    <ResponsiveEditor
+      prop={prop}
+      value={values[prop.key]}
+      onChange={(next) => onChange(prop.key, next)}
+      breakpoints={breakpoints}
+      active={breakpoint}
+      single={single}
+    />
+  )
+}
+
+function SingleEditor({
   prop,
   meta,
   values,

@@ -126,6 +126,7 @@ function propFromDoc(doc: PropDoc): PropMetadata | null {
     defaultValue: documented === undefined && type === 'boolean' ? false : documented,
     options,
     required: doc.required,
+    ...(doc.responsive ? { responsive: true } : {}),
     ...(type === 'number' ? { min: doc.min, max: doc.max, step: doc.step } : {}),
     platforms: doc.platforms,
   }
