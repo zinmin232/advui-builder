@@ -76,6 +76,20 @@ test('drops from the sidebar onto a layer row and reorders rows', async ({ page 
   expect(await layerIds(page)).toEqual(['page', 'stack', 'text', 'button', 'badge'])
 })
 
+test('drops a column preset on the page and fills one of its columns', async ({ page }) => {
+  await openPage(page)
+  const preset = page.getByRole('complementary', { name: 'Components' }).getByRole('button', { name: 'Columns 8 4' })
+  await drag(page, preset, page.locator('.empty-slot.root'))
+  expect(await layerIds(page)).toEqual(['page', 'hstack', 'box', 'box-2'])
+  const wide = await canvasNode(page, 'box').boundingBox()
+  const narrow = await canvasNode(page, 'box-2').boundingBox()
+  expect(Math.round(wide!.width / narrow!.width)).toBe(2)
+
+  await drag(page, sidebarItem(page, 'Button'), canvasNode(page, 'box-2'))
+  expect(await layerIds(page)).toEqual(['page', 'hstack', 'box', 'box-2', 'button'])
+  expect(await code(page)).toMatch(/<Box flex=\{8\} \/>\s*<Box\s+flex=\{4\}\s*>\s*<Button>Click Me<\/Button>/)
+})
+
 test('refuses drops the component rules do not allow', async ({ page }) => {
   await page.goto('/')
   // Component mode shows a lone Button, which cannot hold children.

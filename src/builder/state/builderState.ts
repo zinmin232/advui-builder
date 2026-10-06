@@ -1,4 +1,5 @@
 import { isSameValue } from '../../registry/adaptMeta'
+import { isValidSpans } from '../../registry/columns'
 import type { ConfigNode, PlatformId, PropMetadata } from '../../registry/metadata'
 import type { BuilderRegistry } from '../../registry/registry'
 import { canvasForTheme, DARK_CANVAS, isThemeCanvas } from '../canvasTheme'
@@ -78,6 +79,9 @@ export type BuilderAction =
   | { type: 'insert'; component: string }
   /** A drop from the sidebar: a new component inside or beside a layer. */
   | { type: 'insert-at'; component: string; targetId: string; position: PlacePosition }
+  /** A layout preset: a row of columns with these spans out of 12, added like a component. */
+  | { type: 'insert-columns'; spans: number[] }
+  | { type: 'insert-columns-at'; spans: number[]; targetId: string; position: PlacePosition }
   | { type: 'add-item' }
   | { type: 'remove' }
   | { type: 'move'; direction: 'up' | 'down' }
@@ -179,6 +183,8 @@ const documentActions = new Set<BuilderAction['type']>([
   'reset',
   'insert',
   'insert-at',
+  'insert-columns',
+  'insert-columns-at',
   'add-item',
   'remove',
   'move',
@@ -209,16 +215,39 @@ function restore(state: BuilderState, snap: DocumentSnapshot): BuilderState {
   }
 }
 
-function insertComponent(registry: BuilderRegistry, state: BuilderState, component: string): BuilderState {
+/** Adds a new tree (a component's starter tree, or a row of columns) at the end of the insertion target. */
+function insertTree(registry: BuilderRegistry, state: BuilderState, tree: ConfigNode): BuilderState {
   const targetId = insertionTarget(registry, state)
   const target = targetId ? findNode(state.document, targetId) : null
-  if (!targetId || !target || !registry.canPlace(component, target)) return state
-  const child = freshCopy(state.document, registry.createDocument(component))
+  if (!targetId || !target || !registry.canPlace(tree.component, target)) return state
+  const child = freshCopy(state.document, tree)
   return {
     ...state,
     document: mapTree(state.document, targetId, (node) => ({ ...node, children: [...node.children, child] })),
     selectedId: child.id,
   }
+}
+
+/** Adds a new tree inside or beside a layer, where the drop rules allow it. */
+function insertTreeAt(
+  registry: BuilderRegistry,
+  state: BuilderState,
+  tree: ConfigNode,
+  targetId: string,
+  position: PlacePosition,
+): BuilderState {
+  if (!canDrop(registry, state.document, tree.component, targetId, position)) return state
+  const child = freshCopy(state.document, tree)
+  const document = insertAt(state.document, child, targetId, position)
+  return document ? { ...state, document, selectedId: child.id } : state
+}
+
+function insertComponent(registry: BuilderRegistry, state: BuilderState, component: string): BuilderState {
+  return insertTree(registry, state, registry.createDocument(component))
+}
+
+function columnsFor(registry: BuilderRegistry, spans: number[]): ConfigNode | null {
+  return registry.hasColumns && isValidSpans(spans) ? registry.createColumns(spans) : null
 }
 
 function switchMode(registry: BuilderRegistry, state: BuilderState, mode: BuilderMode): BuilderState {
@@ -298,11 +327,15 @@ function applyAction(registry: BuilderRegistry, state: BuilderState, action: Bui
       return { ...state, zoom: clampZoom(action.zoom) }
     case 'insert':
       return insertComponent(registry, state, action.component)
-    case 'insert-at': {
-      if (!canDrop(registry, state.document, action.component, action.targetId, action.position)) return state
-      const child = freshCopy(state.document, registry.createDocument(action.component))
-      const document = insertAt(state.document, child, action.targetId, action.position)
-      return document ? { ...state, document, selectedId: child.id } : state
+    case 'insert-at':
+      return insertTreeAt(registry, state, registry.createDocument(action.component), action.targetId, action.position)
+    case 'insert-columns': {
+      const row = columnsFor(registry, action.spans)
+      return row ? insertTree(registry, state, row) : state
+    }
+    case 'insert-columns-at': {
+      const row = columnsFor(registry, action.spans)
+      return row ? insertTreeAt(registry, state, row, action.targetId, action.position) : state
     }
     case 'add-item': {
       const hostId = itemHostId(registry, state.document, state.selectedId)

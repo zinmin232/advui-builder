@@ -30,6 +30,8 @@ interface Actions {
   setZoom: (zoom: number) => void
   insertComponent: (component: string) => void
   insertAt: (component: string, targetId: string, position: 'before' | 'after' | 'inside') => void
+  insertColumns: (spans: number[]) => void
+  insertColumnsAt: (spans: number[], targetId: string, position: 'before' | 'after' | 'inside') => void
   addItem: () => void
   remove: () => void
   move: (direction: 'up' | 'down') => void
@@ -150,6 +152,8 @@ export function BuilderProvider({
       setZoom: (zoom) => send({ type: 'set-zoom', zoom }),
       insertComponent: (component) => send({ type: 'insert', component }),
       insertAt: (component, targetId, position) => send({ type: 'insert-at', component, targetId, position }),
+      insertColumns: (spans) => send({ type: 'insert-columns', spans }),
+      insertColumnsAt: (spans, targetId, position) => send({ type: 'insert-columns-at', spans, targetId, position }),
       addItem: () => send({ type: 'add-item' }),
       remove: () => send({ type: 'remove' }),
       move: (direction) => send({ type: 'move', direction }),

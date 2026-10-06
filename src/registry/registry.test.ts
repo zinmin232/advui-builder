@@ -103,6 +103,25 @@ describe('component registry', () => {
     expect(createBuilderState(registry, 'Tag', { mode: 'page' }).mode).toBe('component')
   })
 
+  it('offers layout presets only with a columns builder whose row and columns accept children', () => {
+    expect(registry.hasColumns).toBe(false)
+    expect(() => registry.createColumns([6, 6])).toThrow(/no layout presets/)
+    const columns = (spans: number[]) => ({
+      component: 'Panel',
+      label: `Row ${spans.join(' ')}`,
+      children: spans.map((span) => ({ component: 'Panel', label: 'Column', props: { span } })),
+    })
+    const withColumns = createRegistry({ ...acmeLibrary, columns })
+    expect(withColumns.hasColumns).toBe(true)
+    const row = withColumns.createColumns([8, 4])
+    expect(row).toMatchObject({ id: 'panel', label: 'Row 8 4' })
+    expect(row.children.map((child) => [child.id, child.props.span])).toEqual([['panel-2', 8], ['panel-3', 4]])
+    expect(() => withColumns.createColumns([6, 5])).toThrow(/add up to 12/)
+    expect(() => createRegistry({ ...acmeLibrary, columns: (spans) => ({ ...columns(spans), component: 'Tag' }) }))
+      .toThrow(/Columns Tag must accept children/)
+    expect(() => createRegistry({ ...acmeLibrary, columns: () => ({ component: 'Grid' }) })).toThrow(/unknown component Grid/)
+  })
+
   it('applies accepts, parents, capacity, and template placement rules', () => {
     const rules = createRegistry({
       importSource: '@acme/ui',

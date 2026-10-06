@@ -6,6 +6,7 @@ import {
   backgroundProp,
   borderColorProp,
   colorProp,
+  flexProp,
   gapProp,
   heightProp,
   opacityProp,
@@ -233,7 +234,7 @@ function stackPart(part: string, options: AdaptOptions = {}) {
     sidebar: true,
     importName: part,
     omit: rawFlexProps,
-    extraProps: [gapProp, paddingProp, widthProp],
+    extraProps: [gapProp, paddingProp, widthProp, flexProp],
     acceptsChildren: true,
     ...options,
   })
@@ -263,7 +264,7 @@ const vStack = stackPart('VStack', {
 })
 
 // Box and Center document no props of their own; they take View style props.
-const boxProps = [paddingProp, widthProp, heightProp, backgroundProp, radiusProp]
+const boxProps = [paddingProp, widthProp, heightProp, flexProp, backgroundProp, radiusProp]
 
 const box = stackPart('Box', {
   extraProps: boxProps,
@@ -767,6 +768,14 @@ const dropdownMenuSeparator = adaptAdvuiMeta(dropdownMenuMeta, {
 export const advuiRegistry = createRegistry({
   importSource: '@advui/core',
   page: node('page', 'Stack', 'Page', { gap: 16, padding: 24 }),
+  // A 12-column row: Boxes share the width of an HStack by their spans. Move to Grid columns once
+  // AdvUI adds `Grid.Item span`.
+  columns: (spans) => ({
+    component: 'HStack',
+    label: `Columns ${spans.join(' ')}`,
+    props: { gap: 16, width: '100%', align: 'stretch' },
+    children: spans.map((span, index) => ({ component: 'Box', label: `Column ${index + 1}`, props: { flex: span } })),
+  }),
   // Sidebar entries appear in this order. Compound parts follow their component.
   components: [
     button,
