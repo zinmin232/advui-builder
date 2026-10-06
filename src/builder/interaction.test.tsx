@@ -200,6 +200,22 @@ describe('copy and favorites', () => {
     expect(screen.getAllByRole('button', { name: 'Remove Button favorite' }).length).toBeGreaterThan(0)
   })
 
+  it('adds a Spacer inside the selected stack and outlines it on the canvas', async () => {
+    const user = userEvent.setup()
+    render(
+      <BuilderProvider registry={advuiRegistry} initial={createBuilderState(advuiRegistry, 'VStack')} persist={false}>
+        <ComponentSidebar />
+        <Harness />
+      </BuilderProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: 'Add Spacer inside VStack' }))
+    const layers = screen.getByRole('tree', { name: 'Layers' })
+    expect(within(layers).getByRole('button', { name: 'Spacer' })).toBeInTheDocument()
+    const spacer = screen.getByText(/^Spacer:/).closest('[data-builder-id]')
+    expect(spacer).toHaveAttribute('data-builder-invisible', 'true')
+    expect(screen.getByText(/^VStack:/).closest('[data-builder-id]')).not.toHaveAttribute('data-builder-invisible')
+  })
+
   it('collapses and expands a component group', async () => {
     const user = userEvent.setup()
     localStorage.clear()

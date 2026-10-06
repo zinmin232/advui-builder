@@ -30,7 +30,7 @@ On a fresh machine, run `pnpm exec playwright install chromium` once before `pnp
 ## Stack
 
 - Node >= 20, pnpm 10, React 19.2, TypeScript 5.9 (`strict`, `noUnusedLocals`, `noUnusedParameters`), Vite 6.
-- Real AdvUI components from `@advui/core@0.6.0` (Tamagui 2.7.7). `react-native` is aliased to `react-native-web` in `vite.config.ts`, and `.web.*` extensions resolve first.
+- Real AdvUI components from `@advui/core@0.10.0` (Tamagui 2.7.7). `react-native` is aliased to `react-native-web` in `vite.config.ts`, and `.web.*` extensions resolve first.
 - Tests: Vitest 3 with globals, jsdom, Testing Library, and user-event. Setup is in `src/test/setup.ts`.
 - State is plain React (`useReducer` and context). Don't add a state library.
 - Drag-and-drop: `@dnd-kit/core` handles pointer tracking, the drag chip (`DragOverlay`) and Escape-to-cancel. Drop targets are worked out by the builder itself (see below), not by dnd-kit droppables.
@@ -62,7 +62,7 @@ sourceMeta.ts (generated AdvUI *.meta.ts snapshot)
 | State | `src/builder/state/builderState.ts` (`createBuilderReducer(registry)`, `createBuilderState(registry, …)`, `mode` + `parked`, `insertionTarget`, pure and unit-tested), `BuilderProvider.tsx` (`registry` prop, `useRegistry()`) |
 | Tree utils | `src/builder/selection/selection.ts`: `findPath`, `parentOf`, `mapTree`, `canDrop`, `insertAt`, insert/move/duplicate/place |
 | Drag-and-drop | `src/builder/dnd/`: `BuilderDnd.tsx` (`DndContext` provider; `useDragSource`, `useDropSurface`, `useDragState`; hit-testing, auto-scroll, drop dispatch), `dropTarget.ts` (pure `dropPosition`, `resolveDrop`) |
-| Preview | `src/builder/preview/`: `previewKit.ts` (`PreviewKit` = `Frame` + `renderNode`), `AdvuiPreview.tsx` (the AdvUI kit: name → component `views` map, special render cases), `PreviewWorkspace.tsx` (takes a `kit`), `ElementTree.tsx` + `Selectable.tsx` (click/hover wrappers, `data-builder-id`; empty containers get a preview-only "Drop here" slot), `SelectionOverlay.tsx` (outlines, the drag handle and the drop indicator, measured from the DOM and drawn separately from the component), `measure.ts` (`nodeElement`, `layoutAxis`, `scrollParent`) |
+| Preview | `src/builder/preview/`: `previewKit.ts` (`PreviewKit` = `Frame` + `renderNode`), `AdvuiPreview.tsx` (the AdvUI kit: name → component `views` map, special render cases), `PreviewWorkspace.tsx` (takes a `kit`), `ElementTree.tsx` + `Selectable.tsx` (click/hover wrappers, `data-builder-id`; empty containers get a preview-only "Drop here" slot, and `invisible` components such as Spacer a dashed outline that does not change their size), `SelectionOverlay.tsx` (outlines, the drag handle and the drop indicator, measured from the DOM and drawn separately from the component), `measure.ts` (`nodeElement`, `layoutAxis`, `scrollParent`) |
 | Inspector | `src/builder/inspector/`: generic. `PropertyEditor.tsx` chooses an editor by `prop.type` |
 | Editors | `src/components/property-editors/editors.tsx` |
 | Code | `src/builder/code/codeGenerator.ts` (pure `generateCode(root, { registry, platform })`, imports from `registry.importSource`), `CodePanel.tsx` (shown in the Code tab) |
@@ -93,6 +93,7 @@ sourceMeta.ts (generated AdvUI *.meta.ts snapshot)
    ```ts
    const x = adaptAdvuiMeta(xMeta, {
      extraProps, staticProps, propPlatforms, propOverrides, category,
+     omit,                                        // documented props to leave out of the inspector
      template: node('x', 'X', 'X', { size: 'lg' }, [/* child nodes */], 'Text'), // starter tree, unique ids
      acceptsChildren: true,                       // other layers can go inside
      item: { noun, part, valuePrefix, nodes },    // only if "Add item" grows it (see Select, Tabs)
@@ -100,6 +101,7 @@ sourceMeta.ts (generated AdvUI *.meta.ts snapshot)
    ```
    - Compound parts are their own definitions with `part: 'X.Part'`, `sidebar: false`, and `importName: 'X'`. List them after their component.
    - Drop rules are optional: `accepts` (allowed children), `parents` (allowed parents), `maxChildren`. Parts already default to the parents their templates use.
+   - Set `invisible: true` on a component that draws nothing on its own (Spacer), so the canvas outlines it.
    - Without a `template`, the bare component opens (`id` from the name, text from the playground `children`).
    - In item templates, `{n}`, `{value}`, and `{host}` are filled in. `into` puts a node inside a host child of that component (Tabs triggers go into `Tabs.List`).
    - `createRegistry` throws at startup if a template or item names an unregistered component.
@@ -126,13 +128,13 @@ sourceMeta.ts (generated AdvUI *.meta.ts snapshot)
 
 ## Status against the original build brief
 
-All 24 "Definition of Done" steps work, checked in Chromium on 2026-10-03: search, select, platform switch, width, background, click-to-select with outline, context inspector, breadcrumb, platform notes, reset, TSX, copy, collapse, resize, and reload persistence. There are 36 sidebar components (plus compound parts) built on real AdvUI. Extras beyond the brief: undo/redo, insert/remove/duplicate/move, drag-and-drop layers, "add item" for Select/Tabs/List/RadioGroup/Menu, share links, keyboard shortcuts, and canvas rulers.
+All 24 "Definition of Done" steps work, checked in Chromium on 2026-10-03: search, select, platform switch, width, background, click-to-select with outline, context inspector, breadcrumb, platform notes, reset, TSX, copy, collapse, resize, and reload persistence. There are 42 sidebar components (plus compound parts) built on real AdvUI. Extras beyond the brief: undo/redo, insert/remove/duplicate/move, drag-and-drop layers, "add item" for Select/Tabs/List/RadioGroup/Menu, share links, keyboard shortcuts, and canvas rulers.
 
 Phase 1 of the LayoutIt-style plan is done: Page mode, @dnd-kit drag-and-drop (sidebar → canvas or Layers, moving on the canvas and in Layers), drop lines and boxes, empty-container slots, drop rules, and Playwright tests.
 
 Remaining phases of that plan:
 
-- **Phase 2:** layout presets (`12`, `6 6`, `8 4`, `4 4 4`, custom). Register Box, HStack, VStack, Center and Spacer. Switch to real column spans once AdvUI adds `Grid.Item span`; until then use HStack + flex ratios.
+- **Phase 2:** layout presets (`12`, `6 6`, `8 4`, `4 4 4`, custom). Switch to real column spans once AdvUI adds `Grid.Item span`; until then use HStack + flex ratios. Done: Box, HStack, VStack, Center, Spacer and Wrap are registered, with upstream's `direction` / `align` / `distribute` / `wrap` instead of raw flex props.
 - **Phase 3:** a "Blocks" sidebar group (Navbar, Hero, Pricing, Login, Footer) and more AdvUI components (NavigationBar, Breadcrumb, Accordion, Dialog, Form, Sidebar).
 - **Phase 4:** double-click to edit text, a hover toolbar, Alt+↑/↓ and copy/paste, and an Edit / Preview toggle.
 - **Phase 5:** export the page as `Page.tsx`, save and load pages, page settings.

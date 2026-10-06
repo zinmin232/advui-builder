@@ -450,6 +450,8 @@ button { cursor: pointer; }
   min-height: 220px;
   background: transparent;
 }
+/* A Spacer has no pixels; an outline marks it without changing its size. Empty containers get an .empty-slot instead. */
+.stage [data-builder-invisible] > * { outline: 1px dashed rgba(148, 163, 184, 0.7); outline-offset: -1px; }
 .preview-error { color: var(--builder-danger); background: var(--builder-panel); padding: 12px; }
 .preview-loading { margin: 0; padding: 12px; color: var(--builder-muted); }
 

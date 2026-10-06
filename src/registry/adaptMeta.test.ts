@@ -63,9 +63,10 @@ describe('platform metadata', () => {
   })
 
   it('lists the layout components and gives them a starter document', () => {
+    const layout = ['AspectRatio', 'Container', 'Grid', 'ScrollArea', 'Stack', 'HStack', 'VStack', 'Box', 'Center', 'Wrap']
     const names = advuiRegistry.sidebarEntries().map((entry) => entry.name)
-    expect(names).toEqual(expect.arrayContaining(['AspectRatio', 'Container', 'Grid', 'ScrollArea', 'Stack']))
-    for (const name of ['AspectRatio', 'Container', 'Grid', 'ScrollArea', 'Stack']) {
+    expect(names).toEqual(expect.arrayContaining([...layout, 'Spacer']))
+    for (const name of layout) {
       expect(advuiRegistry.get(name).categoryId).toBe('layout')
       expect(advuiRegistry.acceptsChildren(name)).toBe(true)
       expect(advuiRegistry.createDocument(name).children.length).toBeGreaterThan(0)
@@ -74,6 +75,32 @@ describe('platform metadata', () => {
     expect(starterCode('Grid')).toContain('<Grid\n  columns={2}\n>')
     expect(starterCode('Stack')).toContain('gap={12}')
     expect(starterCode('ScrollArea')).toContain('aria-label="Notes"')
+  })
+
+  it('edits each stack with the short flex props, with that stack’s defaults', () => {
+    const hStack = advuiRegistry.get('HStack')
+    const keys = hStack.props.map((prop) => prop.key)
+    expect(keys).toEqual(expect.arrayContaining(['direction', 'wrap', 'align', 'distribute', 'gap']))
+    expect(keys).not.toContain('flexDirection')
+    expect(hStack.props.find((prop) => prop.key === 'align')).toMatchObject({
+      type: 'select',
+      defaultValue: 'center',
+      options: expect.arrayContaining([{ label: 'Baseline', value: 'baseline' }]),
+    })
+    expect(advuiRegistry.get('VStack').props.find((prop) => prop.key === 'direction')?.defaultValue).toBe('column')
+    expect(starterCode('HStack')).toContain("import { Button, HStack, Spacer, Text } from '@advui/core'")
+  })
+
+  it('puts a Spacer beside the selected layer, and marks only the Spacer as invisible', () => {
+    expect(advuiRegistry.acceptsChildren('Spacer')).toBe(false)
+    const state = builderReducer(createBuilderState(advuiRegistry, 'HStack', { selectedId: 'hstack-text' }), {
+      type: 'insert',
+      component: 'Spacer',
+    })
+    expect(state.document.children.map((child) => child.component)).toEqual(['Text', 'Spacer', 'Button', 'Spacer'])
+    expect(generateCode(state.document, { registry: advuiRegistry })).toMatch(/\n {2}<Spacer \/>\n<\/HStack>\n$/)
+    const invisible = advuiRegistry.sidebarEntries().filter((entry) => entry.invisible).map((entry) => entry.name)
+    expect(invisible).toEqual(['Spacer'])
   })
 
   it('lists the form controls and separator', () => {

@@ -29,12 +29,37 @@ export interface PropDoc {
   default?: string
   required?: boolean
   description: string
+  /** Closed list of allowed values, in display order, without quotes (0.8.0). */
+  options?: string[]
+  /** Also takes a mobile-first map `{ base, md, … }` of the same value. */
+  responsive?: boolean
+  /** The value is a token of this theme scale, such as `$4` for `space`. */
+  token?: 'space' | 'size' | 'color' | 'radius' | 'zIndex'
+  min?: number
+  max?: number
+  step?: number
+  /** Only when the prop works on some platforms, not all. */
+  platforms?: AdvuiPlatform[]
+}
+
+/** What may go inside a part: any elements, text only, nothing, or only these parts. */
+export interface ChildRules {
+  accepts: 'any' | 'text' | 'none' | string[]
+  min?: number
+  max?: number
 }
 
 export interface PartDoc {
   name: string
+  /** Hooks, functions and types are documented as parts too, but never placed in a tree. */
+  kind?: 'component' | 'hook' | 'function' | 'type'
   description?: string
   props: PropDoc[]
+  children?: ChildRules
+  /** Must be a direct child of one of these parts. */
+  parents?: string[]
+  /** Must sit somewhere inside this component or part. */
+  within?: string
 }
 
 export interface ExampleMeta {

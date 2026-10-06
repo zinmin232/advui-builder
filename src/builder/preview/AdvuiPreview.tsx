@@ -1,4 +1,4 @@
-import { Alert, AlertDialog, AspectRatio, Avatar, Badge, Button, Card, Checkbox, Chip, Container, DropdownMenu, EmptyState, Grid, Image, Input, Label, List, NumberInput, Pagination, PasswordInput, Progress, RadioGroup, ScrollArea, Search, Select, Separator, Skeleton, Slider, Spinner, Stack, Switch, Tabs, Text, Textarea, Toaster, Tooltip, UniversalProvider, createUniversalConfig, toast } from '@advui/core'
+import { Alert, AlertDialog, AspectRatio, Avatar, Badge, Box, Button, Card, Center, Checkbox, Chip, Container, DropdownMenu, EmptyState, Grid, HStack, Image, Input, Label, List, NumberInput, Pagination, PasswordInput, Progress, RadioGroup, ScrollArea, Search, Select, Separator, Skeleton, Slider, Spacer, Spinner, Stack, Switch, Tabs, Text, Textarea, Toaster, Tooltip, UniversalProvider, VStack, Wrap, createUniversalConfig, toast } from '@advui/core'
 import { Children, useEffect, useRef, type ReactNode } from 'react'
 import type { ConfigNode } from '../../registry/metadata'
 import { resolveProps } from '../../registry/registry'
@@ -29,6 +29,12 @@ const views: Record<string, ViewComponent> = {
   Grid: asView(Grid),
   ScrollArea: asView(ScrollArea),
   Stack: asView(Stack),
+  HStack: asView(HStack),
+  VStack: asView(VStack),
+  Box: asView(Box),
+  Center: asView(Center),
+  Spacer: asView(Spacer),
+  Wrap: asView(Wrap),
   Label: asView(Label),
   Textarea: asView(Textarea),
   Checkbox: asView(Checkbox),
