@@ -1,3 +1,4 @@
+import { isValidSpans } from './columns'
 import type { ComponentMetadata, ConfigNode, ItemTemplate, PlatformId, TemplateNode } from './metadata'
 
 /**
@@ -11,6 +12,11 @@ export interface RegistryDefinition {
   components: ComponentMetadata[]
   /** Starter tree for Page mode. Its root must accept children. Without it, only Component mode is offered. */
   page?: TemplateNode
+  /**
+   * A row for a layout preset, from column spans that add up to 12 (`[8, 4]`). Its root and each column
+   * must accept children. Without it, no layout presets are offered.
+   */
+  columns?: (spans: number[]) => TemplateNode
 }
 
 export interface BuilderRegistry {
@@ -19,6 +25,8 @@ export interface BuilderRegistry {
   readonly defaultComponent: string
   /** Whether the registry defines a page template, so Page mode can be offered. */
   readonly hasPage: boolean
+  /** Whether the registry builds layout presets (`columns`). */
+  readonly hasColumns: boolean
   has(component: string): boolean
   /** Throws for an unknown component. */
   get(component: string): ComponentMetadata
@@ -30,6 +38,8 @@ export interface BuilderRegistry {
   createDocument(component: string): ConfigNode
   /** A fresh, empty page. Throws when the registry has no page template. */
   createPage(): ConfigNode
+  /** A fresh row for a layout preset. Throws when the registry has no `columns`, or for invalid spans. */
+  createColumns(spans: number[]): ConfigNode
   acceptsChildren(component: string): boolean
   /**
    * Whether one more `component` may go inside `parent`: container, `accepts`, `parents` and
@@ -134,6 +144,18 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
     }
   }
 
+  const columns = definition.columns
+  // Every split uses the same components, so one sample row checks the builder.
+  const sampleRow = columns?.([6, 6])
+  if (sampleRow) {
+    checkTemplate('Columns', sampleRow)
+    for (const node of [sampleRow, ...(sampleRow.children ?? [])]) {
+      if (!byName.get(node.component)?.acceptsChildren) {
+        throw new Error(`Columns ${node.component} must accept children`)
+      }
+    }
+  }
+
   // Where the templates put each compound part. A part may only be placed there unless it lists `parents`.
   const templateParents = new Map<string, Set<string>>()
   const record = (parent: string, node: TemplateNode) => {
@@ -152,6 +174,7 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
     })
   }
   page?.children?.forEach((child) => record(page.component, child))
+  sampleRow?.children?.forEach((child) => record(sampleRow.component, child))
 
   const sidebar = definition.components.filter((meta) => meta.sidebar)
   if (sidebar.length === 0) throw new Error('A registry needs at least one sidebar component')
@@ -160,6 +183,7 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
     importSource: definition.importSource,
     defaultComponent: sidebar[0].name,
     hasPage: page != null,
+    hasColumns: columns != null,
     has: (component) => byName.has(component),
     get,
     sidebarEntries: () => sidebar,
@@ -184,6 +208,12 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
     createPage() {
       if (!page) throw new Error('This registry has no page template')
       return instantiate(page, allocator(templateIds(page)), keep)
+    },
+    createColumns(spans) {
+      if (!columns) throw new Error('This registry has no layout presets')
+      if (!isValidSpans(spans)) throw new Error(`Column spans must be whole numbers that add up to 12: ${spans.join(' ')}`)
+      const row = columns(spans)
+      return instantiate(row, allocator(templateIds(row)), keep)
     },
     acceptsChildren: (component) => byName.get(component)?.acceptsChildren === true,
     canPlace(component, parent, sibling = false) {

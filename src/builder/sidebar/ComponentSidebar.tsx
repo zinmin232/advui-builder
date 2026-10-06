@@ -9,6 +9,7 @@ import {
   usePreferences,
   useRegistry,
 } from '../state/BuilderProvider'
+import { ColumnPresets } from './ColumnPresets'
 
 export function ComponentSidebar() {
   const state = useBuilderState()
@@ -78,6 +79,7 @@ export function ComponentSidebar() {
         {showGroups && recent.length > 0 ? (
           <ComponentGroup title="Recent" entries={recent} {...groupProps} />
         ) : null}
+        {showGroups ? <ColumnPresets target={target} /> : null}
         {showGroups
           ? categories.map((item) => (
               <ComponentGroup

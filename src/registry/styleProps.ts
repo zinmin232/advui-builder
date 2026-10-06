@@ -60,6 +60,17 @@ export const marginProp: PropMetadata = {
   step: 1,
 }
 
+export const flexProp: PropMetadata = {
+  key: 'flex',
+  type: 'number',
+  label: 'Flex',
+  description: 'Share of the free space in the parent stack. Column presets set it to the span out of 12.',
+  group: 'layout',
+  min: 0,
+  max: 12,
+  step: 1,
+}
+
 export const gapProp: PropMetadata = {
   key: 'gap',
   type: 'spacing',

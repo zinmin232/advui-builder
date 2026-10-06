@@ -51,11 +51,11 @@ sourceMeta.ts (generated AdvUI *.meta.ts snapshot)
 | Area | Files |
 |---|---|
 | Metadata types | `src/registry/metadata.ts` (`ComponentMetadata`, `PropMetadata`, `TemplateNode`, `ItemTemplate`, `ConfigNode`, `SelectionContext`) |
-| Generic registry | `src/registry/registry.ts`: `createRegistry()` → `BuilderRegistry` (`get`, `sidebarEntries`, `search`, `match`, `createDocument`, `createPage`/`hasPage`, `acceptsChildren`, `canPlace`, `itemNoun`, `addItem`), `resolveProps`, `nextId`. No AdvUI imports |
+| Generic registry | `src/registry/registry.ts`: `createRegistry()` → `BuilderRegistry` (`get`, `sidebarEntries`, `search`, `match`, `createDocument`, `createPage`/`hasPage`, `createColumns`/`hasColumns`, `acceptsChildren`, `canPlace`, `itemNoun`, `addItem`), `resolveProps`, `nextId`. No AdvUI imports. `src/registry/columns.ts` holds the 12-column span rules (`COLUMN_PRESETS`, `parseSpans`) |
 | Upstream schema | `src/registry/advuiMetaTypes.ts` (subset of AdvUI `ComponentMeta`) |
 | Generated snapshot | `src/registry/sourceMeta.ts`. **Never edit by hand.** Written by `scripts/sync-meta.mjs` |
 | Adapter | `src/registry/adaptMeta.ts`: prop typing, platform notes, `propsForPlatform`, `groupedProps` |
-| AdvUI registry | `src/registry/componentRegistry.ts`: one `adaptAdvuiMeta(...)` definition per component or part (extra props, `template`, `acceptsChildren`, `item`), then `advuiRegistry = createRegistry({ importSource, components })`. Sidebar order = order in `components` |
+| AdvUI registry | `src/registry/componentRegistry.ts`: one `adaptAdvuiMeta(...)` definition per component or part (extra props, `template`, `acceptsChildren`, `item`), then `advuiRegistry = createRegistry({ importSource, components, page, columns })`. Sidebar order = order in `components`. `columns(spans)` builds a layout preset row: an HStack of Boxes with `flex` = span |
 | Shared style props | `src/registry/styleProps.ts` (background, radius, padding, gap, typography…) |
 | State | `src/builder/state/builderState.ts` (`createBuilderReducer(registry)`, `createBuilderState(registry, …)`, `mode` + `parked`, `insertionTarget`, pure and unit-tested), `BuilderProvider.tsx` (`registry` prop, `useRegistry()`) |
 | Tree utils | `src/builder/selection/selection.ts`: `findPath`, `parentOf`, `mapTree`, `canDrop`, `insertAt`, insert/move/duplicate/place |
@@ -76,6 +76,7 @@ sourceMeta.ts (generated AdvUI *.meta.ts snapshot)
 - **The preview background is not a component prop.** `state.background` only paints the canvas.
 - **Reset scope.** `reset` rebuilds the current component's starter document (an empty page in Page mode) only. It never touches preview settings, panel sizes, or preferences.
 - **Modes.** `set-mode` parks the other mode's document in `state.parked`, so switching back restores it. `open` (a sidebar click) opens the component in Component mode and adds it at `insertionTarget` in Page mode. `select-component` always shows Component mode and parks a page in progress. Undo snapshots include `mode` and `parked`.
+- **Layout presets are registry data too.** The sidebar's Columns group (`sidebar/ColumnPresets.tsx`) shows only when the registry defines `columns`, and adds rows with `insert-columns` / `insert-columns-at`. Those go through the same drop rules as a component, checked against the row's root. Spans are whole numbers that add up to 12; the reducer ignores anything else.
 - **Drop rules live in the registry.** Every insert, drop and move goes through `canDrop` / `registry.canPlace`: container (`acceptsChildren`), `accepts`, `parents`, `maxChildren`. Compound parts without `parents` may only go where the templates put them (`Card.Title` inside `Card.Header`). Moving a layer among its own siblings is always allowed. The reducer re-checks, so the UI can't create an invalid tree.
 - **Drag-and-drop wiring.** New drag sources use `useDragSource(id, item)` with an id that is unique on screen (sidebar ids include the group). Elements that accept drops register with `useDropSurface('canvas' | 'layers', element)`. `resolveDrop` walks up from the layer under the pointer to the nearest one that accepts the drag. Builder chrome drawn over the canvas must carry `data-drop-ignore`, so hit-testing looks through it. Canvas indicator CSS classes use a `canvas-` prefix (a bare `.drop-inside` once collided with the Layers row markers).
 - **The empty-container slot is preview-only.** It never reaches the tree or the code.
@@ -132,7 +133,7 @@ Phase 1 of the LayoutIt-style plan is done: Page mode, @dnd-kit drag-and-drop (s
 
 Remaining phases of that plan:
 
-- **Phase 2:** layout presets (`12`, `6 6`, `8 4`, `4 4 4`, custom). Switch to real column spans once AdvUI adds `Grid.Item span`; until then use HStack + flex ratios. Done: Box, HStack, VStack, Center, Spacer and Wrap are registered, with upstream's `direction` / `align` / `distribute` / `wrap` instead of raw flex props.
+- **Phase 2:** done. Box, HStack, VStack, Center, Spacer and Wrap are registered, with upstream's `direction` / `align` / `distribute` / `wrap` instead of raw flex props. Layout presets (`12`, `6 6`, `8 4`, `4 8`, `4 4 4`, `3 3 3 3`, or custom spans) add an HStack of Boxes sized by `flex`. Switch `columns` to real column spans once AdvUI adds `Grid.Item span`.
 - **Phase 3:** a "Blocks" sidebar group (Navbar, Hero, Pricing, Login, Footer) and more AdvUI components (NavigationBar, Breadcrumb, Accordion, Dialog, Form, Sidebar).
 - **Phase 4:** double-click to edit text, a hover toolbar, Alt+↑/↓ and copy/paste, and an Edit / Preview toggle.
 - **Phase 5:** export the page as `Page.tsx`, save and load pages, page settings.

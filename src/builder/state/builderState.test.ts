@@ -7,6 +7,7 @@ import {
   createBuilderReducer,
   createBuilderState,
   WIDTH_PRESETS,
+  type BuilderAction,
   type BuilderState,
 } from './builderState'
 
@@ -350,6 +351,36 @@ describe('page mode', () => {
     expect(back.mode).toBe('page')
     expect(ids(back.document)).toEqual(['Badge'])
     expect(ids(builderReducer(state, { type: 'set-mode', mode: 'page' }).document)).toEqual(['Badge'])
+  })
+})
+
+describe('layout presets', () => {
+  it('adds a row of columns to the page or the selected container, and undo removes it', () => {
+    const page = createBuilderState(advuiRegistry, 'Button', { mode: 'page' })
+    const added = builderReducer(page, { type: 'insert-columns', spans: [8, 4] })
+    const row = added.document.children[0]
+    expect(row).toMatchObject({ component: 'HStack', label: 'Columns 8 4', props: { align: 'stretch' } })
+    expect(row.children.map((column) => [column.component, column.props.flex])).toEqual([['Box', 8], ['Box', 4]])
+    expect(added.selectedId).toBe(row.id)
+
+    const nested = builderReducer({ ...added, selectedId: row.children[1].id }, { type: 'insert-columns', spans: [6, 6] })
+    expect(nested.document.children[0].children[1].children[0].label).toBe('Columns 6 6')
+    const ids = allIds(nested.document)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(builderReducer(added, { type: 'undo' }).document.children).toEqual([])
+  })
+
+  it('ignores spans that do not add up to 12, and drops a row only where a stack may go', () => {
+    const page = createBuilderState(advuiRegistry, 'Button', { mode: 'page' })
+    expect(builderReducer(page, { type: 'insert-columns', spans: [6, 5] })).toBe(page)
+    const card = builderReducer(page, { type: 'insert', component: 'Card' })
+    const inside: BuilderAction = { type: 'insert-columns-at', spans: [6, 6], targetId: 'button', position: 'inside' }
+    expect(builderReducer(card, inside)).toBe(card)
+
+    const beside = builderReducer(card, { ...inside, spans: [4, 4, 4], position: 'before' })
+    const footer = beside.document.children[0].children.find((child) => child.component === 'Card.Footer')!
+    expect(footer.children.map((child) => child.component)).toEqual(['HStack', 'Button'])
+    expect(footer.children[0].children).toHaveLength(3)
   })
 })
 

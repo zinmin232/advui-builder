@@ -26,6 +26,7 @@ describe('AdvUI metadata snapshot', () => {
       node.children.forEach(check)
     }
     for (const { name } of advuiRegistry.sidebarEntries()) check(advuiRegistry.createDocument(name))
+    check(advuiRegistry.createColumns([8, 4]))
     for (const [component, selectedId] of [
       ['Select', 'select'],
       ['RadioGroup', 'radio-group'],
@@ -89,6 +90,24 @@ describe('platform metadata', () => {
     })
     expect(advuiRegistry.get('VStack').props.find((prop) => prop.key === 'direction')?.defaultValue).toBe('column')
     expect(starterCode('HStack')).toContain("import { Button, HStack, Spacer, Text } from '@advui/core'")
+  })
+
+  it('writes a layout preset as an HStack of Boxes that share the row by their spans', () => {
+    expect(generateCode(advuiRegistry.createColumns([8, 4]), { registry: advuiRegistry })).toBe(
+      [
+        "import { Box, HStack } from '@advui/core'",
+        '',
+        '<HStack',
+        '  align="stretch"',
+        '  gap={16}',
+        '  width="100%"',
+        '>',
+        '  <Box flex={8} />',
+        '  <Box flex={4} />',
+        '</HStack>',
+        '',
+      ].join('\n'),
+    )
   })
 
   it('puts a Spacer beside the selected layer, and marks only the Spacer as invisible', () => {

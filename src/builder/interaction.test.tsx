@@ -284,5 +284,34 @@ describe('page mode', () => {
     expect(within(sidebar).getByText('Add inside Header')).toBeInTheDocument()
     expect(within(sidebar).getAllByRole('button', { name: 'Add Text inside Header' })[0]).toBeEnabled()
   })
+
+  it('adds a column preset, and explains custom spans that do not add up to 12', async () => {
+    const user = userEvent.setup()
+    render(
+      <BuilderProvider
+        registry={advuiRegistry}
+        initial={createBuilderState(advuiRegistry, 'Button', { mode: 'page' })}
+        persist={false}
+      >
+        <ComponentSidebar />
+        <Harness />
+      </BuilderProvider>,
+    )
+    const sidebar = within(screen.getByRole('complementary', { name: 'Components' }))
+    const layers = within(screen.getByRole('tree', { name: 'Layers' }))
+    const custom = () => sidebar.getByRole('textbox', { name: 'Custom columns' })
+    await user.click(sidebar.getByRole('button', { name: 'Columns 8 4' }))
+    expect(layers.getByRole('button', { name: 'Columns 8 4' })).toBeInTheDocument()
+    expect(layers.getAllByRole('button', { name: /^Column \d$/ })).toHaveLength(2)
+
+    // The new row is selected, so the custom row goes inside it, after its columns.
+    await user.type(custom(), '5 5{Enter}')
+    expect(sidebar.getByText(/add up to 12/)).toBeInTheDocument()
+    expect(custom()).toHaveAttribute('aria-invalid', 'true')
+    await user.clear(custom())
+    await user.type(custom(), '3 9{Enter}')
+    expect(layers.getByRole('button', { name: 'Columns 3 9' })).toBeInTheDocument()
+    expect(sidebar.queryByText(/add up to 12/)).not.toBeInTheDocument()
+  })
 })
 
