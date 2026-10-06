@@ -1,5 +1,3 @@
-import type { AdvuiPlatform } from './advuiMetaTypes'
-
 export type PlatformId = 'web' | 'android' | 'ios'
 
 export type PropType =
@@ -138,12 +136,6 @@ export interface SelectionContext {
 }
 
 const platformOrder: PlatformId[] = ['web', 'android', 'ios']
-
-export function toBuilderPlatform(platform: AdvuiPlatform): PlatformId {
-  if (platform === 'ios') return 'ios'
-  if (platform === 'android') return 'android'
-  return 'web'
-}
 
 export function emptyPlatforms(): Record<PlatformId, PlatformMetadata> {
   return {

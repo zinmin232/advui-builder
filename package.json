@@ -10,13 +10,12 @@
     "preview": "vite preview",
     "test": "vitest run",
     "e2e": "playwright test",
-    "typecheck": "tsc --noEmit",
-    "sync-meta": "node scripts/sync-meta.mjs"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@advui/core": "0.10.0",
+    "@advui/core": "0.12.0",
     "@dnd-kit/core": "^6.3.1",
-    "advui": "0.10.0",
+    "advui": "0.12.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native-svg": "15.15.4",

@@ -9,14 +9,7 @@ Components render from `@advui/core`. The `advui` package is the published CLI.
 
 ## Component metadata
 
-The inspector is driven by AdvUI's `*.meta.ts` files, which the published package leaves out. `src/registry/sourceMeta.ts` is generated from the AdvUI git tag that matches the installed `@advui/core` version:
-
-```bash
-pnpm sync-meta          # regenerate after upgrading @advui/core
-pnpm sync-meta --check  # fail if the snapshot differs from upstream
-```
-
-Do not edit `sourceMeta.ts` by hand. Builder-specific choices (props upstream types as `ReactNode`, sidebar groups, fixed `aria-label`s, starter templates, repeatable items) live in `src/registry/componentRegistry.ts`. The tests fail when the snapshot version does not match the installed package, or when a sync drops a prop a starter template uses.
+The inspector is driven by the component metadata `@advui/core` publishes at `@advui/core/meta` (since 0.12.0), so upgrading the package updates it. Builder-specific choices (props upstream types as `ReactNode`, sidebar groups, fixed `aria-label`s, starter templates, repeatable items) live in `src/registry/componentRegistry.ts`. The tests fail when an upgrade drops a prop a starter template uses.
 
 ## Component registry
 

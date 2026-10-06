@@ -8,6 +8,9 @@ const vendorChunks: [RegExp, string][] = [
   [/^@advui\//, 'advui'],
 ]
 
+// The registry reads AdvUI's metadata on startup; the components arrive later with the preview.
+const advuiMetaModule = /\/node_modules\/@advui\/core\/dist\/(meta\/|.+\.meta\.js$)/
+
 /** Package that owns a module, from its innermost node_modules folder (pnpm nests them). */
 function packageName(id: string): string | null {
   return id.replace(/\\/g, '/').match(/.*\/node_modules\/((?:@[^/]+\/)?[^/]+)/)?.[1] ?? null
@@ -37,6 +40,7 @@ export default defineConfig({
       output: {
         // Library chunks change less often than the app, so browsers can keep them cached across releases.
         manualChunks(id) {
+          if (advuiMetaModule.test(id.replace(/\\/g, '/'))) return 'advui-meta'
           const name = packageName(id)
           return name ? vendorChunks.find(([pattern]) => pattern.test(name))?.[1] : undefined
         },

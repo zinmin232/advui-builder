@@ -1,7 +1,7 @@
+import { components as advuiMetas, type ComponentMeta } from '@advui/core/meta'
 import { adaptAdvuiMeta, type AdaptOptions } from './adaptMeta'
 import type { PropMetadata, TemplateNode } from './metadata'
 import { createRegistry } from './registry'
-import { alertDialogMeta, alertMeta, avatarMeta, badgeMeta, buttonMeta, cardMeta, chipMeta, dropdownMenuMeta, emptyStateMeta, imageMeta, inputMeta, listMeta, paginationMeta, searchMeta, typographyMeta, toastMeta, tooltipMeta, aspectRatioMeta, checkboxMeta, containerMeta, gridMeta, labelMeta, numberInputMeta, passwordInputMeta, progressMeta, radioGroupMeta, scrollAreaMeta, selectMeta, separatorMeta, skeletonMeta, sliderMeta, spinnerMeta, stackMeta, switchMeta, tabsMeta, textareaMeta, wrapMeta } from './sourceMeta'
 import {
   backgroundProp,
   borderColorProp,
@@ -16,10 +16,55 @@ import {
   widthProp,
 } from './styleProps'
 
+/** The metadata `@advui/core/meta` publishes for one component, by slug. */
+function advuiMeta(slug: string): ComponentMeta {
+  const meta = advuiMetas.find((item) => item.slug === slug)
+  if (!meta) throw new Error(`@advui/core/meta has no component ${slug}`)
+  return meta
+}
+
+const alertDialogMeta = advuiMeta('alert-dialog')
+const alertMeta = advuiMeta('alert')
+const aspectRatioMeta = advuiMeta('aspect-ratio')
+const avatarMeta = advuiMeta('avatar')
+const badgeMeta = advuiMeta('badge')
+const buttonMeta = advuiMeta('button')
+const cardMeta = advuiMeta('card')
+const checkboxMeta = advuiMeta('checkbox')
+const chipMeta = advuiMeta('chip')
+const containerMeta = advuiMeta('container')
+const dropdownMenuMeta = advuiMeta('dropdown-menu')
+const emptyStateMeta = advuiMeta('empty-state')
+const gridMeta = advuiMeta('grid')
+const imageMeta = advuiMeta('image')
+const inputMeta = advuiMeta('input')
+const labelMeta = advuiMeta('label')
+const listMeta = advuiMeta('list')
+const numberInputMeta = advuiMeta('number-input')
+const paginationMeta = advuiMeta('pagination')
+const passwordInputMeta = advuiMeta('password-input')
+const progressMeta = advuiMeta('progress')
+const radioGroupMeta = advuiMeta('radio-group')
+const scrollAreaMeta = advuiMeta('scroll-area')
+const searchMeta = advuiMeta('search')
+const selectMeta = advuiMeta('select')
+const separatorMeta = advuiMeta('separator')
+const skeletonMeta = advuiMeta('skeleton')
+const sliderMeta = advuiMeta('slider')
+const spinnerMeta = advuiMeta('spinner')
+const stackMeta = advuiMeta('stack')
+const switchMeta = advuiMeta('switch')
+const tabsMeta = advuiMeta('tabs')
+const textareaMeta = advuiMeta('textarea')
+const toastMeta = advuiMeta('toast')
+const tooltipMeta = advuiMeta('tooltip')
+const typographyMeta = advuiMeta('typography')
+const wrapMeta = advuiMeta('wrap')
+
 /*
  * Props below that come from `extraProps` are builder knowledge AdvUI's metadata
  * does not carry in an editable form: types like ReactNode or `number | {...}`,
- * or props a component inherits without documenting. A metadata sync never
+ * or props a component inherits without documenting. An AdvUI upgrade never
  * removes them; the registry tests check every template prop still resolves.
  */
 function stringProp(key: string, label: string, description: string, required?: boolean): PropMetadata {

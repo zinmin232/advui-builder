@@ -1,8 +1,6 @@
-import type { CategoryId, ComponentMeta, PlaygroundControl, PropDoc } from './advuiMetaTypes'
-import { categoryLabels } from './advuiMetaTypes'
+import { categories, type CategoryId, type ComponentMeta, type PlaygroundControl, type PropDoc } from '@advui/core/meta'
 import {
   emptyPlatforms,
-  toBuilderPlatform,
   type ComponentMetadata,
   type ItemTemplate,
   type PlatformId,
@@ -13,6 +11,11 @@ import {
 } from './metadata'
 
 const groupOrder = ['component', 'typography', 'appearance', 'layout', 'advanced'] as const
+
+const categoryLabels = Object.fromEntries(categories.map((category) => [category.id, category.label])) as Record<
+  CategoryId,
+  string
+>
 
 const labels: Record<string, string> = {
   src: 'Source',
@@ -124,7 +127,7 @@ function propFromDoc(doc: PropDoc): PropMetadata | null {
     options,
     required: doc.required,
     ...(type === 'number' ? { min: doc.min, max: doc.max, step: doc.step } : {}),
-    platforms: doc.platforms?.map(toBuilderPlatform),
+    platforms: doc.platforms,
   }
 }
 
@@ -250,9 +253,8 @@ export function adaptAdvuiMeta(meta: ComponentMeta, options: AdaptOptions = {}):
 
   const platforms = emptyPlatforms()
   for (const platform of meta.platforms) {
-    const id = toBuilderPlatform(platform)
     const note = meta.platformNotes?.[platform]
-    platforms[id] = {
+    platforms[platform] = {
       supported: true,
       notes: note ? [plain(note)] : undefined,
     }

@@ -1,8 +1,6 @@
-import corePackage from '@advui/core/package.json'
 import { platformNote, propsForPlatform } from './adaptMeta'
 import { advuiRegistry } from './componentRegistry'
 import type { ConfigNode } from './metadata'
-import { advuiMetaVersion } from './sourceMeta'
 import { generateCode } from '../builder/code/codeGenerator'
 import { createBuilderReducer, createBuilderState } from '../builder/state/builderState'
 
@@ -12,11 +10,7 @@ function starterCode(component: string): string {
   return generateCode(advuiRegistry.createDocument(component), { registry: advuiRegistry })
 }
 
-describe('AdvUI metadata snapshot', () => {
-  it('was taken from the installed @advui/core version', () => {
-    expect(advuiMetaVersion, 'Run `pnpm sync-meta` after changing the @advui/core version').toBe(corePackage.version)
-  })
-
+describe('AdvUI metadata', () => {
   it('still describes every prop the starter templates and added items set', () => {
     const unknown: string[] = []
     const check = (node: ConfigNode) => {
@@ -36,7 +30,7 @@ describe('AdvUI metadata snapshot', () => {
     ]) {
       check(builderReducer(createBuilderState(advuiRegistry, component, { selectedId }), { type: 'add-item' }).document)
     }
-    expect(unknown, 'A metadata sync dropped these props; add them back as registry extraProps').toEqual([])
+    expect(unknown, 'An AdvUI upgrade dropped these props; add them back as registry extraProps').toEqual([])
   })
 })
 
