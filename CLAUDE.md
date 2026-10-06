@@ -15,13 +15,15 @@ pnpm install
 pnpm dev                # http://localhost:5173
 pnpm typecheck          # tsc --noEmit
 pnpm test               # vitest run (jsdom)
-pnpm e2e                # Playwright browser tests in e2e/ (starts its own dev server on :5174)
+pnpm e2e                # Playwright browser tests in e2e/ (starts its own dev server on :5174; with CI set, serves dist/)
 pnpm build              # typecheck + vite build
 pnpm sync-meta          # regenerate src/registry/sourceMeta.ts from AdvUI upstream (needs GitHub access)
 pnpm sync-meta --check  # fail if the snapshot differs from upstream
 ```
 
 Before committing, run `pnpm typecheck && pnpm test && pnpm build`, plus `pnpm e2e` when you touch drag-and-drop, the canvas, or Layers. There is no ESLint or Prettier config. Match the existing style by hand.
+
+CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`, with Node 22 and pnpm 12.8.1. One job runs typecheck, unit tests and `sync-meta --check`; the other runs `pnpm build`, then `pnpm e2e` against that build. On CI, Playwright serves `dist/` with `vite preview`, because a cold dev server can take longer than the test timeout on the first page load. To reproduce that run locally, use `pnpm build && CI=1 pnpm e2e`. Traces from failed browser tests are uploaded as the `playwright-traces` artifact.
 
 On a fresh machine, run `pnpm exec playwright install chromium` once before `pnpm e2e`. Cloud sessions already have Chromium at `/opt/pw-browsers`, which matches the pinned `@playwright/test@1.56.1`.
 
@@ -136,7 +138,7 @@ Remaining phases of that plan:
 - **Phase 3:** a "Blocks" sidebar group (Navbar, Hero, Pricing, Login, Footer) and more AdvUI components (NavigationBar, Breadcrumb, Accordion, Dialog, Form, Sidebar).
 - **Phase 4:** double-click to edit text, a hover toolbar, Alt+↑/↓ and copy/paste, and an Edit / Preview toggle.
 - **Phase 5:** export the page as `Page.tsx`, save and load pages, page settings.
-- **Phase 6:** CI, lint/format, performance on large pages.
+- **Phase 6:** lint/format, performance on large pages. CI is done.
 
 Decisions that differ from the brief on purpose:
 
@@ -155,6 +157,6 @@ Known gaps, highest value first:
 7. Inspector properties from the brief are missing: Shadow, Margin (`marginProp` is defined but unused), Font family, and Line height.
 8. The splitters have no keyboard resizing. The layers section is labelled "Component Properties", and the collapse-inspector button sits in `LayersPanel`.
 9. Untested in UI: selection overlay outlines, zoom/Fit/100%, width slider and preset buttons (reducer only), sidebar collapse, splitter drag, and search.
-10. There is no ESLint, Prettier, or CI workflow.
+10. There is no ESLint or Prettier config.
 11. Toast is still special-cased in the generic `codeGenerator.ts`. A per-component code hook in metadata would move it into the AdvUI registry.
 12. Fit zoom uses a global `document.querySelector('.preview .canvas')`, and the URL is not kept in sync with state (links only come from "Copy link").
