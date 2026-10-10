@@ -94,6 +94,19 @@ test('drops a column preset on the page and fills one of its columns', async ({ 
   )
 })
 
+test('drops a block on the page, with plans side by side on desktop and stacked on a phone', async ({ page }) => {
+  await openPage(page)
+  const block = page.getByRole('complementary', { name: 'Components' }).getByRole('button', { name: 'Pricing block' })
+  await drag(page, block, page.locator('.empty-slot.root'))
+  await expect(layer(page, 'section')).toHaveText(/Pricing/)
+  const top = async (id: string) => Math.round((await canvasNode(page, id).boundingBox())!.y)
+  expect(await top('card-2')).toBe(await top('card'))
+
+  await page.getByRole('group', { name: 'Platform' }).getByRole('button', { name: 'Android' }).click()
+  await expect.poll(async () => (await top('card-2')) - (await top('card'))).toBeGreaterThan(0)
+  expect(await code(page)).toContain('columns={{ base: 1, md: 3 }}')
+})
+
 test('moves a column before its sibling, along the grid row', async ({ page }) => {
   await openPage(page)
   await page.getByRole('complementary', { name: 'Components' }).getByRole('button', { name: 'Columns 8 4' }).click()

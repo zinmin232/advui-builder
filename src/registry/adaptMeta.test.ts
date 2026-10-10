@@ -38,6 +38,7 @@ describe('AdvUI metadata', () => {
     }
     for (const { name } of advuiRegistry.sidebarEntries()) check(advuiRegistry.createDocument(name))
     check(advuiRegistry.createColumns([8, 4]))
+    for (const block of advuiRegistry.blocks) check(advuiRegistry.createBlock(block.id))
     for (const [component, selectedId] of [
       ['Select', 'select'],
       ['RadioGroup', 'radio-group'],
@@ -438,5 +439,77 @@ describe('platform metadata', () => {
     // The Tabs list between the trigger and the Tabs does not stop "add item" from finding the Tabs.
     const added = builderReducer({ ...page, selectedId: trigger.id }, { type: 'add-item' })
     expect(added.document.children[0].children[0].children).toHaveLength(3)
+  })
+})
+
+describe('blocks', () => {
+  /** Every layer of a tree, with the layers above it (the root first). */
+  const layers = (node: ConfigNode, path: ConfigNode[] = []): [ConfigNode, ConfigNode[]][] => [
+    [node, path],
+    ...node.children.flatMap((child) => layers(child, [...path, node])),
+  ]
+
+  it('lists the ready-made page parts in sidebar order', () => {
+    expect(advuiRegistry.blocks.map((block) => block.name)).toEqual(['Navbar', 'Hero', 'Pricing', 'Login', 'Footer'])
+    expect(advuiRegistry.searchBlocks('sign in').map((block) => block.id)).toEqual(['login'])
+    expect(advuiRegistry.searchBlocks('').length).toBe(5)
+  })
+
+  it('builds every block within the drop rules, so each one can go on a page', () => {
+    const page = advuiRegistry.createPage()
+    for (const block of advuiRegistry.blocks) {
+      const tree = advuiRegistry.createBlock(block.id)
+      expect(advuiRegistry.canPlace(tree.component, [page]), block.id).toBe(true)
+      for (const [node, path] of layers(tree).slice(1)) {
+        // Placed into its parent as if it were not there yet, so capacity (`maxChildren`) counts the others.
+        const parent = path.at(-1)!
+        const without = { ...parent, children: parent.children.filter((child) => child !== node) }
+        const at = [page, ...path.slice(0, -1), without]
+        expect(advuiRegistry.canPlace(node.component, at), `${block.id}: ${node.label}`).toBe(true)
+      }
+    }
+  })
+
+  it('writes responsive layout into the code', () => {
+    const code = (id: string) => generateCode(advuiRegistry.createBlock(id), { registry: advuiRegistry })
+    expect(code('pricing')).toContain('columns={{ base: 1, md: 3 }}')
+    expect(code('login')).toContain('span={{ base: 12, md: 6, lg: 4 }}')
+    expect(code('navbar')).toMatch(/<Show\s+above="md"\s*>/)
+    expect(code('footer')).toContain('direction={{ base: "column", md: "row" }}')
+    expect(code('hero').split('\n')[0]).toBe(
+      "import { Badge, Button, Center, HStack, Section, Text, VStack } from '@advui/core'",
+    )
+  })
+
+  it('adds a block to the page or the selected container, and undo removes it', () => {
+    const page = createBuilderState(advuiRegistry, 'Button', { mode: 'page' })
+    const added = builderReducer(page, { type: 'insert-block', block: 'hero' })
+    const hero = added.document.children[0]
+    expect(hero).toMatchObject({ component: 'Section', label: 'Hero' })
+    expect(added.selectedId).toBe(hero.id)
+    expect(builderReducer(added, { type: 'undo' }).document.children).toEqual([])
+    expect(builderReducer(page, { type: 'insert-block', block: 'nope' })).toBe(page)
+
+    // A clicked block goes below the section that holds the selection, not inside the block added last.
+    const stacked = builderReducer(added, { type: 'insert-block', block: 'pricing' })
+    const headline = layers(stacked.document).find(([node]) => node.label === 'Headline')![0]
+    const below = builderReducer({ ...stacked, selectedId: headline.id }, { type: 'insert-block', block: 'footer' })
+    expect(below.document.children.map((child) => child.label)).toEqual(['Hero', 'Footer', 'Pricing'])
+    // Outside Page mode it goes inside the selected container, like a component.
+    const stack = builderReducer(createBuilderState(advuiRegistry, 'VStack'), { type: 'insert-block', block: 'login' })
+    expect(stack.document.children.at(-1)).toMatchObject({ component: 'Grid', label: 'Login' })
+
+    const twice = builderReducer(builderReducer(page, { type: 'insert-block-at', block: 'footer', targetId: 'page', position: 'inside' }), {
+      type: 'insert-block-at',
+      block: 'navbar',
+      targetId: 'vstack',
+      position: 'before',
+    })
+    expect(twice.document.children.map((child) => child.label)).toEqual(['Navbar', 'Footer'])
+    const ids = layers(twice.document).map(([node]) => node.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    // A block is no text: a Button cannot hold one.
+    const button = builderReducer(page, { type: 'insert', component: 'Button' })
+    expect(builderReducer(button, { type: 'insert-block-at', block: 'hero', targetId: 'button', position: 'inside' })).toBe(button)
   })
 })

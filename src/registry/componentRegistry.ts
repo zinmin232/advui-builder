@@ -1,5 +1,6 @@
 import { components as advuiMetas, type ComponentMeta } from '@advui/core/meta'
 import { adaptAdvuiMeta, type AdaptOptions } from './adaptMeta'
+import { advuiBlocks } from './advuiBlocks'
 import type { PropMetadata, TemplateNode } from './metadata'
 import { createRegistry } from './registry'
 import {
@@ -876,6 +877,7 @@ export const advuiRegistry = createRegistry({
       props: { span: span === 12 ? 12 : { base: 12, md: span } },
     })),
   }),
+  blocks: advuiBlocks,
   // Sidebar entries appear in this order. Compound parts follow their component.
   components: [
     button,

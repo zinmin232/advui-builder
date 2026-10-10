@@ -22,11 +22,13 @@ import { layoutAxis, nodeElement, scrollParent } from '../preview/measure'
 import { useBuilderActions, useBuilderState, useRegistry } from '../state/BuilderProvider'
 import { resolveDrop, type DropTarget, type Point } from './dropTarget'
 
-/** A new component or layout preset from the sidebar, or a layer already on the page. */
+/** A new component, layout preset or block from the sidebar, or a layer already on the page. */
 export type DragItem =
   | { kind: 'palette'; component: string; label: string }
   /** `component` is the row's root, which the drop rules check. */
   | { kind: 'columns'; spans: number[]; component: string; label: string }
+  /** `component` is the block's root, which the drop rules check. */
+  | { kind: 'block'; block: string; component: string; label: string }
   | { kind: 'layer'; id: string; component: string; label: string }
 
 /** Places that accept drops: the preview frame (`data-builder-id` nodes) and the Layers tree (`data-layer-id` rows). */
@@ -216,6 +218,7 @@ export function BuilderDnd({ children }: { children: ReactNode }) {
     if (!commit || !item || !target) return
     if (item.kind === 'palette') actions.insertAt(item.component, target.id, target.position)
     else if (item.kind === 'columns') actions.insertColumnsAt(item.spans, target.id, target.position)
+    else if (item.kind === 'block') actions.insertBlockAt(item.block, target.id, target.position)
     else actions.place(item.id, target.id, target.position)
   }
 

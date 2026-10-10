@@ -84,6 +84,9 @@ export type BuilderAction =
   /** A layout preset: a row of columns with these spans out of 12, added like a component. */
   | { type: 'insert-columns'; spans: number[] }
   | { type: 'insert-columns-at'; spans: number[]; targetId: string; position: PlacePosition }
+  /** A ready-made block from the registry (a navbar, a hero), added like a component. */
+  | { type: 'insert-block'; block: string }
+  | { type: 'insert-block-at'; block: string; targetId: string; position: PlacePosition }
   | { type: 'add-item' }
   | { type: 'remove' }
   | { type: 'move'; direction: 'up' | 'down' }
@@ -151,6 +154,30 @@ export function insertionTarget(registry: BuilderRegistry, state: BuilderState):
   return target ?? (state.mode === 'page' ? state.document.id : null)
 }
 
+/** Where a clicked block goes, and the layer it is placed against. */
+export interface BlockPlacement {
+  targetId: string
+  position: PlacePosition
+  label: string
+}
+
+/**
+ * Blocks are page sections, so in Page mode a clicked block goes below the section that holds the selection, or
+ * at the end of the page; it never lands inside the block added before it. In Component mode it goes inside the
+ * insertion target, like a component.
+ */
+export function blockPlacement(registry: BuilderRegistry, state: BuilderState): BlockPlacement | null {
+  if (state.mode === 'page') {
+    const section = findPath(state.document, state.selectedId)?.[1]
+    return section
+      ? { targetId: section.id, position: 'after', label: section.label }
+      : { targetId: state.document.id, position: 'inside', label: state.document.label }
+  }
+  const targetId = insertionTarget(registry, state)
+  const target = targetId ? findNode(state.document, targetId) : null
+  return target ? { targetId: target.id, position: 'inside', label: target.label } : null
+}
+
 /**
  * Whether a prop value is kept on the node. Cleared and default values are left off;
  * required props keep an explicit value, even an empty one (`alt=""`).
@@ -196,6 +223,8 @@ const documentActions = new Set<BuilderAction['type']>([
   'insert-at',
   'insert-columns',
   'insert-columns-at',
+  'insert-block',
+  'insert-block-at',
   'add-item',
   'remove',
   'move',
@@ -259,6 +288,10 @@ function insertComponent(registry: BuilderRegistry, state: BuilderState, compone
 
 function columnsFor(registry: BuilderRegistry, spans: number[]): ConfigNode | null {
   return registry.hasColumns && isValidSpans(spans) ? registry.createColumns(spans) : null
+}
+
+function blockFor(registry: BuilderRegistry, id: string): ConfigNode | null {
+  return registry.blocks.some((block) => block.id === id) ? registry.createBlock(id) : null
 }
 
 function switchMode(registry: BuilderRegistry, state: BuilderState, mode: BuilderMode): BuilderState {
@@ -347,6 +380,15 @@ function applyAction(registry: BuilderRegistry, state: BuilderState, action: Bui
     case 'insert-columns-at': {
       const row = columnsFor(registry, action.spans)
       return row ? insertTreeAt(registry, state, row, action.targetId, action.position) : state
+    }
+    case 'insert-block': {
+      const block = blockFor(registry, action.block)
+      const placement = blockPlacement(registry, state)
+      return block && placement ? insertTreeAt(registry, state, block, placement.targetId, placement.position) : state
+    }
+    case 'insert-block-at': {
+      const block = blockFor(registry, action.block)
+      return block ? insertTreeAt(registry, state, block, action.targetId, action.position) : state
     }
     case 'add-item': {
       const hostId = itemHostId(registry, state.document, state.selectedId)

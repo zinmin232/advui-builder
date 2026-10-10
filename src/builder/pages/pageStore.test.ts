@@ -100,11 +100,16 @@ describe('page store', () => {
     expect(loadPageDocument(advuiRegistry, storage, 'page-b')).toBeNull()
   })
 
-  it('reads back every starter tree as it was saved', () => {
+  it('reads back every starter tree and block as it was saved', () => {
     for (const entry of advuiRegistry.sidebarEntries()) {
       const tree = advuiRegistry.createDocument(entry.name)
       const stored = JSON.parse(JSON.stringify(compactTree(tree)))
       expect(readTree(advuiRegistry, stored, entry.name, { nodes: 5000, depth: 64 }), entry.name).toEqual(tree)
+    }
+    for (const block of advuiRegistry.blocks) {
+      const tree = advuiRegistry.createBlock(block.id)
+      const stored = JSON.parse(JSON.stringify(compactTree(tree)))
+      expect(readTree(advuiRegistry, stored, tree.component, { nodes: 5000, depth: 64 }), block.id).toEqual(tree)
     }
   })
 
