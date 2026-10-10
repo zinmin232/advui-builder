@@ -58,6 +58,7 @@ pnpm lint
 pnpm format # Prettier; pnpm format:check only checks
 pnpm build
 pnpm e2e    # browser tests; run `pnpm exec playwright install chromium` once first
+pnpm perf   # interaction timings on a large page; run `pnpm build && pnpm preview` first
 ```
 
 Open `http://localhost:5173`. A nested Card (Header, Title, Image, Footer, Button) is the reference composition for click-to-select.

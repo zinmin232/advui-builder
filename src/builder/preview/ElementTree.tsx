@@ -15,7 +15,11 @@ function EmptySlot({ root }: { root: boolean }) {
   )
 }
 
-export const ElementTree = memo(function ElementTree({
+/**
+ * One layer and its children. Memoized, so an edit re-renders only the changed layer and its ancestors (the tree
+ * shares unchanged nodes). The inner function has another name: inside it, `ElementTree` must mean the memoized one.
+ */
+export const ElementTree = memo(function ElementTreeLayer({
   node,
   renderNode,
   depth = 0,

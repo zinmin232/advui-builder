@@ -17,6 +17,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type WheelEvent,
 } from 'react'
 import { layoutAxis, nodeElement, scrollParent } from '../preview/measure'
 import { useBuilderActions, useBuilderState, useRegistry } from '../state/BuilderProvider'
@@ -46,6 +47,15 @@ const SurfaceContext = createContext<(surface: DropSurface, element: HTMLElement
 const surfaceAttribute: Record<DropSurface, string> = { canvas: 'data-builder-id', layers: 'data-layer-id' }
 const EDGE = 40
 const SCROLL_STEP = 14
+// dnd-kit compares sensor options by identity: a new object each render would re-render every drag source.
+const pointerOptions = { activationConstraint: { distance: 6 } }
+const announcements: Announcements = {
+  onDragStart: ({ active }) => `Picked up ${(active.data.current as DragItem | undefined)?.label ?? 'item'}.`,
+  onDragOver: () => undefined,
+  onDragEnd: ({ active }) => `Dropped ${(active.data.current as DragItem | undefined)?.label ?? 'item'}.`,
+  onDragCancel: ({ active }) => `Cancelled dragging ${(active.data.current as DragItem | undefined)?.label ?? 'item'}.`,
+}
+const accessibility = { announcements }
 
 export function useDragState(): DragState {
   return useContext(DragStateContext)
@@ -100,11 +110,20 @@ function scrollNearEdge(scroller: HTMLElement, point: Point) {
   else if (point.y > box.bottom - EDGE && point.y <= box.bottom) scroller.scrollTop += SCROLL_STEP
 }
 
-const announcements: Announcements = {
-  onDragStart: ({ active }) => `Picked up ${(active.data.current as DragItem | undefined)?.label ?? 'item'}.`,
-  onDragOver: () => undefined,
-  onDragEnd: ({ active }) => `Dropped ${(active.data.current as DragItem | undefined)?.label ?? 'item'}.`,
-  onDragCancel: ({ active }) => `Cancelled dragging ${(active.data.current as DragItem | undefined)?.label ?? 'item'}.`,
+/**
+ * While dragging, a shield covers the page: it shows the grabbing cursor and keeps the pointer from hovering (and
+ * restyling) everything it crosses. It is not a class on the body, because restyling every element on each pick-up
+ * and drop takes tens of milliseconds on a large page. A wheel turn on the shield scrolls whatever is under it.
+ */
+function forwardWheel(event: WheelEvent<HTMLDivElement>) {
+  const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1
+  for (const element of document.elementsFromPoint(event.clientX, event.clientY)) {
+    if (!(element instanceof HTMLElement) || element.closest('[data-drop-ignore]')) continue
+    const scroller = scrollParent(element)
+    if (!scroller) continue
+    scroller.scrollBy({ top: event.deltaY * scale, left: event.deltaX * scale })
+    return
+  }
 }
 
 /**
@@ -127,7 +146,7 @@ export function BuilderDnd({ children }: { children: ReactNode }) {
     scrollers: HTMLElement[]
     off: () => void
   } | null>(null)
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
+  const sensors = useSensors(useSensor(PointerSensor, pointerOptions))
 
   useLayoutEffect(() => {
     latest.current = { registry, document: state.document }
@@ -182,7 +201,6 @@ export function BuilderDnd({ children }: { children: ReactNode }) {
     if (!current) return
     cancelAnimationFrame(current.frame)
     current.off()
-    document.body.classList.remove('builder-dragging')
     session.current = null
   }, [])
 
@@ -196,8 +214,6 @@ export function BuilderDnd({ children }: { children: ReactNode }) {
       if (session.current) session.current.pointer = { x: move.clientX, y: move.clientY }
     }
     window.addEventListener('pointermove', onMove)
-    // Stops the browser from selecting preview text while the pointer sweeps across it.
-    document.body.classList.add('builder-dragging')
     window.getSelection()?.removeAllRanges()
     const scrollers = [...surfaces.current.values()]
       .map((element) => scrollParent(element))
@@ -230,7 +246,7 @@ export function BuilderDnd({ children }: { children: ReactNode }) {
     <DndContext
       sensors={sensors}
       autoScroll={false}
-      accessibility={{ announcements }}
+      accessibility={accessibility}
       onDragStart={onDragStart}
       onDragEnd={() => finish(true)}
       onDragCancel={() => finish(false)}
@@ -238,7 +254,8 @@ export function BuilderDnd({ children }: { children: ReactNode }) {
       <SurfaceContext.Provider value={register}>
         <DragStateContext.Provider value={drag}>{children}</DragStateContext.Provider>
       </SurfaceContext.Provider>
-      <DragOverlay dropAnimation={null}>
+      {drag.item ? <div className="drag-shield" data-drop-ignore="" aria-hidden="true" onWheel={forwardWheel} /> : null}
+      <DragOverlay className="drag-overlay" dropAnimation={null}>
         {drag.item ? <div className={drag.target ? 'drag-chip' : 'drag-chip blocked'}>{drag.item.label}</div> : null}
       </DragOverlay>
     </DndContext>

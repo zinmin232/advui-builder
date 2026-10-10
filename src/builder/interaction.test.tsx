@@ -558,3 +558,36 @@ describe('page mode', () => {
     click.mockRestore()
   })
 })
+
+describe('large pages', () => {
+  it('re-renders only the edited layer and its ancestors on the canvas', async () => {
+    const user = userEvent.setup()
+    const rendered: ConfigNode[] = []
+    const countingRender = (node: ConfigNode, children: ReactNode) => {
+      rendered.push(node)
+      return renderNode(node, children)
+    }
+    function Edit() {
+      const actions = useBuilderActions()
+      return (
+        <>
+          <button type="button" onClick={() => actions.setText('card-title', 'Renamed')}>
+            Rename title
+          </button>
+          <ElementTree node={useBuilderState().document} renderNode={countingRender} />
+        </>
+      )
+    }
+    render(
+      <BuilderProvider registry={advuiRegistry} initial={createBuilderState(advuiRegistry, 'Card')} persist={false}>
+        <Edit />
+      </BuilderProvider>,
+    )
+    expect(rendered.map((node) => node.id)).toContain('card-button')
+
+    rendered.length = 0
+    await user.click(screen.getByRole('button', { name: 'Rename title' }))
+    expect(rendered.find((node) => node.id === 'card-title')?.text).toBe('Renamed')
+    expect(rendered.map((node) => node.id).sort()).toEqual(['card', 'card-header', 'card-title'])
+  })
+})
