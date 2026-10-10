@@ -1,9 +1,11 @@
 import { components as advuiMetas, type ComponentMeta } from '@advui/core/meta'
+import { iconNames } from '@advui/icons'
 import { adaptAdvuiMeta, type AdaptOptions } from './adaptMeta'
 import { advuiBlocks } from './advuiBlocks'
 import type { PropMetadata, TemplateNode } from './metadata'
 import { createRegistry } from './registry'
 import {
+  ariaLabelProp,
   backgroundProp,
   borderColorProp,
   colorProp,
@@ -24,24 +26,30 @@ function advuiMeta(slug: string): ComponentMeta {
   return meta
 }
 
+const accordionMeta = advuiMeta('accordion')
 const alertDialogMeta = advuiMeta('alert-dialog')
 const alertMeta = advuiMeta('alert')
 const aspectRatioMeta = advuiMeta('aspect-ratio')
 const autoGridMeta = advuiMeta('auto-grid')
 const avatarMeta = advuiMeta('avatar')
 const badgeMeta = advuiMeta('badge')
+const breadcrumbMeta = advuiMeta('breadcrumb')
 const buttonMeta = advuiMeta('button')
 const cardMeta = advuiMeta('card')
 const checkboxMeta = advuiMeta('checkbox')
 const chipMeta = advuiMeta('chip')
 const containerMeta = advuiMeta('container')
+const dialogMeta = advuiMeta('dialog')
 const dropdownMenuMeta = advuiMeta('dropdown-menu')
 const emptyStateMeta = advuiMeta('empty-state')
+const fieldMeta = advuiMeta('field')
+const formMeta = advuiMeta('form')
 const gridMeta = advuiMeta('grid')
 const imageMeta = advuiMeta('image')
 const inputMeta = advuiMeta('input')
 const labelMeta = advuiMeta('label')
 const listMeta = advuiMeta('list')
+const navigationBarMeta = advuiMeta('navigation-bar')
 const numberInputMeta = advuiMeta('number-input')
 const paginationMeta = advuiMeta('pagination')
 const passwordInputMeta = advuiMeta('password-input')
@@ -53,6 +61,7 @@ const sectionMeta = advuiMeta('section')
 const selectMeta = advuiMeta('select')
 const separatorMeta = advuiMeta('separator')
 const showHideMeta = advuiMeta('show-hide')
+const sidebarMeta = advuiMeta('sidebar')
 const skeletonMeta = advuiMeta('skeleton')
 const sliderMeta = advuiMeta('slider')
 const spinnerMeta = advuiMeta('spinner')
@@ -167,6 +176,7 @@ const cardFooter = adaptAdvuiMeta(cardMeta, {
 
 const input = adaptAdvuiMeta(inputMeta, {
   extraProps: [
+    ariaLabelProp,
     widthProp,
     {
       key: 'keyboardType',
@@ -183,8 +193,7 @@ const input = adaptAdvuiMeta(inputMeta, {
       platforms: ['android', 'ios'],
     },
   ],
-  staticProps: { 'aria-label': 'Email' },
-  template: node('input', 'Input', 'Input', { width: '280px' }),
+  template: node('input', 'Input', 'Input', { 'aria-label': 'Email', width: '280px' }),
 })
 
 const badge = adaptAdvuiMeta(badgeMeta, {
@@ -393,11 +402,12 @@ const label = adaptAdvuiMeta(labelMeta, {
 // Textarea and PasswordInput inherit Input props that their metadata does not repeat.
 const textarea = adaptAdvuiMeta(textareaMeta, {
   extraProps: [
+    ariaLabelProp,
     stringProp('placeholder', 'Placeholder', 'Hint text. Pair with a Label for the accessible name.'),
     widthProp,
   ],
-  staticProps: { 'aria-label': 'Message' },
   template: node('textarea', 'Textarea', 'Textarea', {
+    'aria-label': 'Message',
     placeholder: 'Write a message',
     rows: 4,
     width: '280px',
@@ -405,13 +415,13 @@ const textarea = adaptAdvuiMeta(textareaMeta, {
 })
 
 const checkbox = adaptAdvuiMeta(checkboxMeta, {
-  staticProps: { 'aria-label': 'Agree' },
-  template: node('checkbox', 'Checkbox', 'Checkbox', { defaultChecked: true }),
+  extraProps: [ariaLabelProp],
+  template: node('checkbox', 'Checkbox', 'Checkbox', { 'aria-label': 'Agree', defaultChecked: true }),
 })
 
 const switchControl = adaptAdvuiMeta(switchMeta, {
-  staticProps: { 'aria-label': 'Notifications' },
-  template: node('switch', 'Switch', 'Switch', { defaultChecked: true }),
+  extraProps: [ariaLabelProp],
+  template: node('switch', 'Switch', 'Switch', { 'aria-label': 'Notifications', defaultChecked: true }),
 })
 
 // Sidebar groups below differ from AdvUI's docs categories where the builder groups by task.
@@ -422,9 +432,9 @@ const separator = adaptAdvuiMeta(separatorMeta, {
 })
 
 const select = adaptAdvuiMeta(selectMeta, {
-  extraProps: [widthProp],
-  staticProps: { 'aria-label': 'Fruit' },
+  extraProps: [ariaLabelProp, widthProp],
   template: node('select', 'Select', 'Select', {
+    'aria-label': 'Fruit',
     defaultValue: 'apple',
     placeholder: 'Choose a fruit',
     width: '280px',
@@ -505,14 +515,17 @@ const avatar = adaptAdvuiMeta(avatarMeta, {
 
 // Upstream types the value as `number | number[]` (range sliders); the builder edits one thumb.
 const slider = adaptAdvuiMeta(sliderMeta, {
-  extraProps: [numberProp('defaultValue', 'Default Value', 'Starting position of the thumb.'), widthProp],
-  staticProps: { 'aria-label': 'Volume' },
-  template: node('slider', 'Slider', 'Slider', { defaultValue: 40, width: '280px' }),
+  extraProps: [
+    ariaLabelProp,
+    numberProp('defaultValue', 'Default Value', 'Starting position of the thumb.'),
+    widthProp,
+  ],
+  template: node('slider', 'Slider', 'Slider', { 'aria-label': 'Volume', defaultValue: 40, width: '280px' }),
 })
 
 const radioGroup = adaptAdvuiMeta(radioGroupMeta, {
-  staticProps: { 'aria-label': 'Billing' },
-  template: node('radio-group', 'RadioGroup', 'Radio group', { defaultValue: 'monthly' }, [
+  extraProps: [ariaLabelProp],
+  template: node('radio-group', 'RadioGroup', 'Radio group', { 'aria-label': 'Billing', defaultValue: 'monthly' }, [
     node('radio-monthly', 'RadioGroup.Item', 'Monthly', { value: 'monthly', id: 'plan-monthly' }),
     node('radio-monthly-label', 'Label', 'Monthly', { htmlFor: 'plan-monthly' }, [], 'Monthly'),
     node('radio-yearly', 'RadioGroup.Item', 'Yearly', { value: 'yearly', id: 'plan-yearly' }),
@@ -537,13 +550,14 @@ const radioGroupItem = adaptAdvuiMeta(radioGroupMeta, {
 
 const passwordInput = adaptAdvuiMeta(passwordInputMeta, {
   extraProps: [
+    ariaLabelProp,
     stringProp('placeholder', 'Placeholder', 'Hint shown while the field is empty.'),
     booleanProp('invalid', 'Invalid', 'Marks the field as invalid.'),
     booleanProp('disabled', 'Disabled', 'Prevents typing and toggling.'),
     widthProp,
   ],
-  staticProps: { 'aria-label': 'Password' },
   template: node('password-input', 'PasswordInput', 'Password input', {
+    'aria-label': 'Password',
     placeholder: 'Enter your password',
     width: '280px',
   }),
@@ -552,11 +566,12 @@ const passwordInput = adaptAdvuiMeta(passwordInputMeta, {
 // Upstream types the value as `number | null`.
 const numberInput = adaptAdvuiMeta(numberInputMeta, {
   extraProps: [
+    ariaLabelProp,
     numberProp('defaultValue', 'Default Value', 'Starting number. Empty when omitted.'),
     booleanProp('disabled', 'Disabled', 'Prevents typing and stepping.'),
   ],
-  staticProps: { 'aria-label': 'Quantity' },
   template: node('number-input', 'NumberInput', 'Number input', {
+    'aria-label': 'Quantity',
     defaultValue: 2,
     min: 1,
     max: 10,
@@ -853,8 +868,270 @@ const dropdownMenuSeparator = adaptAdvuiMeta(dropdownMenuMeta, {
   importName: 'DropdownMenu',
 })
 
+// Upstream types these as ReactNode; the builder stores an icon name and writes `<Icon name="…" />`.
+const iconOptions = iconNames.map((name) => ({ label: name, value: name }))
+
+function iconProp(key: string, label: string, description: string, required?: boolean): PropMetadata {
+  return { key, type: 'icon', label, description, group: 'component', options: iconOptions, required }
+}
+
+const breadcrumb = adaptAdvuiMeta(breadcrumbMeta, {
+  template: node('breadcrumb', 'Breadcrumb', 'Breadcrumb', {}, [
+    node('breadcrumb-home', 'Breadcrumb.Item', 'Home', { href: '/' }, [], 'Home'),
+    node('breadcrumb-projects', 'Breadcrumb.Item', 'Projects', { href: '/projects' }, [], 'Projects'),
+    node('breadcrumb-current', 'Breadcrumb.Item', 'Settings', {}, [], 'Settings'),
+  ]),
+  item: {
+    noun: 'level',
+    part: 'Breadcrumb.Item',
+    nodes: [{ component: 'Breadcrumb.Item', label: 'Level {n}', text: 'Level {n}' }],
+  },
+})
+
+const breadcrumbItem = adaptAdvuiMeta(breadcrumbMeta, {
+  part: 'Breadcrumb.Item',
+  sidebar: false,
+  importName: 'Breadcrumb',
+  textDefault: 'Home',
+})
+
+function accordionSection(id: string, value: string, question: string, answer: string): TemplateNode {
+  return node(id, 'Accordion.Item', question, { value }, [
+    node(`${id}-trigger`, 'Accordion.Trigger', 'Trigger', {}, [], question),
+    node(`${id}-content`, 'Accordion.Content', 'Content', {}, [node(`${id}-text`, 'Text', 'Text', {}, [], answer)]),
+  ])
+}
+
+const accordion = adaptAdvuiMeta(accordionMeta, {
+  extraProps: [widthProp],
+  propOverrides: {
+    defaultValue: {
+      description: 'The section open at first, by its value. With `multiple`, AdvUI takes a list; leave it empty there.',
+    },
+  },
+  template: node('accordion', 'Accordion', 'Accordion', {
+    type: 'single',
+    collapsible: true,
+    defaultValue: 'shipping',
+    width: '360px',
+  }, [
+    accordionSection('accordion-shipping', 'shipping', 'How long does shipping take?', 'Three to five working days.'),
+    accordionSection('accordion-returns', 'returns', 'Can I return an order?', 'Yes, within 30 days of delivery.'),
+  ]),
+  item: {
+    noun: 'section',
+    part: 'Accordion.Item',
+    valuePrefix: 'section',
+    nodes: [{
+      component: 'Accordion.Item',
+      label: 'Section {n}',
+      props: { value: '{value}' },
+      children: [
+        { component: 'Accordion.Trigger', label: 'Trigger', text: 'Section {n}' },
+        {
+          component: 'Accordion.Content',
+          label: 'Content',
+          children: [{ component: 'Text', label: 'Text', text: 'Section {n} details' }],
+        },
+      ],
+    }],
+  },
+})
+
+const accordionItem = adaptAdvuiMeta(accordionMeta, {
+  part: 'Accordion.Item',
+  sidebar: false,
+  importName: 'Accordion',
+})
+
+const accordionTrigger = adaptAdvuiMeta(accordionMeta, {
+  part: 'Accordion.Trigger',
+  sidebar: false,
+  importName: 'Accordion',
+  textDefault: 'Section title',
+})
+
+const accordionContent = adaptAdvuiMeta(accordionMeta, {
+  part: 'Accordion.Content',
+  sidebar: false,
+  importName: 'Accordion',
+})
+
+// Like Alert Dialog, it opens in the builder so its parts can be selected. Trigger and Close wrap a Button.
+const dialog = adaptAdvuiMeta(dialogMeta, {
+  template: node('dialog', 'Dialog', 'Dialog', { defaultOpen: true }, [
+    node('dialog-trigger', 'Dialog.Trigger', 'Trigger', {}, [
+      node('dialog-trigger-button', 'Button', 'Button', {}, [], 'Edit profile'),
+    ]),
+    node('dialog-content', 'Dialog.Content', 'Content', {}, [
+      node('dialog-header', 'Dialog.Header', 'Header', {}, [
+        node('dialog-title', 'Dialog.Title', 'Title', {}, [], 'Edit profile'),
+        node('dialog-description', 'Dialog.Description', 'Description', {}, [], 'Changes are saved to your account.'),
+      ]),
+      node('dialog-field', 'Field', 'Name field', { label: 'Name' }, [
+        node('dialog-input', 'Input', 'Name', { placeholder: 'Ada Lovelace', width: '100%' }),
+      ]),
+      node('dialog-footer', 'Dialog.Footer', 'Footer', {}, [
+        node('dialog-close', 'Dialog.Close', 'Close', {}, [
+          node('dialog-cancel', 'Button', 'Cancel', { variant: 'outline' }, [], 'Cancel'),
+        ]),
+        node('dialog-save', 'Button', 'Save', {}, [], 'Save'),
+      ]),
+    ]),
+  ]),
+})
+
+const dialogPart = (part: string, options: AdaptOptions = {}) =>
+  adaptAdvuiMeta(dialogMeta, { part, sidebar: false, importName: 'Dialog', ...options })
+
+const dialogTrigger = dialogPart('Dialog.Trigger', { staticProps: { asChild: true } })
+const dialogContent = dialogPart('Dialog.Content')
+const dialogHeader = dialogPart('Dialog.Header')
+const dialogFooter = dialogPart('Dialog.Footer')
+const dialogTitle = dialogPart('Dialog.Title', { textDefault: 'Edit profile' })
+const dialogDescription = dialogPart('Dialog.Description', { textDefault: 'Changes are saved to your account.' })
+const dialogClose = dialogPart('Dialog.Close', { staticProps: { asChild: true }, omit: ['asChild'] })
+
+// Upstream types the texts as ReactNode; the builder edits them as strings.
+const field = adaptAdvuiMeta(fieldMeta, {
+  extraProps: [
+    stringProp('label', 'Label', 'Names the control inside; the field wires the two together.'),
+    stringProp('description', 'Description', 'Help text under the label, read with the control.'),
+    stringProp('error', 'Error', 'Shown under the control, which is then marked invalid.'),
+  ],
+  template: node('field', 'Field', 'Field', { label: 'Email', description: 'We never share it.' }, [
+    node('field-input', 'Input', 'Input', { placeholder: 'you@example.com', width: '100%' }),
+  ]),
+})
+
+// `footer` is a ReactNode slot the builder can't fill; actions go inside the form instead.
+const form = adaptAdvuiMeta(formMeta, {
+  extraProps: [
+    stringProp('title', 'Title', 'A level-2 heading that names the form.'),
+    stringProp('description', 'Description', 'Muted text under the title.'),
+    stringProp('loadingText', 'Loading Text', 'Replaces the submit label while loading.'),
+    gapProp,
+    widthProp,
+  ],
+  template: node('form', 'Form', 'Form', {
+    title: 'Create account',
+    description: 'Enter your details.',
+    width: '360px',
+  }, [
+    node('form-name', 'Field', 'Name field', { label: 'Name' }, [
+      node('form-name-input', 'Input', 'Name', { placeholder: 'Ada Lovelace', width: '100%' }),
+    ]),
+    node('form-email', 'Field', 'Email field', { label: 'Email' }, [
+      node('form-email-input', 'Input', 'Email', { placeholder: 'you@example.com', width: '100%' }),
+    ]),
+    node('form-submit', 'Form.Submit', 'Submit', {}, [], 'Create account'),
+  ]),
+})
+
+// A Loading Button: it takes the Button props AdvUI's metadata leaves to that page.
+const formSubmit = adaptAdvuiMeta(formMeta, {
+  part: 'Form.Submit',
+  sidebar: false,
+  importName: 'Form',
+  textDefault: 'Submit',
+  extraProps: [
+    {
+      key: 'variant',
+      type: 'select',
+      label: 'Variant',
+      description: 'Visual style.',
+      group: 'component',
+      defaultValue: 'default',
+      options: ['default', 'secondary', 'outline', 'ghost', 'destructive', 'link'].map((value) => ({
+        label: value.charAt(0).toUpperCase() + value.slice(1),
+        value,
+      })),
+    },
+    booleanProp('fullWidth', 'Full Width', 'Stretch to the width of the form.'),
+  ],
+})
+
+const navigationBar = adaptAdvuiMeta(navigationBarMeta, {
+  extraProps: [widthProp],
+  template: node('navigation-bar', 'NavigationBar', 'Navigation bar', {
+    defaultValue: 'home',
+    'aria-label': 'Main',
+    width: '360px',
+  }, [
+    node('nav-home', 'NavigationBar.Item', 'Home', { value: 'home', icon: 'home', label: 'Home' }),
+    node('nav-search', 'NavigationBar.Item', 'Search', { value: 'search', icon: 'search', label: 'Search' }),
+    node('nav-inbox', 'NavigationBar.Item', 'Inbox', { value: 'inbox', icon: 'bell', label: 'Inbox', badge: 3 }),
+    node('nav-profile', 'NavigationBar.Item', 'Profile', { value: 'profile', icon: 'user', label: 'Profile' }),
+  ]),
+  item: {
+    noun: 'destination',
+    part: 'NavigationBar.Item',
+    valuePrefix: 'tab',
+    nodes: [{
+      component: 'NavigationBar.Item',
+      label: 'Destination {n}',
+      props: { value: '{value}', icon: 'circle', label: 'Tab {n}' },
+    }],
+  },
+})
+
+const navigationBarItem = adaptAdvuiMeta(navigationBarMeta, {
+  part: 'NavigationBar.Item',
+  sidebar: false,
+  importName: 'NavigationBar',
+  extraProps: [
+    iconProp('icon', 'Icon', 'The destination’s icon.', true),
+    numberProp('badge', 'Badge', 'A count on the icon (99+ above 99). Empty for none.'),
+  ],
+})
+
+// Its content area fills the height between header and footer, so on the canvas it needs a height of its own.
+const sidebarNav = adaptAdvuiMeta(sidebarMeta, {
+  extraProps: [heightProp],
+  template: node('sidebar', 'Sidebar', 'Sidebar', { height: '420px' }, [
+    node('sidebar-header', 'Sidebar.Header', 'Header', {}, [
+      node('sidebar-brand', 'Text', 'Brand', { weight: 'semibold' }, [], 'Acme'),
+      node('sidebar-spacer', 'Spacer', 'Spacer'),
+      node('sidebar-toggle', 'Sidebar.Toggle', 'Toggle'),
+    ]),
+    node('sidebar-content', 'Sidebar.Content', 'Content', {}, [
+      node('sidebar-group', 'Sidebar.Group', 'Workspace', { label: 'Workspace' }, [
+        node('sidebar-dashboard', 'Sidebar.Item', 'Dashboard', { icon: 'home', active: true }, [], 'Dashboard'),
+        node('sidebar-projects', 'Sidebar.Item', 'Projects', { icon: 'folder' }, [], 'Projects'),
+        node('sidebar-team', 'Sidebar.Item', 'Team', { icon: 'users' }, [], 'Team'),
+      ]),
+    ]),
+    node('sidebar-footer', 'Sidebar.Footer', 'Footer', {}, [
+      node('sidebar-settings', 'Sidebar.Item', 'Settings', { icon: 'settings' }, [], 'Settings'),
+    ]),
+  ]),
+})
+
+const sidebarPart = (part: string, options: AdaptOptions = {}) =>
+  adaptAdvuiMeta(sidebarMeta, { part, sidebar: false, importName: 'Sidebar', ...options })
+
+const sidebarHeader = sidebarPart('Sidebar.Header')
+const sidebarContent = sidebarPart('Sidebar.Content')
+const sidebarFooter = sidebarPart('Sidebar.Footer')
+const sidebarGroup = sidebarPart('Sidebar.Group', {
+  item: {
+    noun: 'item',
+    part: 'Sidebar.Item',
+    nodes: [{ component: 'Sidebar.Item', label: 'Item {n}', props: { icon: 'circle' }, text: 'Item {n}' }],
+  },
+})
+const sidebarItem = sidebarPart('Sidebar.Item', {
+  textDefault: 'Dashboard',
+  extraProps: [
+    iconProp('icon', 'Icon', 'Shown before the label, and alone when the sidebar is collapsed.'),
+    stringProp('badge', 'Badge', 'A count or tag after the label.'),
+  ],
+})
+const sidebarToggle = sidebarPart('Sidebar.Toggle')
+
 export const advuiRegistry = createRegistry({
   importSource: '@advui/core',
+  icons: { importName: 'Icon', nameProp: 'name' },
   // `breakpoints` from @advui/theme, which responsive props are keyed by. A test keeps them in step.
   breakpoints: [
     { name: 'xs', minWidth: 460 },
@@ -894,6 +1171,9 @@ export const advuiRegistry = createRegistry({
     passwordInput,
     numberInput,
     search,
+    form,
+    formSubmit,
+    field,
     progress,
     spinner,
     skeleton,
@@ -910,6 +1190,10 @@ export const advuiRegistry = createRegistry({
     chip,
     list,
     listItem,
+    accordion,
+    accordionItem,
+    accordionTrigger,
+    accordionContent,
     avatar,
     text,
     badge,
@@ -919,6 +1203,17 @@ export const advuiRegistry = createRegistry({
     tabsTrigger,
     tabsContent,
     pagination,
+    breadcrumb,
+    breadcrumbItem,
+    navigationBar,
+    navigationBarItem,
+    sidebarNav,
+    sidebarHeader,
+    sidebarContent,
+    sidebarFooter,
+    sidebarGroup,
+    sidebarItem,
+    sidebarToggle,
     alertDialog,
     alertDialogTrigger,
     alertDialogContent,
@@ -928,6 +1223,14 @@ export const advuiRegistry = createRegistry({
     alertDialogFooter,
     alertDialogCancel,
     alertDialogAction,
+    dialog,
+    dialogTrigger,
+    dialogContent,
+    dialogHeader,
+    dialogFooter,
+    dialogTitle,
+    dialogDescription,
+    dialogClose,
     toast,
     tooltip,
     dropdownMenu,

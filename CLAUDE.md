@@ -4,7 +4,7 @@ Selection-driven visual builder for the AdvUI component library (`@advui/core`).
 
 There are two modes (a toggle in the top bar). **Component** mode customizes one component and its parts. **Page** mode builds a page: a blank root (`registry.page`) that you fill by dragging from the sidebar, or by clicking sidebar items, which adds them. Drag-and-drop (inspired by LayoutIt) works from the sidebar, on the canvas (the selected element's name tag is the drag handle), and in the Layers tree.
 
-The sidebar's Blocks group adds ready-made page sections (Navbar, Hero, Pricing, Login, Footer) built from real components. Pages are saved in the browser as you edit. The page name in the top bar opens the saved pages: rename, open, duplicate, delete, or start a new one.
+The sidebar's Blocks group adds ready-made page sections (Navbar, Hero, Pricing, FAQ, Contact, Login, Dashboard, Footer) built from real components. Pages are saved in the browser as you edit. The page name in the top bar opens the saved pages: rename, open, duplicate, delete, or start a new one.
 
 The defining rule: **the inspector follows what the user selects.** Every panel reads one selection from one store.
 
@@ -30,7 +30,7 @@ On a fresh machine, run `pnpm exec playwright install chromium` once before `pnp
 ## Stack
 
 - Node >= 20, pnpm 10, React 19.2, TypeScript 5.9 (`strict`, `noUnusedLocals`, `noUnusedParameters`), Vite 6.
-- Real AdvUI components from `@advui/core@0.12.0` (Tamagui 2.7.7). Component metadata comes from the same package, `@advui/core/meta`. `@advui/theme` is a dev dependency only, so a test can check the registry's breakpoints against it. `react-native` is aliased to `react-native-web` in `vite.config.ts`, and `.web.*` extensions resolve first.
+- Real AdvUI components from `@advui/core@0.12.0` (Tamagui 2.7.7). Component metadata comes from the same package, `@advui/core/meta`. `@advui/theme` is a dev dependency only, so a test can check the registry's breakpoints against it. `@advui/icons` (the same version core uses) supplies the icon names for `icon` props; Vitest aliases it to its data-only `generated.js`, because the package entry loads Tamagui, and Vite puts that module in the `advui-meta` chunk so the main chunk never pulls in the lazy AdvUI one. `react-native` is aliased to `react-native-web` in `vite.config.ts`, and `.web.*` extensions resolve first.
 - Tests: Vitest 3 with globals, jsdom, Testing Library, and user-event. Setup is in `src/test/setup.ts`.
 - State is plain React (`useReducer` and context). Don't add a state library.
 - Drag-and-drop: `@dnd-kit/core` handles pointer tracking, the drag chip (`DragOverlay`) and Escape-to-cancel. Drop targets are worked out by the builder itself (see below), not by dnd-kit droppables.
@@ -73,7 +73,7 @@ On a fresh machine, run `pnpm exec playwright install chromium` once before `pnp
 
 ## Rules for changes
 
-- **Metadata-driven.** Don't add `if (component === 'X')` branches in the inspector, sidebar, layers, state, or panels. Starter trees, containers, and repeatable items are metadata (`template`, `acceptsChildren`, `item`), and `createRegistry` handles them generically. Component-specific code is allowed only where the component really needs it (today: `AdvuiPreview.tsx` for Toast, Select, Grid, Show/Hide, and clone-child hosts; `codeGenerator.ts` for Toast).
+- **Metadata-driven.** Don't add `if (component === 'X')` branches in the inspector, sidebar, layers, state, or panels. Starter trees, containers, and repeatable items are metadata (`template`, `acceptsChildren`, `item`), and `createRegistry` handles them generically. Component-specific code is allowed only where the component really needs it (today: `AdvuiPreview.tsx` for Toast, Select, Grid, Show/Hide, and clone-child hosts such as Dialog.Trigger and Dialog.Close; `codeGenerator.ts` for Toast).
 - **No library imports in the core.** Files under `src/builder/` (except the `AdvuiPreview.tsx` kit) must not import `componentRegistry.ts`, `@advui/core` or `@advui/core/meta`. Take the registry from `useRegistry()` or a `registry` parameter (registry-first for tree and state helpers; inside the options object for `generateCode`).
 - **One source of truth.** The document tree and `selectedId` live in the reducer. Don't copy props or selection into local component state. Derive the path, breadcrumb, and inspector values from `findPath(state.document, state.selectedId)`.
 - **Defaults are not stored.** `storesValue()` drops values equal to `prop.defaultValue` (required props keep explicit values). The code generator also skips defaults. Keep the two consistent.
@@ -91,7 +91,10 @@ On a fresh machine, run `pnpm exec playwright install chromium` once before `pnp
 - **Saved pages.** `state.pageId` names the saved page that Page mode's document is (`pageDocument(state)`, showing or parked). `BuilderProvider` writes that tree whenever it changes; the reducer never touches storage. Opening another page is the `load-page` action, which clears undo history, because the history belongs to the page that was open. A page link opens as a new "Shared page" and leaves the address bar, so it never overwrites the page in progress. Stored trees are read leniently: a layer whose component is gone is dropped, and the rest opens. Every write can fail (storage full or blocked): the menu then says "Not saved", and nothing throws.
 - **Undo.** Only document actions (listed in `documentActions`) enter history. Repeated edits to one field merge into one step through `historyKey`.
 - **Platform filtering.** Use `prop.platforms` to filter props by platform, in the inspector (`propsForPlatform`), the preview (`resolveProps`), and the code generator.
-- Upstream AdvUI types some props as `ReactNode` or unions the adapter can't edit. Add those as `extraProps` in the registry. A test fails if an AdvUI upgrade drops a prop that a template uses.
+- Upstream AdvUI types some props as `ReactNode` or unions the adapter can't edit. Add those as `extraProps` in the registry. A test fails if an AdvUI upgrade drops a prop that a template uses. ReactNode slots the builder can't fill (Form's `footer`, Breadcrumb's `separator`) are left out; put the content inside instead.
+- **Icon props.** An icon prop has `type: 'icon'` and the library's names as `options` (`iconProp()` in `componentRegistry.ts`); it stores a name. `RegistryDefinition.icons` (`{ importName: 'Icon', nameProp: 'name' }`) tells the code generator to write `icon={<Icon name="home" />}` and import `Icon`; the AdvUI kit turns the name into the element.
+- **Accessible names.** Controls take an editable `aria-label` (`ariaLabelProp`), set only in their own starter templates. Inside a Field it stays empty, because an `aria-label` would override the label the Field wires up.
+- **Text children.** A layer with text and no child layers is rendered with the text as a plain string, as the generated code writes it, because AdvUI styles string children itself (Accordion.Trigger, Button).
 
 ## Adding a component
 
@@ -137,7 +140,7 @@ To add a block, append one entry to `advuiBlocks` in `src/registry/advuiBlocks.t
 
 ## Status against the original build brief
 
-All 24 "Definition of Done" steps work, checked in Chromium on 2026-10-03: search, select, platform switch, width, background, click-to-select with outline, context inspector, breadcrumb, platform notes, reset, TSX, copy, collapse, resize, and reload persistence. There are 47 sidebar components (plus compound parts) built on real AdvUI. Extras beyond the brief: undo/redo, insert/remove/duplicate/move, drag-and-drop layers, "add item" for Select/Tabs/List/RadioGroup/Menu, share links, keyboard shortcuts, and canvas rulers.
+All 24 "Definition of Done" steps work, checked in Chromium on 2026-10-03: search, select, platform switch, width, background, click-to-select with outline, context inspector, breadcrumb, platform notes, reset, TSX, copy, collapse, resize, and reload persistence. There are 54 sidebar components (plus compound parts) and 8 blocks built on real AdvUI. Extras beyond the brief: undo/redo, insert/remove/duplicate/move, drag-and-drop layers, "add item" for Select/Tabs/List/RadioGroup/Menu, share links, keyboard shortcuts, and canvas rulers.
 
 Phase 1 of the LayoutIt-style plan is done: Page mode, @dnd-kit drag-and-drop (sidebar → canvas or Layers, moving on the canvas and in Layers), drop lines and boxes, empty-container slots, drop rules, and Playwright tests.
 
@@ -145,7 +148,7 @@ Remaining phases of that plan:
 
 - **Phase 2:** done. Box, HStack, VStack, Center, Spacer and Wrap are registered, with upstream's `direction` / `align` / `distribute` / `wrap` instead of raw flex props. Layout presets (`12`, `6 6`, `8 4`, `4 8`, `4 4 4`, `3 3 3 3`, or custom spans) add a 12-column Grid of Grid.Items that sit side by side from md up and stack on phones.
 - **Phase 2.5 (AdvUI 0.12.0):** done. Metadata comes from `@advui/core/meta`, drop rules from upstream child rules (`children`, `parents`, `within`), responsive props are edited per breakpoint and previewed at the preview width, and AutoGrid, Section, Sticky, Show and Hide are registered.
-- **Phase 3:** the Blocks group is done (Navbar, Hero, Pricing, Login, Footer, from registered components). Still to do: more AdvUI components (NavigationBar, Breadcrumb, Accordion, Dialog, Form, Sidebar, AppShell), whose metadata already ships in `@advui/core/meta`, and blocks that use them (a Navbar on NavigationBar, a Login on Form).
+- **Phase 3:** done except AppShell. Blocks (Navbar, Hero, Pricing, FAQ, Contact, Login, Dashboard, Footer); Breadcrumb, NavigationBar, Sidebar, Accordion, Dialog, Form and Field are registered, with icon props from AdvUI's icon set. NavigationBar is a bottom tab bar for phones, so the Navbar block stays a row of buttons; the Dashboard block pairs a Sidebar (from md) with a NavigationBar (on phones).
 - **Phase 4:** double-click to edit text, a hover toolbar, Alt+↑/↓ and copy/paste, and an Edit / Preview toggle.
 - **Phase 5:** saving pages is done (autosave in the browser, the Pages menu). Still to do: export the page as `Page.tsx`, page settings, and import/export of page files.
 - **Phase 6:** lint/format, performance on large pages. CI is done.
@@ -170,8 +173,10 @@ Known gaps, highest value first:
 10. There is no ESLint or Prettier config.
 11. Toast is still special-cased in the generic `codeGenerator.ts`. A per-component code hook in metadata would move it into the AdvUI registry.
 12. Fit zoom uses a global `document.querySelector('.preview .canvas')`, and the URL is not kept in sync with state (links only come from "Copy link").
-13. **AppShell is not registered.** It fills `100dvh` and turns its sidebar into a drawer from a window media query, so the canvas can't show it at the preview width. It needs an AdvUI option to render for a given width.
+13. **AppShell is not registered.** It fills `100dvh` (a `height` prop overrides that) and turns its sidebar into a drawer from `useMedia()` and CSS media queries, which follow the browser window, so the canvas can't show it at the preview width. It needs an AdvUI option to render for a given width.
 14. AdvUI's own responsive defaults (Container `gutter`, Section's inner Container) still follow the browser window in the preview; only values set in the builder follow the preview width.
 15. `children.min` from upstream (Field, Tooltip, triggers) is not enforced: removing the last child is allowed.
 16. The registry's `breakpoints` are written out in `componentRegistry.ts` (checked against `@advui/theme` by a test), because `@advui/core/meta` does not publish them.
 17. `@advui/core/meta` uses extensionless relative imports, so plain Node can't import it (Vite and Vitest can). Fixing that upstream would let Node scripts read it.
+18. **AdvUI NavigationBar hides the active icon on web.** The active pill is absolutely positioned and the icon is not, so the pill paints over it; native draws them in child order. The preview shows the same thing. An upstream fix (`position: relative` or `zIndex` on the icon) is needed.
+19. Accordion's `defaultValue` is edited as one value. With `type="multiple"` AdvUI takes a list, so the generated code is only right for `single`.

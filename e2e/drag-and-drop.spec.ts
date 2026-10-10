@@ -107,6 +107,20 @@ test('drops a block on the page, with plans side by side on desktop and stacked 
   expect(await code(page)).toContain('columns={{ base: 1, md: 3 }}')
 })
 
+test('shows the dashboard sidebar on desktop and bottom tabs on a phone', async ({ page }) => {
+  await openPage(page)
+  await page.getByRole('complementary', { name: 'Components' }).getByRole('button', { name: 'Dashboard block' }).click()
+  const sidebar = canvasNode(page, 'sidebar')
+  const tabs = canvasNode(page, 'navigationbar')
+  await expect(sidebar).toBeVisible()
+  await expect(tabs).toBeHidden()
+
+  await page.getByRole('group', { name: 'Platform' }).getByRole('button', { name: 'Android' }).click()
+  await expect(tabs).toBeVisible()
+  await expect(sidebar).toBeHidden()
+  expect(await code(page)).toContain('icon={<Icon name="home" />}')
+})
+
 test('moves a column before its sibling, along the grid row', async ({ page }) => {
   await openPage(page)
   await page.getByRole('complementary', { name: 'Components' }).getByRole('button', { name: 'Columns 8 4' }).click()

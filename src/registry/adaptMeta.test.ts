@@ -442,6 +442,73 @@ describe('platform metadata', () => {
   })
 })
 
+describe('navigation, disclosure, dialog and form components', () => {
+  const add = (component: string, selectedId: string) =>
+    builderReducer(createBuilderState(advuiRegistry, component, { selectedId }), { type: 'add-item' }).document
+
+  it('lists them in their AdvUI groups, without AppShell', () => {
+    const names = advuiRegistry.sidebarEntries().map((entry) => entry.name)
+    const added = ['Breadcrumb', 'NavigationBar', 'Sidebar', 'Accordion', 'Dialog', 'Form', 'Field']
+    expect(names).toEqual(expect.arrayContaining(added))
+    expect(names).not.toContain('AppShell')
+    expect(['Breadcrumb', 'NavigationBar', 'Sidebar'].map((name) => advuiRegistry.get(name).categoryId)).toEqual([
+      'navigation',
+      'navigation',
+      'navigation',
+    ])
+    expect(advuiRegistry.get('Form').categoryId).toBe('forms')
+  })
+
+  it('takes their part rules from AdvUI', () => {
+    expect(advuiRegistry.get('NavigationBar.Item').within).toBe('NavigationBar')
+    expect(advuiRegistry.get('Accordion.Trigger').within).toBe('Accordion.Item')
+    expect(advuiRegistry.get('Accordion.Item').maxChildren).toBe(2)
+    expect(advuiRegistry.get('Form.Submit').within).toBe('Form')
+    expect(advuiRegistry.get('Sidebar.Item').within).toBe('Sidebar')
+    expect(advuiRegistry.get('Breadcrumb.Item').parents).toEqual(['Breadcrumb'])
+    // Hosts that hold only their parts pass sidebar inserts on to the container around them.
+    for (const host of ['Breadcrumb', 'NavigationBar', 'Accordion', 'Sidebar']) expect(advuiRegistry.acceptsAny(host)).toBe(false)
+    expect(advuiRegistry.acceptsAny('Form')).toBe(true)
+    expect(advuiRegistry.acceptsAny('Field')).toBe(true)
+  })
+
+  it('grows each one by its repeatable part', () => {
+    expect(add('Breadcrumb', 'breadcrumb').children.at(-1)).toMatchObject({ component: 'Breadcrumb.Item', text: 'Level 4' })
+    const section = add('Accordion', 'accordion').children.at(-1)!
+    expect(section).toMatchObject({ component: 'Accordion.Item', props: { value: 'section-3' } })
+    expect(section.children.map((child) => child.component)).toEqual(['Accordion.Trigger', 'Accordion.Content'])
+    expect(add('NavigationBar', 'navigation-bar').children.at(-1)).toMatchObject({
+      props: { value: 'tab-5', icon: 'circle', label: 'Tab 5' },
+    })
+    const group = add('Sidebar', 'sidebar-group').children[1].children[0]
+    expect(group.children.at(-1)).toMatchObject({ component: 'Sidebar.Item', text: 'Item 4' })
+  })
+
+  it('offers AdvUI’s icon names and writes the icon element', () => {
+    const icon = advuiRegistry.get('NavigationBar.Item').props.find((prop) => prop.key === 'icon')
+    expect(icon).toMatchObject({ type: 'icon', required: true })
+    expect(icon?.options).toEqual(expect.arrayContaining([{ label: 'home', value: 'home' }]))
+    expect(advuiRegistry.icons).toEqual({ importName: 'Icon', nameProp: 'name' })
+    const code = starterCode('NavigationBar')
+    expect(code.split('\n')[0]).toBe("import { Icon, NavigationBar } from '@advui/core'")
+    expect(code).toContain('icon={<Icon name="home" />}')
+    expect(code).toContain('badge={3}')
+    expect(starterCode('Breadcrumb').split('\n')[0]).toBe("import { Breadcrumb } from '@advui/core'")
+  })
+
+  it('names a control from its Field, and a lone control from its own aria-label', () => {
+    expect(starterCode('Input')).toContain('aria-label="Email"')
+    const form = starterCode('Form')
+    expect(form).not.toContain('aria-label')
+    expect(form).toMatch(/<Field\s+label="Email"\s*>\s*<Input/)
+    expect(form).toContain('<Form.Submit>Create account</Form.Submit>')
+    expect(advuiRegistry.get('Checkbox').props.find((prop) => prop.key === 'aria-label')).toMatchObject({
+      type: 'string',
+      group: 'advanced',
+    })
+  })
+})
+
 describe('blocks', () => {
   /** Every layer of a tree, with the layers above it (the root first). */
   const layers = (node: ConfigNode, path: ConfigNode[] = []): [ConfigNode, ConfigNode[]][] => [
@@ -450,9 +517,18 @@ describe('blocks', () => {
   ]
 
   it('lists the ready-made page parts in sidebar order', () => {
-    expect(advuiRegistry.blocks.map((block) => block.name)).toEqual(['Navbar', 'Hero', 'Pricing', 'Login', 'Footer'])
+    expect(advuiRegistry.blocks.map((block) => block.name)).toEqual([
+      'Navbar',
+      'Hero',
+      'Pricing',
+      'FAQ',
+      'Contact',
+      'Login',
+      'Dashboard',
+      'Footer',
+    ])
     expect(advuiRegistry.searchBlocks('sign in').map((block) => block.id)).toEqual(['login'])
-    expect(advuiRegistry.searchBlocks('').length).toBe(5)
+    expect(advuiRegistry.searchBlocks('').length).toBe(8)
   })
 
   it('builds every block within the drop rules, so each one can go on a page', () => {

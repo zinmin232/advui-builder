@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
@@ -8,8 +9,8 @@ const vendorChunks: [RegExp, string][] = [
   [/^@advui\//, 'advui'],
 ]
 
-// The registry reads AdvUI's metadata on startup; the components arrive later with the preview.
-const advuiMetaModule = /\/node_modules\/@advui\/core\/dist\/(meta\/|.+\.meta\.js$)/
+// The registry reads AdvUI's metadata and icon names on startup; the components arrive later with the preview.
+const advuiMetaModule = /\/node_modules\/@advui\/(core\/dist\/(meta\/|.+\.meta\.js$)|icons\/dist\/generated\.js$)/
 
 /** Package that owns a module, from its innermost node_modules folder (pnpm nests them). */
 function packageName(id: string): string | null {
@@ -51,7 +52,16 @@ export default defineConfig({
     port: 5173,
   },
   test: {
+    // The registry reads only the icon names. The package entry also loads Tamagui, which needs a real browser.
+    alias: [
+      {
+        find: /^@advui\/icons$/,
+        replacement: fileURLToPath(new URL('./node_modules/@advui/icons/dist/generated.js', import.meta.url)),
+      },
+    ],
     environment: 'jsdom',
+    // UI tests render the whole sidebar, and role queries over it are slow in jsdom, more so on a busy machine.
+    testTimeout: 15_000,
     globals: true,
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     setupFiles: ['src/test/setup.ts'],

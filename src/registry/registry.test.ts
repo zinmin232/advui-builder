@@ -145,6 +145,24 @@ describe('component registry', () => {
       .toThrow(/Block banner template uses unknown component Gone/)
   })
 
+  it('writes icon props with the library’s icon element, or as plain names without one', () => {
+    const badge = meta('Badge', {
+      props: [{ key: 'icon', type: 'icon', label: 'Icon', group: 'component', options: [{ label: 'star', value: 'star' }] }],
+    })
+    const node = { id: 'badge', component: 'Badge', label: 'Badge', props: { icon: 'star' }, children: [] }
+    const withIcons = createRegistry({
+      importSource: '@acme/ui',
+      components: [badge],
+      icons: { importName: 'Glyph', nameProp: 'shape' },
+    })
+    expect(registry.icons).toBeNull()
+    expect(generateCode(node, { registry: withIcons })).toBe(
+      "import { Badge, Glyph } from '@acme/ui'\n\n<Badge icon={<Glyph shape=\"star\" />} />\n",
+    )
+    const plain = createRegistry({ importSource: '@acme/ui', components: [badge] })
+    expect(generateCode(node, { registry: plain })).toContain('<Badge icon="star" />')
+  })
+
   it('applies accepts, parents, within, capacity, and template placement rules', () => {
     const rules = createRegistry({
       importSource: '@acme/ui',

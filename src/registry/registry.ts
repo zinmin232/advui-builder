@@ -29,6 +29,17 @@ export interface RegistryDefinition {
   breakpoints?: BreakpointMetadata[]
   /** Ready-made page parts, in sidebar order. Without them, the sidebar has no Blocks group. */
   blocks?: BlockDefinition[]
+  /** How the library draws an icon by name. Without it, `icon` props are written as plain strings. */
+  icons?: IconSource
+}
+
+/**
+ * The library's icon component: an `icon` prop storing `"home"` is written as `icon={<Icon name="home" />}`.
+ * The names an `icon` prop offers are its `options`.
+ */
+export interface IconSource {
+  importName: string
+  nameProp: string
 }
 
 /** A ready-made part of a page (a navbar, a hero) built from the library's own components. */
@@ -62,6 +73,8 @@ export interface BuilderRegistry {
   readonly breakpoints: readonly BreakpointMetadata[]
   /** Ready-made page parts, in sidebar order. Empty when the library defines none. */
   readonly blocks: readonly BlockEntry[]
+  /** How `icon` props are drawn by name, or null when the library has no icon component. */
+  readonly icons: IconSource | null
   /** Blocks whose name, description or keywords contain the query. */
   searchBlocks(query: string): BlockEntry[]
   /** A fresh copy of a block's tree. Throws for an unknown block. */
@@ -259,6 +272,7 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
     hasColumns: columns != null,
     breakpoints,
     blocks: blockEntries,
+    icons: definition.icons ?? null,
     searchBlocks(query) {
       const normalized = query.trim().toLowerCase()
       return blockEntries.filter((entry) => {
