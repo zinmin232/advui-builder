@@ -11,3 +11,8 @@ if (typeof Blob !== 'undefined' && !Blob.prototype.text) {
     })
   }
 }
+
+// jsdom does no layout, so it has no scrollIntoView; the builder scrolls a keyboard move's target into view.
+if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function scrollIntoView() {}
+}

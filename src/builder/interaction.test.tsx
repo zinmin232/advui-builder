@@ -7,6 +7,7 @@ import type { ConfigNode } from '../registry/metadata'
 import { createRegistry } from '../registry/registry'
 import { acmeLibrary } from '../test/acmeLibrary'
 import { CodePanel } from './code/CodePanel'
+import { BuilderDnd } from './dnd/BuilderDnd'
 import { Inspector } from './inspector/Inspector'
 import { LayersPanel } from './layers/LayersPanel'
 import { PageMenu } from './pages/PageMenu'
@@ -274,6 +275,53 @@ describe('keyboard shortcuts', () => {
     await user.click(layers.getByRole('button', { name: 'Title' }))
     expect(send('paste', screen.getByLabelText('Content')).defaultPrevented).toBe(false)
     expect(screen.queryByTestId('node-button')).not.toBeInTheDocument()
+  })
+})
+
+describe('keyboard move', () => {
+  function renderMovable() {
+    return render(
+      <BuilderProvider
+        registry={advuiRegistry}
+        initial={createBuilderState(advuiRegistry, 'Card', { selectedId: 'card-button' })}
+        persist={false}
+      >
+        <BuilderDnd>
+          <ShortcutHarness />
+        </BuilderDnd>
+      </BuilderProvider>,
+    )
+  }
+
+  it('moves the selected layer to a place chosen with the arrow keys, and Enter drops it', async () => {
+    const user = userEvent.setup()
+    renderMovable()
+    await user.click(screen.getByRole('button', { name: 'Move Button with the keyboard' }))
+    expect(screen.getByText(/^Moving Button, \d+ places\. Into Footer, where it is now$/)).toBeInTheDocument()
+    await user.keyboard('{ArrowUp}')
+    expect(screen.getByText('Before Footer in Card')).toBeInTheDocument()
+    await user.keyboard('{ArrowUp}')
+    expect(screen.getByText('After Image, at the end of Content')).toBeInTheDocument()
+    await user.keyboard('{Enter}')
+    expect(screen.getByText('Moved Button. After Image, at the end of Content.')).toBeInTheDocument()
+    expect(screen.getByTestId('node-card-content')).toContainElement(screen.getByTestId('node-card-button'))
+    // One undo step, like a drag.
+    await user.keyboard('{Control>}z{/Control}')
+    expect(screen.getByTestId('node-card-footer')).toContainElement(screen.getByTestId('node-card-button'))
+  })
+
+  it('cancels with Escape or any other key, and leaves the layer where it was', async () => {
+    const user = userEvent.setup()
+    renderMovable()
+    await user.click(screen.getByRole('button', { name: 'Move Button with the keyboard' }))
+    await user.keyboard('{ArrowUp}{Escape}')
+    expect(screen.getByText('Move cancelled. Button stays where it was.')).toBeInTheDocument()
+    expect(screen.getByTestId('node-card-footer')).toContainElement(screen.getByTestId('node-card-button'))
+
+    await user.click(screen.getByRole('button', { name: 'Move Button with the keyboard' }))
+    await user.keyboard('{Delete}')
+    expect(screen.getByText('Move cancelled. Button stays where it was.')).toBeInTheDocument()
+    expect(screen.getByTestId('node-card-button')).toBeInTheDocument()
   })
 })
 

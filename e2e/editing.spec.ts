@@ -104,3 +104,30 @@ test('Preview runs the page without selection, slots or layer shortcuts', async 
   await expect(toolbar(page, 'Headline')).toBeVisible()
   await expect(layer(page, 'text')).toBeVisible()
 })
+
+test('moves a layer with the keyboard from its canvas handle', async ({ page }) => {
+  await openHero(page)
+  await canvasNode(page, 'text').click()
+  const handle = page.getByRole('button', { name: 'Drag Headline' })
+  await handle.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByText(/^Moving Headline, \d+ places\./)).toBeAttached()
+
+  // The next place is after the subheading. Layers and the canvas both show it.
+  await page.keyboard.press('ArrowDown')
+  await expect(page.locator('.layer.drop-before, .layer.drop-after, .layer.drop-inside')).toHaveCount(1)
+  await expect(page.locator('.canvas-drop-line, .canvas-drop-box')).toBeVisible()
+  await page.keyboard.press('Enter')
+  await expect(page.getByText(/^Moved Headline\./)).toBeAttached()
+  await expect(page.locator('.canvas-drop-line, .canvas-drop-box')).toHaveCount(0)
+  const ids = await layerIds(page)
+  expect(ids.indexOf('text-2')).toBeLessThan(ids.indexOf('text'))
+  await expect(handle).toBeFocused()
+
+  // Escape leaves it where it is.
+  await page.keyboard.press('Enter')
+  await page.keyboard.press('ArrowUp')
+  await page.keyboard.press('Escape')
+  await expect(page.getByText('Move cancelled. Headline stays where it was.')).toBeAttached()
+  expect(await layerIds(page)).toEqual(ids)
+})

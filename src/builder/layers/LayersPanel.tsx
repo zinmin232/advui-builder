@@ -1,6 +1,6 @@
-import { memo, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { ConfigNode } from '../../registry/metadata'
-import { useDragSource, useDragState, useDropSurface } from '../dnd/BuilderDnd'
+import { useDragSource, useDragState, useDropSurface, useKeyboardMove, type KeyboardMove } from '../dnd/BuilderDnd'
 import { findNode, findPath, itemHostId, type PlacePosition } from '../selection/selection'
 import { useBuilderActions, usePreferenceActions, useRegistry } from '../state/BuilderProvider'
 
@@ -13,6 +13,8 @@ type Trail = readonly string[]
 interface DropMarker {
   trail: Trail
   position: PlacePosition
+  /** A keyboard move, whose target can be anywhere in the tree, so its row scrolls into view. */
+  keyboard: boolean
 }
 
 function trailTo(root: ConfigNode, id: string): Trail | null {
@@ -37,13 +39,14 @@ export function LayersPanel({
   const host = hostId ? findNode(root, hostId) : null
   const noun = host ? registry.itemNoun(host.component) : null
   const selection = useMemo(() => trailTo(root, selectedId), [root, selectedId])
-  const { target } = useDragState()
+  const { target, keyboard } = useDragState()
+  const keyboardMove = useKeyboardMove()
   const dropId = target?.surface === 'layers' ? target.id : null
   const dropPosition = target?.surface === 'layers' ? target.position : null
   const drop = useMemo<DropMarker | null>(() => {
     const trail = dropId && dropPosition ? trailTo(root, dropId) : null
-    return trail && dropPosition ? { trail, position: dropPosition } : null
-  }, [root, dropId, dropPosition])
+    return trail && dropPosition ? { trail, position: dropPosition, keyboard } : null
+  }, [root, dropId, dropPosition, keyboard])
 
   return (
     <section className="layers" aria-label="Component Properties">
@@ -71,6 +74,7 @@ export function LayersPanel({
           onSelect={onSelect}
           onMove={actions.move}
           onDuplicate={actions.duplicate}
+          keyboardMove={keyboardMove}
         />
       </div>
       {host && noun ? (
@@ -93,6 +97,7 @@ const LayerNode = memo(function LayerRow({
   onSelect,
   onMove,
   onDuplicate,
+  keyboardMove,
 }: {
   node: ConfigNode
   depth: number
@@ -105,8 +110,10 @@ const LayerNode = memo(function LayerRow({
   onSelect: (id: string) => void
   onMove: (direction: 'up' | 'down') => void
   onDuplicate: () => void
+  keyboardMove: KeyboardMove
 }) {
   const [open, setOpen] = useState(true)
+  const row = useRef<HTMLDivElement | null>(null)
   // The root layer stays put; every other row can be dragged onto the canvas or another row.
   const { setNodeRef, listeners, attributes, isDragging } = useDragSource(
     `layer:${node.id}`,
@@ -116,13 +123,21 @@ const LayerNode = memo(function LayerRow({
   const hasChildren = node.children.length > 0
   const selected = selection?.at(-1) === node.id
   const marker = drop?.trail.at(-1) === node.id ? drop.position : null
-  // Dropping inside a collapsed layer shows its children, so the result is visible.
-  if (marker === 'inside' && !open && hasChildren) setOpen(true)
+  // A drop inside a collapsed layer, or below it (a keyboard move walks the whole tree), shows its children.
+  if (drop && (marker === null || marker === 'inside') && !open && hasChildren) setOpen(true)
+
+  const follow = marker !== null && drop?.keyboard === true
+  useEffect(() => {
+    if (follow) row.current?.scrollIntoView({ block: 'nearest' })
+  }, [follow, marker])
 
   return (
     <div role="treeitem" aria-expanded={hasChildren ? open : undefined} aria-selected={selected}>
       <div
-        ref={setNodeRef}
+        ref={(element) => {
+          setNodeRef(element)
+          row.current = element
+        }}
         data-layer-id={node.id}
         className={['layer', selected ? 'current' : '', marker ? `drop-${marker}` : '', isDragging ? 'dragging' : '']
           .filter(Boolean)
@@ -196,6 +211,22 @@ const LayerNode = memo(function LayerRow({
             ⧉
           </button>
         ) : null}
+        {selected && depth > 0 ? (
+          <button
+            type="button"
+            className="layer-move"
+            aria-label={`Move ${node.label} with the keyboard`}
+            aria-describedby={keyboardMove.hintId}
+            title="Move with the arrow keys: Enter drops, Escape cancels"
+            onClick={(event) => {
+              event.stopPropagation()
+              keyboardMove.start(node.id)
+            }}
+            onDoubleClick={(event) => event.stopPropagation()}
+          >
+            ✥
+          </button>
+        ) : null}
       </div>
       {open
         ? node.children.map((child, childIndex) => (
@@ -210,6 +241,7 @@ const LayerNode = memo(function LayerRow({
               onSelect={onSelect}
               onMove={onMove}
               onDuplicate={onDuplicate}
+              keyboardMove={keyboardMove}
             />
           ))
         : null}

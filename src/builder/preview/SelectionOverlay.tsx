@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState, type ReactNode } from 'react'
-import { useDragSource, useDragState } from '../dnd/BuilderDnd'
+import { useDragSource, useDragState, useKeyboardMove } from '../dnd/BuilderDnd'
 import { findNode, findPath } from '../selection/selection'
 import type { ConfigNode } from '../../registry/metadata'
 import { useBuilderActions, useRegistry } from '../state/BuilderProvider'
@@ -200,9 +200,10 @@ function frameStyle(box: Box) {
   return { top: box.top, left: box.left, width: box.width, height: box.height }
 }
 
-/** The selected layer's name tag doubles as its drag handle on the canvas. */
+/** The selected layer's name tag doubles as its drag handle on the canvas. Enter or Space on it moves it by keyboard. */
 function DragHandle({ id, component, label }: { id: string; component: string; label: string }) {
   const { setNodeRef, listeners, attributes } = useDragSource(`canvas:${id}`, { kind: 'layer', id, component, label })
+  const keyboardMove = useKeyboardMove()
   return (
     <button
       ref={setNodeRef}
@@ -211,8 +212,13 @@ function DragHandle({ id, component, label }: { id: string; component: string; l
       {...attributes}
       {...listeners}
       aria-label={`Drag ${label}`}
-      title="Drag to move"
-      onClick={(event) => event.stopPropagation()}
+      aria-describedby={keyboardMove.hintId}
+      title="Drag to move, or press Enter to move with the arrow keys"
+      onClick={(event) => {
+        event.stopPropagation()
+        // A click from the keyboard has no pointer behind it (detail 0); a mouse click only selects.
+        if (event.detail === 0) keyboardMove.start(id)
+      }}
     >
       <span aria-hidden="true">⠿</span> {label}
     </button>
@@ -221,9 +227,10 @@ function DragHandle({ id, component, label }: { id: string; component: string; l
 
 /** Shows where a drag will land: a line before or after a layer, or a box around the container it goes into. */
 function DropIndicator({ container, root, zoom }: { container: HTMLElement | null; root: ConfigNode; zoom: number }) {
-  const { target } = useDragState()
+  const { target, keyboard } = useDragState()
   const [box, setBox] = useState<Box | null>(null)
-  const canvasTarget = target?.surface === 'canvas' ? target : null
+  // A keyboard move shows its target here too, though it is chosen in the tree.
+  const canvasTarget = target?.surface === 'canvas' || keyboard ? target : null
 
   useLayoutEffect(() => {
     // Measured from the page after it commits, before the indicator paints.
