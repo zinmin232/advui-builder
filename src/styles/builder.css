@@ -86,11 +86,13 @@ button { cursor: pointer; }
   inset: 0 2px;
   background: var(--builder-line);
 }
+.splitter:focus-visible { outline: none; }
+.splitter:focus-visible::after { inset: 0 1px; background: var(--builder-accent); }
 .splitter.horizontal { width: auto; height: 5px; cursor: row-resize; }
 .splitter.horizontal::after { inset: 2px 0; }
 
 .sidebar, .inspector-scroll { display: flex; flex-direction: column; min-height: 0; width: 100%; }
-.sidebar-head {
+.sidebar-head, .pane-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -136,7 +138,7 @@ button { cursor: pointer; }
   color: var(--builder-muted);
   font-weight: 650;
 }
-.sidebar-head h2 {
+.sidebar-head h2, .pane-head h2 {
   margin: 0;
   font-size: 13px;
   font-weight: 650;
@@ -703,7 +705,9 @@ textarea.page-name { resize: vertical; font: inherit; font-size: 13px; line-heig
 }
 .empty-slot.root { min-height: 160px; font-size: 13px; }
 
-.inspector-pane { border-left: 0; background: var(--builder-panel); min-width: 0; }
+.inspector-pane { border-left: 0; background: var(--builder-panel); min-width: 0; flex-direction: column; }
+.inspector-pane .pane-head { justify-content: flex-start; }
+.inspector-pane .inspector-scroll { flex: 1; }
 .inspector { padding: 4px 16px 28px; min-width: 0; }
 .breadcrumb { display: flex; flex-wrap: wrap; align-items: center; padding: 12px 0 8px; }
 .crumb { display: inline-flex; align-items: center; }
@@ -800,16 +804,7 @@ textarea.page-name { resize: vertical; font: inherit; font-size: 13px; line-heig
 .code-input { resize: vertical; font-family: Consolas, ui-monospace, monospace; }
 
 .layers { padding: 8px 12px 4px; border-bottom: 1px solid var(--builder-line); }
-.layers-head { display: flex; align-items: center; gap: 8px; margin: 0; }
-.layers-head h2 {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 650;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--builder-ink);
-}
-.layers > h3 { margin: 10px 0 6px; }
+.layers > h3 { margin: 2px 0 6px; }
 .layer-add { display: block; margin: 6px 0 4px; font-size: 12px; }
 .layer { display: flex; align-items: stretch; width: 100%; min-height: 24px; cursor: pointer; }
 .layer[aria-roledescription] { cursor: grab; touch-action: none; }

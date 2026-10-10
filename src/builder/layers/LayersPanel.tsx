@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { ConfigNode } from '../../registry/metadata'
 import { useDragSource, useDragState, useDropSurface, useKeyboardMove, type KeyboardMove } from '../dnd/BuilderDnd'
 import { findNode, findPath, itemHostId, type PlacePosition } from '../selection/selection'
-import { useBuilderActions, usePreferenceActions, useRegistry } from '../state/BuilderProvider'
+import { useBuilderActions, useRegistry } from '../state/BuilderProvider'
 
 /**
  * The ids from the root down to one row. A row gets a trail only when it lies on it, so a new selection or drop
@@ -30,7 +30,6 @@ export function LayersPanel({
   selectedId: string
   onSelect: (id: string) => void
 }) {
-  const preferenceActions = usePreferenceActions()
   const actions = useBuilderActions()
   const registry = useRegistry()
   const [tree, setTree] = useState<HTMLDivElement | null>(null)
@@ -49,19 +48,7 @@ export function LayersPanel({
   }, [root, dropId, dropPosition, keyboard])
 
   return (
-    <section className="layers" aria-label="Component Properties">
-      <div className="layers-head">
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Collapse inspector"
-          aria-pressed={false}
-          onClick={() => preferenceActions.update({ inspectorCollapsed: true })}
-        >
-          ☰
-        </button>
-        <h2>Component Properties</h2>
-      </div>
+    <section className="layers">
       <h3>Layers</h3>
       <div ref={setTree} role="tree" aria-label="Layers">
         <LayerNode

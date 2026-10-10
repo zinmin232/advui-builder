@@ -12,9 +12,11 @@ import {
   flexProp,
   gapProp,
   heightProp,
+  marginProp,
   opacityProp,
   paddingProp,
   radiusProp,
+  shadowProp,
   typographyProps,
   widthProp,
 } from './styleProps'
@@ -110,7 +112,7 @@ const button = adaptAdvuiMeta(buttonMeta, {
 })
 
 const card = adaptAdvuiMeta(cardMeta, {
-  extraProps: [backgroundProp, borderColorProp, radiusProp, paddingProp],
+  extraProps: [backgroundProp, borderColorProp, radiusProp, shadowProp, paddingProp, marginProp],
   template: node('card', 'Card', 'Card', {}, [
     node('card-header', 'Card.Header', 'Header', {}, [
       node('card-title', 'Card.Title', 'Title', {}, [], 'Project update'),
@@ -223,7 +225,7 @@ const aspectRatio = adaptAdvuiMeta(aspectRatioMeta, {
 })
 
 const container = adaptAdvuiMeta(containerMeta, {
-  extraProps: [paddingProp],
+  extraProps: [paddingProp, marginProp],
   template: node('container', 'Container', 'Container', {}, [
     node('container-text', 'Text', 'Text', {}, [], 'Page content sits inside the container.'),
   ]),
@@ -326,7 +328,7 @@ function stackPart(part: string, options: AdaptOptions = {}) {
     sidebar: true,
     importName: part,
     omit: rawFlexProps,
-    extraProps: [gapProp, paddingProp, widthProp, flexProp, backgroundProp],
+    extraProps: [gapProp, paddingProp, marginProp, widthProp, flexProp, backgroundProp, shadowProp],
     ...options,
   })
 }
@@ -355,7 +357,7 @@ const vStack = stackPart('VStack', {
 })
 
 // Box and Center document no props of their own; they take View style props.
-const boxProps = [paddingProp, widthProp, heightProp, flexProp, backgroundProp, radiusProp]
+const boxProps = [paddingProp, marginProp, widthProp, heightProp, flexProp, backgroundProp, radiusProp, shadowProp]
 
 const box = stackPart('Box', {
   extraProps: boxProps,
@@ -383,7 +385,7 @@ const center = stackPart('Center', {
 const spacer = stackPart('Spacer', { extraProps: [], invisible: true })
 
 const wrap = adaptAdvuiMeta(wrapMeta, {
-  extraProps: [gapProp, paddingProp, widthProp],
+  extraProps: [gapProp, paddingProp, marginProp, widthProp],
   template: node(
     'wrap',
     'Wrap',

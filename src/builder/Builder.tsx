@@ -1,6 +1,6 @@
-import { Suspense, use, useRef, useState, type PointerEvent, type ReactNode } from 'react'
+import { Suspense, use, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { writeToClipboard } from './clipboard'
-import { clampInspectorWidth, clampSidebarWidth } from './persistence'
+import { clampInspectorWidth, clampSidebarWidth, INSPECTOR_WIDTHS, SIDEBAR_WIDTHS } from './persistence'
 import { shareUrl } from './shareConfig'
 import { LayersPanel } from './layers/LayersPanel'
 import { CodePanel } from './code/CodePanel'
@@ -36,6 +36,64 @@ function kitFor(load: PreviewLoader): Promise<PreviewKit> {
 /** The preview waits for the component library to load (it suspends). The panels render without it. */
 function LoadedPreview({ load, bar, interactive }: { load: PreviewLoader; bar: ReactNode; interactive: boolean }) {
   return <PreviewWorkspace kit={use(kitFor(load))} bar={bar} interactive={interactive} />
+}
+
+/**
+ * A pane's resize handle. Dragging moves it; so do the arrow keys (16px, 64px with Shift), and Home and End take the
+ * pane to its narrowest and widest. `grows` is the way the splitter moves to widen the pane.
+ */
+function Splitter({
+  label,
+  width,
+  limits,
+  grows,
+  onWidth,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+}: {
+  label: string
+  width: number
+  limits: { min: number; max: number }
+  grows: 'left' | 'right'
+  onWidth: (width: number) => void
+  onPointerDown: (event: PointerEvent<HTMLDivElement>) => void
+  onPointerMove: (event: PointerEvent<HTMLDivElement>) => void
+  onPointerUp: () => void
+}) {
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const step = (event.shiftKey ? 64 : 16) * (grows === 'right' ? 1 : -1)
+    const next =
+      event.key === 'ArrowRight'
+        ? width + step
+        : event.key === 'ArrowLeft'
+          ? width - step
+          : event.key === 'Home'
+            ? limits.min
+            : event.key === 'End'
+              ? limits.max
+              : null
+    if (next === null) return
+    event.preventDefault()
+    onWidth(next)
+  }
+  return (
+    <div
+      className="splitter"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={label}
+      aria-valuenow={width}
+      aria-valuemin={limits.min}
+      aria-valuemax={limits.max}
+      aria-valuetext={`${width} pixels wide`}
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+    />
+  )
 }
 
 /** Edit selects and changes layers on the canvas; Preview runs the page as it is; Code shows the TSX. */
@@ -282,11 +340,12 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
             </div>
           )}
           {preferences.sidebarCollapsed ? null : (
-            <div
-              className="splitter"
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize components"
+            <Splitter
+              label="Resize components"
+              width={preferences.sidebarWidth}
+              limits={SIDEBAR_WIDTHS}
+              grows="right"
+              onWidth={(width) => preferenceActions.update({ sidebarWidth: clampSidebarWidth(width) })}
               onPointerDown={(event) => onPointerDown('sidebar', event)}
               onPointerMove={onPointerMove}
               onPointerUp={endDrag}
@@ -316,11 +375,12 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
             </div>
           </div>
           {preferences.inspectorCollapsed ? null : (
-            <div
-              className="splitter"
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize inspector"
+            <Splitter
+              label="Resize inspector"
+              width={preferences.inspectorWidth}
+              limits={INSPECTOR_WIDTHS}
+              grows="left"
+              onWidth={(width) => preferenceActions.update({ inspectorWidth: clampInspectorWidth(width) })}
               onPointerDown={(event) => onPointerDown('inspector', event)}
               onPointerMove={onPointerMove}
               onPointerUp={endDrag}
@@ -340,6 +400,18 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
             </div>
           ) : (
             <div className="pane inspector-pane" style={{ width: preferences.inspectorWidth }}>
+              <div className="pane-head">
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label="Collapse inspector"
+                  aria-pressed={false}
+                  onClick={() => preferenceActions.update({ inspectorCollapsed: true })}
+                >
+                  ☰
+                </button>
+                <h2>Inspector</h2>
+              </div>
               <div className="inspector-scroll">
                 <LayersPanel root={state.document} selectedId={state.selectedId} onSelect={actions.select} />
                 <Inspector />

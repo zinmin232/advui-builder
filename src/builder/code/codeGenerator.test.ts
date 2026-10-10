@@ -36,6 +36,20 @@ describe('code generator', () => {
     )
   })
 
+  it('writes shadow, margin, font family and line height as style props', () => {
+    let state = createBuilderState(advuiRegistry, 'Card')
+    const set = (id: string, key: string, value: unknown) => {
+      state = builderReducer(state, { type: 'set-prop', id, key, value })
+    }
+    set('card', 'boxShadow', '0 2px 6px $shadowColor')
+    set('card', 'margin', 16)
+    set('card-title', 'fontFamily', '$mono')
+    set('card-title', 'lineHeight', 32)
+    const code = generateCode(state.document, { registry: advuiRegistry })
+    expect(code).toContain('<Card\n  boxShadow="0 2px 6px $shadowColor"\n  margin={16}\n>')
+    expect(code).toContain('<Card.Title\n      fontFamily="$mono"\n      lineHeight={32}\n    >')
+  })
+
   it('renders nested Card elements and drops web-only image props on Android', () => {
     let state = createBuilderState(advuiRegistry, 'Card')
     state = builderReducer(state, {
