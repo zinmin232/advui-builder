@@ -12,8 +12,10 @@ import {
 } from 'react'
 import type { ConfigNode } from '../../registry/metadata'
 import type { BuilderRegistry } from '../../registry/registry'
+import type { PageFile } from '../pages/pageFile'
 import {
   addPage,
+  configurePage,
   loadPageDocument,
   loadPageIndex,
   removePage,
@@ -24,6 +26,7 @@ import {
   touchPage,
   untitledName,
   type PageIndex,
+  type PageSettings,
   type PageStorage,
   type SavedPage,
 } from '../pages/pageStore'
@@ -83,8 +86,12 @@ interface PageActions {
   create: () => void
   open: (id: string) => void
   rename: (id: string, name: string) => void
+  /** Changes some settings; an empty value clears one. */
+  configure: (id: string, settings: PageSettings) => void
   duplicate: (id: string) => void
   remove: (id: string) => void
+  /** Adds a page read from a file and opens it. */
+  importPage: (file: PageFile) => void
 }
 
 const RegistryContext = createContext<BuilderRegistry | null>(null)
@@ -324,6 +331,13 @@ export function BuilderProvider({
       show(added.page.id, registry.createPage(), added.index)
     }
     const read = (id: string) => loadPageDocument(registry, storage, id) ?? registry.createPage()
+    /** Saves a new page's tree first, so a refused write shows as "Not saved". */
+    const addSaved = (name: string, settings: PageSettings, document: ConfigNode) => {
+      const added = addPage(indexRef.current, name)
+      const saved = savePageDocument(storage, added.page.id, document)
+      show(added.page.id, document, configurePage(added.index, added.page.id, settings))
+      if (storage && !saved) setSaveFailed(true)
+    }
     return {
       create: () => createIn(indexRef.current),
       open: (id) => {
@@ -335,15 +349,13 @@ export function BuilderProvider({
         if (indexRef.current.pages.some((item) => item.id === id)) show(id, read(id), indexRef.current)
       },
       rename: (id, name) => commitIndex(renamePage(indexRef.current, id, name)),
+      configure: (id, settings) => commitIndex(configurePage(indexRef.current, id, settings)),
       duplicate: (id) => {
         const current = stateRef.current
         const source = indexRef.current.pages.find((item) => item.id === id)
         if (!source) return
         const document = (id === current.pageId ? pageDocument(current) : null) ?? read(id)
-        const added = addPage(indexRef.current, `${source.name} copy`)
-        const saved = savePageDocument(storage, added.page.id, document)
-        show(added.page.id, document, added.index)
-        if (storage && !saved) setSaveFailed(true)
+        addSaved(`${source.name} copy`, source.settings ?? {}, document)
       },
       remove: (id) => {
         removePageDocument(storage, id)
@@ -352,6 +364,7 @@ export function BuilderProvider({
         else if (index.current) show(index.current, read(index.current), index)
         else createIn(index)
       },
+      importPage: (file) => addSaved(file.name, file.settings, file.document),
     }
   }, [registry, storage, commitIndex])
 

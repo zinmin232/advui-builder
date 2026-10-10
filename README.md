@@ -7,7 +7,9 @@ Selection-driven visual builder for [AdvUI](https://github.com/zinmin232/advui).
 
 The **Blocks** group in the sidebar adds ready-made sections (Navbar, Hero, Pricing, FAQ, Contact, Login, Dashboard, Footer) made of real AdvUI components. Click one to add it below the selected section, or drag it into place. Each block adapts to phone and desktop widths.
 
-Pages are saved in your browser (localStorage) as you edit and reopen after a reload. Click the page name in the top bar to rename it, switch pages, duplicate or delete one, or start a new page. "Copy link" carries the whole page; opening a page link adds it as a new saved page.
+Pages are saved in your browser (localStorage) as you edit and reopen after a reload. Click the page name in the top bar to rename it, switch pages, duplicate or delete one, or start a new page. "Copy link" carries the whole page; opening a page link adds it as a new saved page. **Export** downloads the page as a `.page.json` file and **Import** opens one as a new page, so a page can move to another browser.
+
+In Page mode the **Code** tab writes the page as a component file, such as `HomePage.tsx`, and **Download** saves it. **Page settings** (in the same menu) set the component's name and, for web, a title and description, written as React 19's `<title>` and `<meta>`.
 
 Components render from `@advui/core`. The `advui` package is the published CLI.
 

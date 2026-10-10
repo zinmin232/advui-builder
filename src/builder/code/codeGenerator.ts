@@ -2,9 +2,21 @@ import { isSameValue } from '../../registry/adaptMeta'
 import type { ConfigNode, PlatformId, PropMetadata } from '../../registry/metadata'
 import type { BuilderRegistry } from '../../registry/registry'
 
+/** A component file such as `HomePage.tsx`: the tree wrapped in an exported function. */
+export interface ComponentFile {
+  /** The exported function's name, a capitalized identifier. */
+  name: string
+  /** Written on web as React's document metadata (`<title>`), which React 19 moves into the head. */
+  title?: string
+  /** Written on web as `<meta name="description">`. */
+  description?: string
+}
+
 export interface CodeOptions {
   registry: BuilderRegistry
   platform?: PlatformId
+  /** Writes a whole component file instead of a bare element. */
+  file?: ComponentFile
 }
 
 function collectImports(registry: BuilderRegistry, node: ConfigNode, into = new Set<string>()): Set<string> {
@@ -133,10 +145,34 @@ function renderNode(
   return `${open}\n${body.join('\n')}\n${pad}</${tag}>`
 }
 
+/** Document metadata only exists on web; native apps set their titles through navigation. */
+function metadataLines({ title, description }: ComponentFile): string[] {
+  const lines: string[] = []
+  if (title) lines.push(`<title>${jsxText(title)}</title>`)
+  if (description) lines.push(`<meta name="description" content="${escapeAttr(description)}" />`)
+  return lines
+}
+
+function renderFile(
+  registry: BuilderRegistry,
+  root: ConfigNode,
+  file: ComponentFile,
+  platform: PlatformId,
+  imports: Set<string>,
+): string {
+  const metadata = platform === 'web' ? metadataLines(file).map((line) => `      ${line}`) : []
+  const body = metadata.length
+    ? ['    <>', ...metadata, renderNode(registry, root, 3, platform, imports), '    </>']
+    : [renderNode(registry, root, 2, platform, imports)]
+  return [`export function ${file.name}() {`, '  return (', ...body, '  )', '}'].join('\n')
+}
+
 /** TSX for a tree, importing from the registry's package. Props equal to their metadata default are left out. */
-export function generateCode(root: ConfigNode, { registry, platform = 'web' }: CodeOptions): string {
+export function generateCode(root: ConfigNode, { registry, platform = 'web', file }: CodeOptions): string {
   const imports = collectImports(registry, root)
-  const jsx = renderNode(registry, root, 0, platform, imports)
+  const jsx = file
+    ? renderFile(registry, root, file, platform, imports)
+    : renderNode(registry, root, 0, platform, imports)
   const names = [...imports].sort()
   return `import { ${names.join(', ')} } from '${registry.importSource}'\n\n${jsx}\n`
 }

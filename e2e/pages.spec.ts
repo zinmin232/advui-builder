@@ -45,3 +45,40 @@ test('opens a shared page as a new saved page and keeps the one in progress', as
   await expect(layer(page, 'card')).toBeVisible()
   await expect(layer(page, 'badge')).toHaveCount(0)
 })
+
+test('exports a page file and imports it back as a new page', async ({ page }) => {
+  await openPage(page)
+  await sidebarItem(page, 'Card').click()
+  await expect(layer(page, 'card')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Pages: Untitled page' }).click()
+  const exported = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export' }).click()
+  const download = await exported
+  expect(download.suggestedFilename()).toBe('untitled-page.page.json')
+
+  await page.getByLabel('Page file').setInputFiles(await download.path())
+  await expect(page.getByRole('button', { name: 'Pages: Untitled page 2' })).toBeVisible()
+  await expect(layer(page, 'card')).toBeVisible()
+})
+
+test('downloads the page as a component file named in its settings', async ({ page }) => {
+  await openPage(page)
+  await sidebarItem(page, 'Badge').click()
+  await page.getByRole('button', { name: 'Pages: Untitled page' }).click()
+  await page.getByText('Page settings').click()
+  await page.getByRole('textbox', { name: 'Component name' }).fill('Landing')
+  await page.getByRole('textbox', { name: 'Component name' }).press('Enter')
+  await page.keyboard.press('Escape')
+
+  await page.getByRole('tab', { name: 'Code' }).click()
+  const saved = page.waitForEvent('download')
+  await page.getByRole('region', { name: 'Generated code' }).getByRole('button', { name: 'Download' }).click()
+  const download = await saved
+  expect(download.suggestedFilename()).toBe('Landing.tsx')
+  const stream = await download.createReadStream()
+  let text = ''
+  for await (const chunk of stream) text += chunk
+  expect(text).toContain('export function Landing() {')
+  expect(text).toContain('<Badge>Badge</Badge>')
+})

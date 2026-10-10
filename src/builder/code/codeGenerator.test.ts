@@ -81,4 +81,44 @@ describe('code generator', () => {
     expect(code.indexOf('<Card.Footer>')).toBeLessThan(code.indexOf('<Card.Content>'))
     expect(code.indexOf('<Card.Header>')).toBeLessThan(code.indexOf('<Card.Footer>'))
   })
+
+  it('writes a page as an exported component, with document metadata on web only', () => {
+    const page = builderReducer(createBuilderState(advuiRegistry, 'Button', { mode: 'page' }), {
+      type: 'open',
+      component: 'Badge',
+    }).document
+    expect(generateCode(page, { registry: advuiRegistry, file: { name: 'HomePage' } })).toBe(
+      [
+        "import { Badge, Stack } from '@advui/core'",
+        '',
+        'export function HomePage() {',
+        '  return (',
+        '    <Stack',
+        '      gap={16}',
+        '      padding={24}',
+        '    >',
+        '      <Badge>Badge</Badge>',
+        '    </Stack>',
+        '  )',
+        '}',
+        '',
+      ].join('\n'),
+    )
+
+    const file = { name: 'HomePage', title: 'Home {beta}', description: 'Plans & "pricing"' }
+    const web = generateCode(page, { registry: advuiRegistry, file })
+    expect(web).toContain(
+      [
+        '  return (',
+        '    <>',
+        '      <title>{"Home {beta}"}</title>',
+        '      <meta name="description" content="Plans &amp; &quot;pricing&quot;" />',
+        '      <Stack',
+      ].join('\n'),
+    )
+    expect(web).toContain('        <Badge>Badge</Badge>\n      </Stack>\n    </>\n  )\n}\n')
+    const ios = generateCode(page, { registry: advuiRegistry, platform: 'ios', file })
+    expect(ios).not.toContain('<title>')
+    expect(ios).not.toContain('<>')
+  })
 })
