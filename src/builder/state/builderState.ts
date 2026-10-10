@@ -5,6 +5,7 @@ import type { BuilderRegistry } from '../../registry/registry'
 import { canvasForTheme, DARK_CANVAS, isThemeCanvas } from '../canvasTheme'
 import {
   canDrop,
+  canPlaceTree,
   duplicateNode,
   findNode,
   findPath,
@@ -92,6 +93,8 @@ export type BuilderAction =
   | { type: 'move'; direction: 'up' | 'down' }
   | { type: 'duplicate' }
   | { type: 'place'; id: string; targetId: string; position: PlacePosition }
+  /** A copied layer from the clipboard, placed where `pastePlacement` says. */
+  | { type: 'paste'; tree: ConfigNode }
   | { type: 'apply-document'; document: ConfigNode; component: string }
   /** Opens a saved page in Page mode. Undo history belongs to the page that was open, so it is cleared. */
   | { type: 'load-page'; id: string; document: ConfigNode }
@@ -179,6 +182,24 @@ export function blockPlacement(registry: BuilderRegistry, state: BuilderState): 
 }
 
 /**
+ * Where a pasted tree goes: inside the selected layer when it can hold the whole tree, otherwise right after it.
+ * Null when neither is allowed.
+ */
+export function pastePlacement(
+  registry: BuilderRegistry,
+  state: BuilderState,
+  tree: ConfigNode,
+): { targetId: string; position: PlacePosition } | null {
+  const path = findPath(state.document, state.selectedId)
+  if (!path) return null
+  if (canPlaceTree(registry, tree, path)) return { targetId: state.selectedId, position: 'inside' }
+  if (path.length > 1 && canPlaceTree(registry, tree, path.slice(0, -1))) {
+    return { targetId: state.selectedId, position: 'after' }
+  }
+  return null
+}
+
+/**
  * Whether a prop value is kept on the node. Cleared and default values are left off;
  * required props keep an explicit value, even an empty one (`alt=""`).
  */
@@ -230,6 +251,7 @@ const documentActions = new Set<BuilderAction['type']>([
   'move',
   'duplicate',
   'place',
+  'paste',
   'apply-document',
 ])
 
@@ -423,6 +445,13 @@ function applyAction(registry: BuilderRegistry, state: BuilderState, action: Bui
       const document = placeNode(registry, state.document, action.id, action.targetId, action.position)
       if (!document) return state
       return { ...state, document, selectedId: action.id }
+    }
+    case 'paste': {
+      const placement = pastePlacement(registry, state, action.tree)
+      if (!placement) return state
+      const child = freshCopy(state.document, action.tree)
+      const document = insertAt(state.document, child, placement.targetId, placement.position)
+      return document ? { ...state, document, selectedId: child.id } : state
     }
     case 'apply-document':
       return {

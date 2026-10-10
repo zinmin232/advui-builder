@@ -1,9 +1,11 @@
-import { useLayoutEffect, useState } from 'react'
+import { useLayoutEffect, useState, type ReactNode } from 'react'
 import { useDragSource, useDragState } from '../dnd/BuilderDnd'
-import { findNode } from '../selection/selection'
+import { findNode, findPath } from '../selection/selection'
 import type { ConfigNode } from '../../registry/metadata'
-import { useBuilderActions } from '../state/BuilderProvider'
+import { useBuilderActions, useRegistry } from '../state/BuilderProvider'
+import { canEditText } from './canvasMode'
 import { nodeElement } from './measure'
+import { TextEditor } from './TextEditor'
 
 interface Box {
   top: number
@@ -35,14 +37,22 @@ export function SelectionOverlay({
   selectedId,
   hoverId,
   zoom,
+  editing,
+  onEditText,
+  onEditDone,
 }: {
   container: HTMLElement | null
   root: ConfigNode
   selectedId: string
   hoverId: string | null
   zoom: number
+  /** The selected layer's text is being edited in place. */
+  editing: boolean
+  onEditText: () => void
+  onEditDone: () => void
 }) {
   const actions = useBuilderActions()
+  const registry = useRegistry()
   const [hover, setHover] = useState<Box | null>(null)
   const [selected, setSelected] = useState<Box | null>(null)
 
@@ -64,50 +74,125 @@ export function SelectionOverlay({
     }
   }, [container, hoverId, root, selectedId, zoom])
 
-  const node = findNode(root, selectedId)
+  const path = findPath(root, selectedId)
+  const node = path?.at(-1) ?? null
+  const parent = path && path.length > 1 ? path[path.length - 2] : null
+  const index = parent && node ? parent.children.findIndex((child) => child.id === node.id) : -1
+  const editable = node ? canEditText(registry, node) : false
   const { item: dragging } = useDragState()
 
   return (
     <div className="overlay" data-drop-ignore="">
-      {hover && !dragging ? <div className="outline hover" style={frameStyle(hover)} aria-hidden="true" /> : null}
+      {hover && !dragging ? (
+        <div className="outline hover" style={frameStyle(hover)} aria-hidden="true">
+          <span className="outline-tag ghost">{hover.label}</span>
+        </div>
+      ) : null}
       <DropIndicator container={container} root={root} zoom={zoom} />
-      {selected ? (
+      {selected && node ? (
         <div className="outline selected" style={frameStyle(selected)}>
-          {selectedId !== root.id && node ? (
-            <DragHandle id={selectedId} component={node.component} label={selected.label} />
+          {editing && editable ? (
+            <TextEditor key={node.id} container={container} node={node} onDone={onEditDone} />
           ) : (
-            <span className="outline-tag" aria-hidden="true">{selected.label}</span>
+            <div className="outline-bar" role="group" aria-label={`${selected.label} toolbar`}>
+              {parent ? (
+                <DragHandle id={node.id} component={node.component} label={selected.label} />
+              ) : (
+                <span className="outline-tag">{selected.label}</span>
+              )}
+              {parent ? (
+                <>
+                  <Tool
+                    label={`Select ${parent.label}`}
+                    title={`Select the parent, ${parent.label}`}
+                    onClick={() => actions.select(parent.id)}
+                  >
+                    ↰
+                  </Tool>
+                  <Tool
+                    label={`Move ${selected.label} up`}
+                    title="Move up (Alt+↑)"
+                    disabled={index <= 0}
+                    onClick={() => actions.move('up')}
+                  >
+                    ↑
+                  </Tool>
+                  <Tool
+                    label={`Move ${selected.label} down`}
+                    title="Move down (Alt+↓)"
+                    disabled={index < 0 || index >= parent.children.length - 1}
+                    onClick={() => actions.move('down')}
+                  >
+                    ↓
+                  </Tool>
+                </>
+              ) : null}
+              {editable ? (
+                <Tool
+                  label={`Edit ${selected.label} text`}
+                  title="Edit text (Enter, or double-click)"
+                  onClick={onEditText}
+                >
+                  ✎
+                </Tool>
+              ) : null}
+              {parent ? (
+                <>
+                  <Tool
+                    label={`Duplicate ${selected.label}`}
+                    title="Duplicate (Ctrl+D)"
+                    onClick={() => actions.duplicate()}
+                  >
+                    ⧉
+                  </Tool>
+                  <Tool
+                    label={`Remove ${selected.label}`}
+                    title="Remove (Delete)"
+                    danger
+                    onClick={() => actions.remove()}
+                  >
+                    ×
+                  </Tool>
+                </>
+              ) : null}
+            </div>
           )}
-          {selectedId !== root.id ? (
-            <>
-              <button
-                type="button"
-                className="outline-duplicate"
-                aria-label={`Duplicate ${selected.label}`}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  actions.duplicate()
-                }}
-              >
-                ⧉
-              </button>
-              <button
-                type="button"
-                className="outline-remove"
-                aria-label={`Remove ${selected.label}`}
-                title="Remove (Delete)"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  actions.remove()
-                }}
-              >
-                ×
-              </button>
-            </>
-          ) : null}
         </div>
       ) : null}
     </div>
+  )
+}
+
+function Tool({
+  label,
+  title,
+  disabled,
+  danger,
+  onClick,
+  children,
+}: {
+  label: string
+  title: string
+  disabled?: boolean
+  danger?: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      className={danger ? 'outline-tool danger' : 'outline-tool'}
+      aria-label={label}
+      title={title}
+      disabled={disabled}
+      onClick={(event) => {
+        event.stopPropagation()
+        onClick()
+      }}
+      onDoubleClick={(event) => event.stopPropagation()}
+    >
+      <span aria-hidden="true">{children}</span>
+    </button>
   )
 }
 

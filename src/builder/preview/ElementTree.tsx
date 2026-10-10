@@ -1,6 +1,7 @@
 import { memo, type ReactNode } from 'react'
 import type { ConfigNode } from '../../registry/metadata'
 import { useRegistry } from '../state/BuilderProvider'
+import { useCanvasMode } from './canvasMode'
 import { Selectable } from './Selectable'
 
 export type NodeRenderer = (node: ConfigNode, children: ReactNode) => ReactNode
@@ -24,7 +25,8 @@ export const ElementTree = memo(function ElementTree({
   depth?: number
 }) {
   const registry = useRegistry()
-  const empty = node.children.length === 0 && !node.text && registry.acceptsChildren(node.component)
+  const { interactive } = useCanvasMode()
+  const empty = !interactive && node.children.length === 0 && !node.text && registry.acceptsChildren(node.component)
   const invisible = registry.has(node.component) && registry.get(node.component).invisible === true
   return (
     <Selectable id={node.id} invisible={invisible}>

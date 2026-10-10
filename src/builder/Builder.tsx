@@ -26,12 +26,21 @@ function lazyPreview(load: PreviewLoader) {
   return lazy(async () => {
     const kit = await load()
     return {
-      default: function LoadedPreview({ bar }: { bar: ReactNode }) {
-        return <PreviewWorkspace kit={kit} bar={bar} />
+      default: function LoadedPreview({ bar, interactive }: { bar: ReactNode; interactive: boolean }) {
+        return <PreviewWorkspace kit={kit} bar={bar} interactive={interactive} />
       },
     }
   })
 }
+
+/** Edit selects and changes layers on the canvas; Preview runs the page as it is; Code shows the TSX. */
+const workspaceViews = [
+  { id: 'edit', label: 'Edit', title: 'Select and change layers on the canvas' },
+  { id: 'preview', label: 'Preview', title: 'Use the page as it is: buttons, menus and fields respond' },
+  { id: 'code', label: 'Code', title: 'The generated TSX' },
+] as const
+
+type WorkspaceView = (typeof workspaceViews)[number]['id']
 
 /** `loadPreview` must be a stable function: a new one reloads the preview. */
 export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
@@ -42,7 +51,7 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
   const preferences = usePreferences()
   const preferenceActions = usePreferenceActions()
   const drag = useRef<{ kind: 'sidebar' | 'inspector'; start: number; origin: number } | null>(null)
-  const [workspaceView, setWorkspaceView] = useState<'preview' | 'code'>('preview')
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('edit')
   const [linkCopied, setLinkCopied] = useState(false)
 
   const onPointerDown = (kind: 'sidebar' | 'inspector', event: PointerEvent<HTMLDivElement>) => {
@@ -65,7 +74,8 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
     drag.current = null
   }
 
-  useShortcuts()
+  // Layer shortcuts would act on a layer nobody can see while the page runs as it is.
+  useShortcuts(workspaceView !== 'preview')
 
   const copyLink = async () => {
     await writeToClipboard(shareUrl(registry, state, window.location))
@@ -91,24 +101,19 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
         onZoom={actions.setZoom}
       />
       <div className="view-tabs" role="tablist" aria-label="Workspace view">
-        <button
-          type="button"
-          role="tab"
-          className={workspaceView === 'preview' ? 'view-tab active' : 'view-tab'}
-          aria-selected={workspaceView === 'preview'}
-          onClick={() => setWorkspaceView('preview')}
-        >
-          Preview
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className={workspaceView === 'code' ? 'view-tab active' : 'view-tab'}
-          aria-selected={workspaceView === 'code'}
-          onClick={() => setWorkspaceView('code')}
-        >
-          Code
-        </button>
+        {workspaceViews.map((view) => (
+          <button
+            key={view.id}
+            type="button"
+            role="tab"
+            className={workspaceView === view.id ? 'view-tab active' : 'view-tab'}
+            aria-selected={workspaceView === view.id}
+            title={view.title}
+            onClick={() => setWorkspaceView(view.id)}
+          >
+            {view.label}
+          </button>
+        ))}
       </div>
     </div>
   )
@@ -287,7 +292,7 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
           )}
           <div className="center">
             <div className="workspace-view">
-              {workspaceView === 'preview' ? (
+              {workspaceView !== 'code' ? (
                 <Suspense
                   fallback={
                     <div className="preview">
@@ -296,7 +301,7 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
                     </div>
                   }
                 >
-                  <Preview bar={viewBar} />
+                  <Preview bar={viewBar} interactive={workspaceView === 'preview'} />
                 </Suspense>
               ) : (
                 <>

@@ -65,6 +65,8 @@ interface Actions {
   move: (direction: 'up' | 'down') => void
   duplicate: () => void
   place: (id: string, targetId: string, position: 'before' | 'after' | 'inside') => void
+  /** Adds a copied layer inside the selected layer, or after it when it can't hold it. */
+  paste: (tree: ConfigNode) => void
   undo: () => void
   redo: () => void
 }
@@ -297,6 +299,7 @@ export function BuilderProvider({
       move: (direction) => send({ type: 'move', direction }),
       duplicate: () => send({ type: 'duplicate' }),
       place: (id, targetId, position) => send({ type: 'place', id, targetId, position }),
+      paste: (tree) => send({ type: 'paste', tree }),
       undo: () => send({ type: 'undo' }),
       redo: () => send({ type: 'redo' }),
     }
