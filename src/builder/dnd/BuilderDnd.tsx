@@ -13,15 +13,18 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
   type WheelEvent,
 } from 'react'
 import { layoutAxis, nodeElement, scrollParent } from '../preview/measure'
+import { findNode } from '../selection/selection'
 import { useBuilderActions, useBuilderState, useRegistry } from '../state/BuilderProvider'
-import { resolveDrop, type DropTarget, type Point } from './dropTarget'
+import { describeSlot, moveSlots, resolveDrop, type DropTarget, type Point } from './dropTarget'
 
 /** A new component, layout preset or block from the sidebar, or a layer already on the page. */
 export type DragItem =
@@ -38,11 +41,22 @@ export type DropSurface = 'canvas' | 'layers'
 export interface DragState {
   item: DragItem | null
   target: (DropTarget & { surface: DropSurface }) | null
+  /** A keyboard move: the target shows in Layers and on the canvas, and no shield covers the page. */
+  keyboard: boolean
 }
 
-const idle: DragState = { item: null, target: null }
+export interface KeyboardMove {
+  /** Starts moving a layer with the keyboard. */
+  start: (id: string) => void
+  /** The id of the text that explains the keys, for `aria-describedby`. */
+  hintId: string
+}
+
+const idle: DragState = { item: null, target: null, keyboard: false }
 const DragStateContext = createContext<DragState>(idle)
 const SurfaceContext = createContext<(surface: DropSurface, element: HTMLElement | null) => void>(() => {})
+const KeyboardMoveContext = createContext<KeyboardMove>({ start: () => {}, hintId: '' })
+const MODIFIERS = new Set(['Shift', 'Control', 'Alt', 'Meta'])
 
 const surfaceAttribute: Record<DropSurface, string> = { canvas: 'data-builder-id', layers: 'data-layer-id' }
 const EDGE = 40
@@ -70,9 +84,17 @@ export function useDropSurface(surface: DropSurface, element: HTMLElement | null
   }, [register, surface, element])
 }
 
+export function useKeyboardMove(): KeyboardMove {
+  return useContext(KeyboardMoveContext)
+}
+
 /** Makes an element a drag source. The element stays in place; a chip follows the pointer. */
 export function useDragSource(id: string, item: DragItem, disabled = false) {
-  return useDraggable({ id, data: item, disabled })
+  const draggable = useDraggable({ id, data: item, disabled })
+  // dnd-kit's description explains its keyboard sensor, which the builder doesn't use (layers move with
+  // useKeyboardMove), so it is left off.
+  const { 'aria-describedby': _instructions, ...attributes } = draggable.attributes
+  return { ...draggable, attributes }
 }
 
 function sameTarget(left: DragState['target'], right: DragState['target']): boolean {
@@ -189,7 +211,7 @@ export function BuilderDnd({ children }: { children: ReactNode }) {
       const target = resolved && hit ? { ...resolved, surface: hit.surface } : null
       if (!sameTarget(current.target, target)) {
         current.target = target
-        setDrag({ item, target })
+        setDrag({ item, target, keyboard: false })
       }
       current.frame = requestAnimationFrame(step)
     },
@@ -206,9 +228,108 @@ export function BuilderDnd({ children }: { children: ReactNode }) {
 
   useEffect(() => stop, [stop])
 
+  const hintId = useId()
+  const [announcement, setAnnouncement] = useState('')
+  // Cancels the keyboard move in progress.
+  const cancelMove = useRef<(() => void) | null>(null)
+
+  /**
+   * Moves a layer with the keyboard: the arrow keys (and Home, End) step through every place the drop rules allow,
+   * in the order Layers shows them; Enter or Space drops it there; Escape, Tab, another key or a click cancels.
+   */
+  const startKeyboardMove = useCallback(
+    (id: string) => {
+      if (session.current || cancelMove.current) return
+      const { registry: reg, document: tree } = latest.current
+      const node = findNode(tree, id)
+      const slots = node ? moveSlots(reg, tree, id) : []
+      if (!node || slots.length === 0) return
+      const item: DragItem = { kind: 'layer', id, component: node.component, label: node.label }
+      const origin = document.activeElement
+      let index = Math.max(
+        0,
+        slots.findIndex((slot) => slot.current),
+      )
+
+      const show = (lead = '') => {
+        const slot = slots[index]
+        const canvas = surfaces.current.get('canvas')
+        const element = canvas ? nodeElement(canvas, slot.targetId) : null
+        element?.scrollIntoView({ block: 'nearest' })
+        const axis = element ? layoutAxis(element) : 'vertical'
+        setDrag({
+          item,
+          keyboard: true,
+          target: { surface: 'layers', id: slot.targetId, position: slot.position, axis },
+        })
+        setAnnouncement(lead + describeSlot(slot, id))
+      }
+      // Space activates a focused button when it is released; the release that drops must not start another move.
+      const onKeyUp = (event: KeyboardEvent) => {
+        if (event.key !== ' ') return
+        event.preventDefault()
+        event.stopPropagation()
+        window.removeEventListener('keyup', onKeyUp, true)
+      }
+      const end = (commit: boolean, space = false) => {
+        window.removeEventListener('keydown', onKeyDown, true)
+        window.removeEventListener('pointerdown', onPointerDown, true)
+        if (space) window.addEventListener('keyup', onKeyUp, true)
+        cancelMove.current = null
+        setDrag(idle)
+        const slot = slots[index]
+        if (commit && !slot.current) {
+          actions.place(id, slot.targetId, slot.position)
+          setAnnouncement(`Moved ${item.label}. ${describeSlot(slot, id)}.`)
+        } else {
+          setAnnouncement(`${commit ? '' : 'Move cancelled. '}${item.label} stays where it was.`)
+        }
+        // Focus goes back where the move started, or to the layer's row when that is gone.
+        requestAnimationFrame(() => {
+          const row = surfaces.current
+            .get('layers')
+            ?.querySelector<HTMLElement>(`[data-layer-id="${CSS.escape(id)}"] .layer-name`)
+          const back = origin instanceof HTMLElement && origin.isConnected ? origin : row
+          back?.focus()
+        })
+      }
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (MODIFIERS.has(event.key)) return
+        if (event.key === 'Tab') {
+          end(false)
+          return
+        }
+        event.preventDefault()
+        event.stopPropagation()
+        if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') index = Math.max(0, index - 1)
+        else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') index = Math.min(slots.length - 1, index + 1)
+        else if (event.key === 'Home') index = 0
+        else if (event.key === 'End') index = slots.length - 1
+        else if (event.key === 'Enter' || event.key === ' ') {
+          if (!event.repeat) end(true, event.key === ' ')
+          return
+        } else {
+          end(false)
+          return
+        }
+        show()
+      }
+      const onPointerDown = () => end(false)
+      window.addEventListener('keydown', onKeyDown, true)
+      window.addEventListener('pointerdown', onPointerDown, true)
+      cancelMove.current = () => end(false)
+      show(`Moving ${item.label}, ${slots.length} places. `)
+    },
+    [actions],
+  )
+
+  useEffect(() => () => cancelMove.current?.(), [])
+  const keyboardMove = useMemo<KeyboardMove>(() => ({ start: startKeyboardMove, hintId }), [startKeyboardMove, hintId])
+
   const onDragStart = (event: DragStartEvent) => {
     const item = event.active.data.current as DragItem | undefined
     if (!item) return
+    cancelMove.current?.()
     const start = event.activatorEvent as PointerEvent
     const onMove = (move: PointerEvent) => {
       if (session.current) session.current.pointer = { x: move.clientX, y: move.clientY }
@@ -226,7 +347,7 @@ export function BuilderDnd({ children }: { children: ReactNode }) {
       scrollers,
       off: () => window.removeEventListener('pointermove', onMove),
     }
-    setDrag({ item, target: null })
+    setDrag({ item, target: null, keyboard: false })
     session.current.frame = requestAnimationFrame(track)
   }
 
@@ -252,9 +373,20 @@ export function BuilderDnd({ children }: { children: ReactNode }) {
       onDragCancel={() => finish(false)}
     >
       <SurfaceContext.Provider value={register}>
-        <DragStateContext.Provider value={drag}>{children}</DragStateContext.Provider>
+        <KeyboardMoveContext.Provider value={keyboardMove}>
+          <DragStateContext.Provider value={drag}>{children}</DragStateContext.Provider>
+        </KeyboardMoveContext.Provider>
       </SurfaceContext.Provider>
-      {drag.item ? <div className="drag-shield" data-drop-ignore="" aria-hidden="true" onWheel={forwardWheel} /> : null}
+      {drag.item && !drag.keyboard ? (
+        <div className="drag-shield" data-drop-ignore="" aria-hidden="true" onWheel={forwardWheel} />
+      ) : null}
+      <p id={hintId} hidden>
+        Press Enter or Space to move it with the keyboard: the arrow keys choose the place, Enter or Space drops it, and
+        Escape cancels.
+      </p>
+      <div className="sr" role="status" aria-live="assertive" aria-atomic="true">
+        {announcement}
+      </div>
       <DragOverlay className="drag-overlay" dropAnimation={null}>
         {drag.item ? <div className={drag.target ? 'drag-chip' : 'drag-chip blocked'}>{drag.item.label}</div> : null}
       </DragOverlay>

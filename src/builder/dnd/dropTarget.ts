@@ -1,7 +1,7 @@
 import type { ConfigNode } from '../../registry/metadata'
 import type { BuilderRegistry } from '../../registry/registry'
 import type { LayoutAxis } from '../preview/measure'
-import { canDrop, findPath, type PlacePosition } from '../selection/selection'
+import { canDrop, findNode, findPath, parentOf, type PlacePosition } from '../selection/selection'
 
 export interface Point {
   x: number
@@ -85,4 +85,62 @@ export function resolveDrop(
     }
   }
   return null
+}
+
+/** A place a layer can move to with the keyboard: a gap between the children of `parent`, at `index`. */
+export interface MoveSlot {
+  /** The `place` arguments that land the layer there. */
+  targetId: string
+  position: PlacePosition
+  parent: ConfigNode
+  /** The gap, counted among the parent's children without the moving layer. */
+  index: number
+  /** Where the layer is now. */
+  current: boolean
+}
+
+/**
+ * Every place the drop rules let a layer move to, in the order the Layers tree shows them: each container's gaps
+ * between its children, with the children's own gaps in between. The layer's own place is one of them. A gap goes to
+ * `place` as "before the next child", "after the last child", or "inside" a container that would be empty.
+ */
+export function moveSlots(registry: BuilderRegistry, root: ConfigNode, movingId: string): MoveSlot[] {
+  const moving = findNode(root, movingId)
+  const from = parentOf(root, movingId)
+  if (!moving || !from) return []
+  const fromIndex = from.children.findIndex((child) => child.id === movingId)
+  const slots: MoveSlot[] = []
+  const visit = (node: ConfigNode) => {
+    if (node.id === movingId) return
+    const children = node.children.filter((child) => child.id !== movingId)
+    const gap = (index: number) => {
+      const target: { targetId: string; position: PlacePosition } =
+        children.length === 0
+          ? { targetId: node.id, position: 'inside' }
+          : index < children.length
+            ? { targetId: children[index].id, position: 'before' }
+            : { targetId: children[children.length - 1].id, position: 'after' }
+      if (!canDrop(registry, root, moving.component, target.targetId, target.position, movingId)) return
+      slots.push({ ...target, parent: node, index, current: node.id === from.id && index === fromIndex })
+    }
+    children.forEach((child, index) => {
+      gap(index)
+      visit(child)
+    })
+    gap(children.length)
+  }
+  visit(root)
+  return slots
+}
+
+/** A slot in words, for screen readers: "Before Title in Header". */
+export function describeSlot(slot: MoveSlot, movingId: string): string {
+  const children = slot.parent.children.filter((child) => child.id !== movingId)
+  const place =
+    children.length === 0
+      ? `Into ${slot.parent.label}`
+      : slot.index < children.length
+        ? `Before ${children[slot.index].label} in ${slot.parent.label}`
+        : `After ${children[slot.index - 1].label}, at the end of ${slot.parent.label}`
+  return slot.current ? `${place}, where it is now` : place
 }
