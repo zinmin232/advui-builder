@@ -126,6 +126,16 @@ export interface ComponentMetadata {
   item?: ItemTemplate
   /** Draws nothing of its own (a Spacer), so the canvas outlines it. The outline does not change its size. */
   invisible?: boolean
+  /** Writes the layer as code other than its own element (a Toast is a button that calls `toast()`). */
+  code?: CodeHook
+}
+
+/** Code for a layer that isn't written as `<jsxTag {...props}>`. */
+export interface CodeHook {
+  /** What the code uses from the registry's package, in place of `importName`. */
+  imports: string[]
+  /** The layer's JSX, without indentation. `text` writes a string as JSX text, escaped where JSX needs it. */
+  render: (node: ConfigNode, text: (value: string) => string) => string
 }
 
 export interface ConfigNode {
@@ -135,14 +145,6 @@ export interface ConfigNode {
   props: Record<string, unknown>
   text?: string
   children: ConfigNode[]
-}
-
-export interface SelectionContext {
-  component: string
-  element: string
-  path: string[]
-  ids: string[]
-  props: Record<string, unknown>
 }
 
 const platformOrder: PlatformId[] = ['web', 'android', 'ios']

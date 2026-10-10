@@ -57,7 +57,7 @@ On a fresh machine, run `pnpm exec playwright install chromium` once before `pnp
 
 | Area | Files |
 |---|---|
-| Metadata types | `src/registry/metadata.ts` (`ComponentMetadata`, `PropMetadata`, `TemplateNode`, `ItemTemplate`, `ConfigNode`, `SelectionContext`) |
+| Metadata types | `src/registry/metadata.ts` (`ComponentMetadata`, `PropMetadata`, `TemplateNode`, `ItemTemplate`, `ConfigNode`, `CodeHook`) |
 | Generic registry | `src/registry/registry.ts`: `createRegistry()` → `BuilderRegistry` (`get`, `sidebarEntries`, `search`, `match`, `createDocument`, `createPage`/`hasPage`, `createColumns`/`hasColumns`, `blocks`/`searchBlocks`/`createBlock`, `breakpoints`, `acceptsChildren`, `acceptsAny`, `canPlace`, `itemNoun`, `addItem`), `resolveProps`, `nextId`. No AdvUI imports. `src/registry/columns.ts` holds the 12-column span rules (`COLUMN_PRESETS`, `parseSpans`) |
 | Responsive values | `src/registry/responsive.ts`: mobile-first maps (`{ base, md, … }`) keyed by the registry's `breakpoints`: `breakpointAt`, `valueAt`, `withValueAt`, `valueForScreen`, `inRange`. Pure, no AdvUI imports |
 | Upstream metadata | `@advui/core/meta` (`components`, `categories`, the `ComponentMeta` types). Read in `componentRegistry.ts` with `advuiMeta('slug')`. Never copy it into the repo |
@@ -79,7 +79,7 @@ On a fresh machine, run `pnpm exec playwright install chromium` once before `pnp
 
 ## Rules for changes
 
-- **Metadata-driven.** Don't add `if (component === 'X')` branches in the inspector, sidebar, layers, state, or panels. Starter trees, containers, and repeatable items are metadata (`template`, `acceptsChildren`, `item`), and `createRegistry` handles them generically. Component-specific code is allowed only where the component really needs it (today: `AdvuiPreview.tsx` for Toast, Select, Grid, Show/Hide, and clone-child hosts such as Dialog.Trigger and Dialog.Close; `codeGenerator.ts` for Toast).
+- **Metadata-driven.** Don't add `if (component === 'X')` branches in the inspector, sidebar, layers, state, or panels. Starter trees, containers, and repeatable items are metadata (`template`, `acceptsChildren`, `item`), and `createRegistry` handles them generically. Component-specific code is allowed only where the component really needs it (today: `AdvuiPreview.tsx` for Toast, Select, Grid, Show/Hide, and clone-child hosts such as Dialog.Trigger and Dialog.Close). A component whose code isn't its own element gets a `code` hook in its metadata (`CodeHook`: its imports and its JSX); today that is Toast, a button that calls `toast()`, so `codeGenerator.ts` stays generic.
 - **No library imports in the core.** Files under `src/builder/` (except the `AdvuiPreview.tsx` kit) must not import `componentRegistry.ts`, `@advui/core` or `@advui/core/meta`. Take the registry from `useRegistry()` or a `registry` parameter (registry-first for tree and state helpers; inside the options object for `generateCode`).
 - **One source of truth.** The document tree and `selectedId` live in the reducer. Don't copy props or selection into local component state. Derive the path, breadcrumb, and inspector values from `findPath(state.document, state.selectedId)`.
 - **Defaults are not stored.** `storesValue()` drops values equal to `prop.defaultValue` (required props keep explicit values). The code generator also skips defaults. Keep the two consistent.
@@ -179,18 +179,15 @@ Known gaps, highest value first:
 1. **Pages live in one browser.** They are in localStorage: cleared site data loses them. Export a `.page.json` file or copy a link to move or back up a page. Two tabs on the same page follow each other's saves, but edits made in both at the same moment aren't merged: the last save wins.
 2. **Pointer drops into pop-up components.** Dropping into Dialog, Dropdown menu or Tooltip content on the canvas isn't supported; use Layers or a keyboard move.
 3. **TSX is the only code target.** There is no generator interface for React Native or JSON output. JSON config already exists in `shareConfig.toConfiguration`.
-4. `SelectionContext` / `selectionFrom()` are only used in tests. The UI derives the selection from `selectedId`. Either use `selectionFrom` in the Inspector or drop the type.
-5. The light/dark toggle is global (app chrome and preview together), not a preview-only control.
-6. Width controls are duplicated in the `PlatformSelector` popover and in `ViewportControls`.
-7. Untested in UI: selection overlay outlines (the toolbar and inline editing are covered in `e2e/editing.spec.ts`), zoom/Fit/100%, width slider and preset buttons (reducer only), sidebar collapse, splitter drag, and search.
-8. Toast is still special-cased in the generic `codeGenerator.ts`. A per-component code hook in metadata would move it into the AdvUI registry.
-9. Fit zoom uses a global `document.querySelector('.preview .canvas')`, and the URL is not kept in sync with state (links only come from "Copy link").
-10. **AppShell is not registered.** It fills `100dvh` (a `height` prop overrides that) and turns its sidebar into a drawer from `useMedia()` and CSS media queries, which follow the browser window, so the canvas can't show it at the preview width. It needs an AdvUI option to render for a given width.
-11. AdvUI's own responsive defaults (Container `gutter`, Section's inner Container) still follow the browser window in the preview; only values set in the builder follow the preview width.
-12. `children.min` from upstream (Field, Tooltip, triggers) is not enforced: removing the last child is allowed.
-13. The registry's `breakpoints` are written out in `componentRegistry.ts` (checked against `@advui/theme` by a test), because `@advui/core/meta` does not publish them.
-14. `@advui/core/meta` uses extensionless relative imports, so plain Node can't import it (Vite and Vitest can). Fixing that upstream would let Node scripts read it.
-15. **AdvUI NavigationBar hides the active icon on web.** The active pill is absolutely positioned and the icon is not, so the pill paints over it; native draws them in child order. The preview shows the same thing. An upstream fix (`position: relative` or `zIndex` on the icon) is needed.
-16. Accordion's `defaultValue` is edited as one value. With `type="multiple"` AdvUI takes a list, so the generated code is only right for `single`.
-17. **Drags walk the whole tree.** dnd-kit changes a context on every pointer move, and React looks through every layer for its readers: about 3 ms per move at 800 layers, growing with the page. Rendering the canvas tree outside `DndContext` (a portal into the stage) would end that.
-18. The Layers tree is not virtualized: every row is in the DOM, which costs memory and layout on pages with thousands of layers.
+4. The light/dark toggle is global (app chrome and preview together), not a preview-only control.
+5. Untested in UI: selection overlay outlines (the toolbar and inline editing are covered in `e2e/editing.spec.ts`), the zoom and width sliders, sidebar collapse, splitter drag (keyboard resizing is covered), and search.
+6. The URL is not kept in sync with state: links only come from "Copy link". Page links are imported as a new page and then leave the address bar, so syncing would have to keep that.
+7. **AppShell is not registered.** It fills `100dvh` (a `height` prop overrides that) and turns its sidebar into a drawer from `useMedia()` and CSS media queries, which follow the browser window, so the canvas can't show it at the preview width. It needs an AdvUI option to render for a given width.
+8. AdvUI's own responsive defaults (Container `gutter`, Section's inner Container) still follow the browser window in the preview; only values set in the builder follow the preview width.
+9. `children.min` from upstream (Field, Tooltip, triggers) is not enforced: removing the last child is allowed.
+10. The registry's `breakpoints` are written out in `componentRegistry.ts` (checked against `@advui/theme` by a test), because `@advui/core/meta` does not publish them.
+11. `@advui/core/meta` uses extensionless relative imports, so plain Node can't import it (Vite and Vitest can). Fixing that upstream would let Node scripts read it.
+12. **AdvUI NavigationBar hides the active icon on web.** The active pill is absolutely positioned and the icon is not, so the pill paints over it; native draws them in child order. The preview shows the same thing. An upstream fix (`position: relative` or `zIndex` on the icon) is needed.
+13. Accordion's `defaultValue` is edited as one value. With `type="multiple"` AdvUI takes a list, so the generated code is only right for `single`.
+14. **Drags walk the whole tree.** dnd-kit changes a context on every pointer move, and React looks through every layer for its readers: about 3 ms per move at 800 layers, growing with the page. Rendering the canvas tree outside `DndContext` (a portal into the stage) would end that.
+15. The Layers tree is not virtualized: every row is in the DOM, which costs memory and layout on pages with thousands of layers.

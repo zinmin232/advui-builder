@@ -1,18 +1,15 @@
 import { advuiRegistry } from '../../registry/componentRegistry'
 import type { ConfigNode } from '../../registry/metadata'
-import { duplicateNode, findPath, mapTree, placeNode, selectionFrom } from './selection'
+import { duplicateNode, findNode, findPath, mapTree, placeNode } from './selection'
 
 describe('selection', () => {
   const card = advuiRegistry.createDocument('Card')
 
   it('builds the Card > Footer > Button path from a nested id', () => {
-    const selection = selectionFrom(card, 'card-button')
-    expect(selection).toMatchObject({
-      component: 'Card',
-      element: 'Button',
-      path: ['Card', 'Footer', 'Button'],
-      ids: ['card', 'card-footer', 'card-button'],
-    })
+    const path = findPath(card, 'card-button')
+    expect(path?.map((node) => node.label)).toEqual(['Card', 'Footer', 'Button'])
+    expect(path?.map((node) => node.id)).toEqual(['card', 'card-footer', 'card-button'])
+    expect(path?.at(-1)?.component).toBe('Button')
   })
 
   it('builds the Card > Content > Image path', () => {
@@ -26,8 +23,8 @@ describe('selection', () => {
     }))
     expect(next).not.toBe(card)
     expect(next.children[0]).toBe(card.children[0])
-    expect(selectionFrom(next, 'card-button')?.props).toEqual({ variant: 'secondary' })
-    expect(selectionFrom(next, 'card-image')?.props.src).toBe('/preview-photo.svg')
+    expect(findNode(next, 'card-button')?.props).toEqual({ variant: 'secondary' })
+    expect(findNode(next, 'card-image')?.props.src).toBe('/preview-photo.svg')
   })
 
   it('copies a nested layer beside the original, including its children', () => {

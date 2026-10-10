@@ -2,6 +2,7 @@ import { categories, type CategoryId, type ComponentMeta, type PlaygroundControl
 import {
   emptyPlatforms,
   type ComponentMetadata,
+  type CodeHook,
   type ItemTemplate,
   type PlatformId,
   type PropMetadata,
@@ -186,6 +187,8 @@ export interface AdaptOptions {
   item?: ItemTemplate
   /** Draws nothing of its own, so the canvas outlines it. */
   invisible?: boolean
+  /** Writes the layer as other code than its element. */
+  code?: CodeHook
 }
 
 /**
@@ -290,6 +293,7 @@ export function adaptAdvuiMeta(meta: ComponentMeta, options: AdaptOptions = {}):
     maxChildren: options.maxChildren ?? rules?.max,
     item: options.item,
     invisible: options.invisible,
+    code: options.code,
     examples: meta.examples.map((example) => ({
       name: example.name,
       title: example.title,

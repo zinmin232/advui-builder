@@ -1,4 +1,4 @@
-import { Suspense, use, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
+import { Suspense, use, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { writeToClipboard } from './clipboard'
 import { clampInspectorWidth, clampSidebarWidth, INSPECTOR_WIDTHS, SIDEBAR_WIDTHS } from './persistence'
 import { shareUrl } from './shareConfig'
@@ -34,8 +34,16 @@ function kitFor(load: PreviewLoader): Promise<PreviewKit> {
 }
 
 /** The preview waits for the component library to load (it suspends). The panels render without it. */
-function LoadedPreview({ load, bar, interactive }: { load: PreviewLoader; bar: ReactNode; interactive: boolean }) {
-  return <PreviewWorkspace kit={use(kitFor(load))} bar={bar} interactive={interactive} />
+function LoadedPreview({
+  load,
+  interactive,
+  onCanvas,
+}: {
+  load: PreviewLoader
+  interactive: boolean
+  onCanvas: (canvas: HTMLDivElement | null) => void
+}) {
+  return <PreviewWorkspace kit={use(kitFor(load))} interactive={interactive} onCanvas={onCanvas} />
 }
 
 /**
@@ -115,6 +123,7 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
   const drag = useRef<{ kind: 'sidebar' | 'inspector'; start: number; origin: number } | null>(null)
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('edit')
   const [linkCopied, setLinkCopied] = useState(false)
+  const [canvas, setCanvas] = useState<HTMLDivElement | null>(null)
 
   const onPointerDown = (kind: 'sidebar' | 'inspector', event: PointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -149,17 +158,13 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
 
   const viewBar = (
     <div className="view-bar">
-      <PlatformSelector
-        platform={state.platform}
-        width={state.viewportWidth}
-        onChange={actions.setPlatform}
-        onWidth={actions.setWidth}
-      />
+      <PlatformSelector platform={state.platform} onChange={actions.setPlatform} />
       <PreviewToolbar
         width={state.viewportWidth}
         background={state.background}
         theme={state.theme}
         zoom={state.zoom}
+        canvas={canvas}
         onWidth={actions.setWidth}
         onBackground={actions.setBackground}
         onZoom={actions.setZoom}
@@ -352,25 +357,18 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
             />
           )}
           <div className="center">
-            <div className="workspace-view">
+            {/* The view bar sits outside the loading boundary, so it stays put (and its open menus stay open) while
+                the component library loads and when the tabs switch. */}
+            <div className="workspace-view preview">
+              {viewBar}
               {workspaceView !== 'code' ? (
-                <Suspense
-                  fallback={
-                    <div className="preview">
-                      {viewBar}
-                      <p className="preview-loading">Loading preview…</p>
-                    </div>
-                  }
-                >
-                  <LoadedPreview load={loadPreview} bar={viewBar} interactive={workspaceView === 'preview'} />
+                <Suspense fallback={<p className="preview-loading">Loading preview…</p>}>
+                  <LoadedPreview load={loadPreview} interactive={workspaceView === 'preview'} onCanvas={setCanvas} />
                 </Suspense>
               ) : (
-                <>
-                  {viewBar}
-                  <div className="code-slot">
-                    <CodePanel />
-                  </div>
-                </>
+                <div className="code-slot">
+                  <CodePanel />
+                </div>
               )}
             </div>
           </div>

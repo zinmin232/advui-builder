@@ -1,14 +1,6 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { platformLabel } from '../../registry/adaptMeta'
 import { platformList, type PlatformId } from '../../registry/metadata'
-import { MAX_WIDTH, MIN_WIDTH, WIDTH_PRESETS, clampWidth } from '../state/builderState'
-
-const deviceSizes = [
-  { label: 'Phone', width: 390 },
-  { label: 'Tablet', width: 768 },
-] as const
-
-const RESPONSIVE_WIDTH = 1024
 
 const platformIcons: Record<PlatformId, ReactNode> = {
   web: (
@@ -39,181 +31,33 @@ const platformIcons: Record<PlatformId, ReactNode> = {
   ),
 }
 
+/** Switches the preview platform. Each platform starts at its own width; the toolbar's width control changes it. */
 export function PlatformSelector({
   platform,
-  width,
   onChange,
-  onWidth,
 }: {
   platform: PlatformId
-  width: number
   onChange: (platform: PlatformId) => void
-  onWidth: (width: number) => void
 }) {
-  const [openId, setOpenId] = useState<PlatformId | null>(null)
-  const [draft, setDraft] = useState(String(width))
-  const switchRef = useRef<HTMLDivElement>(null)
-  const numberRef = useRef<HTMLInputElement>(null)
-  const panelId = useId()
-
-  useEffect(() => {
-    if (document.activeElement !== numberRef.current) setDraft(String(width))
-  }, [width])
-
-  useEffect(() => {
-    if (!openId) return
-    const onPointerDown = (event: PointerEvent) => {
-      if (!switchRef.current?.contains(event.target as Node)) setOpenId(null)
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpenId(null)
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [openId])
-
-  const commitDraft = () => {
-    const next = Number(draft)
-    if (!Number.isFinite(next)) {
-      setDraft(String(width))
-      return
-    }
-    onWidth(clampWidth(next))
-  }
-
-  const onNumberChange = (raw: string) => {
-    setDraft(raw)
-    const next = Number(raw)
-    if (raw !== '' && Number.isFinite(next) && next >= MIN_WIDTH && next <= MAX_WIDTH) {
-      onWidth(Math.round(next))
-    }
-  }
-
-  const numberField = (
-    <input
-      ref={numberRef}
-      className="width-number"
-      aria-label={openId === 'web' ? 'Custom width' : 'Current width'}
-      type="number"
-      inputMode="numeric"
-      min={MIN_WIDTH}
-      max={MAX_WIDTH}
-      value={draft}
-      onChange={(event) => onNumberChange(event.target.value)}
-      onBlur={commitDraft}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') event.currentTarget.blur()
-      }}
-    />
-  )
-
   return (
-    <div className="platform-switch" role="group" aria-label="Platform" ref={switchRef}>
-      {platformList().map((item) => {
-        const selected = item === platform
-        const open = openId === item
-        return (
-          <div key={item} className={open ? 'platform-item open' : 'platform-item'}>
-            <button
-              type="button"
-              className={selected ? 'platform-tab active' : 'platform-tab'}
-              aria-pressed={selected}
-              aria-label={platformLabel(item)}
-              aria-expanded={open}
-              aria-controls={open ? panelId : undefined}
-              onClick={() => {
-                if (platform !== item) onChange(item)
-                setOpenId((current) => (platform === item && current === item ? null : item))
-              }}
-            >
-              {platformIcons[item]}
-              <span className="platform-tip" role="tooltip">
-                {platformLabel(item)}
-              </span>
-            </button>
-            {open && item === 'web' ? (
-              <div className="toolbar-panel web-width-panel" id={panelId} role="group" aria-label="Web width">
-                <div className="presets" role="group" aria-label="Width presets">
-                  <button
-                    type="button"
-                    className={width === RESPONSIVE_WIDTH ? 'text-btn active' : 'text-btn'}
-                    aria-pressed={width === RESPONSIVE_WIDTH}
-                    onClick={() => onWidth(RESPONSIVE_WIDTH)}
-                  >
-                    Responsive
-                  </button>
-                  {WIDTH_PRESETS.map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      className={width === value ? 'text-btn active' : 'text-btn'}
-                      aria-pressed={width === value}
-                      onClick={() => onWidth(value)}
-                    >
-                      {value}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  aria-label="Preview width"
-                  type="range"
-                  min={MIN_WIDTH}
-                  max={MAX_WIDTH}
-                  value={width}
-                  onChange={(event) => onWidth(Number(event.target.value))}
-                />
-                {numberField}
-              </div>
-            ) : null}
-            {open && item !== 'web' ? (
-              <div
-                className="toolbar-panel device-width-panel"
-                id={panelId}
-                role="group"
-                aria-label={`${platformLabel(item)} width`}
-              >
-                <div className="presets" role="group" aria-label="Device size">
-                  {deviceSizes.map((size) => (
-                    <button
-                      key={size.label}
-                      type="button"
-                      className={width === size.width ? 'text-btn active' : 'text-btn'}
-                      aria-pressed={width === size.width}
-                      onClick={() => onWidth(size.width)}
-                    >
-                      {size.label}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  aria-label="Preview width"
-                  type="range"
-                  min={MIN_WIDTH}
-                  max={MAX_WIDTH}
-                  value={width}
-                  onChange={(event) => onWidth(Number(event.target.value))}
-                />
-                <span
-                  className="pixel-box"
-                  onMouseDown={(event) => {
-                    const target = event.target
-                    if (!(target instanceof HTMLElement) || target === numberRef.current) return
-                    event.preventDefault()
-                    numberRef.current?.focus()
-                  }}
-                >
-                  {numberField}
-                  <span className="pixel-unit">px</span>
-                </span>
-              </div>
-            ) : null}
-          </div>
-        )
-      })}
+    <div className="platform-switch" role="group" aria-label="Platform">
+      {platformList().map((item) => (
+        <button
+          key={item}
+          type="button"
+          className={item === platform ? 'platform-tab active' : 'platform-tab'}
+          aria-pressed={item === platform}
+          aria-label={platformLabel(item)}
+          onClick={() => {
+            if (item !== platform) onChange(item)
+          }}
+        >
+          {platformIcons[item]}
+          <span className="platform-tip" role="tooltip">
+            {platformLabel(item)}
+          </span>
+        </button>
+      ))}
     </div>
   )
 }

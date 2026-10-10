@@ -2,7 +2,7 @@ import { components as advuiMetas, type ComponentMeta } from '@advui/core/meta'
 import { iconNames } from '@advui/icons'
 import { adaptAdvuiMeta, type AdaptOptions } from './adaptMeta'
 import { advuiBlocks } from './advuiBlocks'
-import type { PropMetadata, TemplateNode } from './metadata'
+import type { CodeHook, PropMetadata, TemplateNode } from './metadata'
 import { createRegistry } from './registry'
 import {
   ariaLabelProp,
@@ -777,10 +777,28 @@ const alertDialogAction = adaptAdvuiMeta(alertDialogMeta, {
 })
 
 // The builder shows a toast as a button that calls `toast.<type>(title, options)`.
+/** A Toast is not an element: the code is a button that shows it, the way the preview does. */
+const toastCode: CodeHook = {
+  imports: ['Button', 'toast'],
+  render: (node, text) => {
+    const title = typeof node.props.title === 'string' ? node.props.title : 'Changes saved'
+    const description = typeof node.props.description === 'string' ? node.props.description : ''
+    const type = typeof node.props.type === 'string' ? node.props.type : 'success'
+    const duration = typeof node.props.duration === 'number' ? node.props.duration : undefined
+    const method = type === 'default' ? 'toast' : `toast.${type}`
+    const fields: string[] = []
+    if (description) fields.push(`description: ${JSON.stringify(description)}`)
+    if (duration != null && duration !== 4000) fields.push(`duration: ${duration}`)
+    const args = fields.length ? `${JSON.stringify(title)}, { ${fields.join(', ')} }` : JSON.stringify(title)
+    return `<Button onPress={() => ${method}(${args})}>\n  ${text(node.text || 'Show toast')}\n</Button>`
+  },
+}
+
 const toast = adaptAdvuiMeta(toastMeta, {
   category: 'overlay',
   textDefault: 'Show toast',
   importName: 'toast',
+  code: toastCode,
   extraProps: [
     stringProp('title', 'Title', 'The message.', true),
     stringProp('description', 'Description', 'A second line under the message.'),

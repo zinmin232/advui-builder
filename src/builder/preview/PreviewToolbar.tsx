@@ -91,6 +91,7 @@ export function PreviewToolbar({
   background,
   theme,
   zoom,
+  canvas,
   onWidth,
   onBackground,
   onZoom,
@@ -99,6 +100,8 @@ export function PreviewToolbar({
   background: string
   theme: 'light' | 'dark'
   zoom: number
+  /** The canvas scroll area, which Fit sizes the zoom to. Null while the preview loads or the Code tab shows. */
+  canvas: HTMLElement | null
   onWidth: (width: number) => void
   onBackground: (background: string) => void
   onZoom: (zoom: number) => void
@@ -168,8 +171,7 @@ export function PreviewToolbar({
   }
 
   const fit = () => {
-    const canvas = document.querySelector('.preview .canvas')
-    if (!(canvas instanceof HTMLElement)) return
+    if (!canvas) return
     const available = Math.max(160, canvas.clientWidth - 64)
     onZoom(available / width)
   }

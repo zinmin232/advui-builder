@@ -174,3 +174,20 @@ test('sets shadow, margin, font family and line height from the inspector', asyn
   await expect.poll(() => title.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/mono/i)
   await expect.poll(() => title.evaluate((el) => getComputedStyle(el).lineHeight)).toBe('40px')
 })
+
+test('Fit zooms the preview to the canvas width, and 100% resets it', async ({ page }) => {
+  await page.goto('/')
+  // The view bar works while the component library is still loading, and keeps its menu open when it arrives.
+  await page.getByRole('button', { name: 'Width' }).click()
+  await page.getByRole('group', { name: 'Width presets' }).getByRole('button', { name: '1440' }).click()
+  await expect(page.locator('.canvas [data-builder-id]').first()).toBeAttached()
+  await page.getByRole('button', { name: 'Zoom', exact: true }).click()
+  const zoom = page.getByRole('group', { name: 'Zoom settings' })
+  await zoom.getByRole('button', { name: 'Fit' }).click()
+  const scale = () => page.locator('.scaler').evaluate((el) => el.style.transform)
+  const canvasWidth = await page.locator('.canvas').evaluate((el) => el.clientWidth)
+  const expected = Math.round((Math.max(160, canvasWidth - 64) / 1440) * 100) / 100
+  await expect.poll(scale).toBe(`scale(${Math.max(0.5, expected)})`)
+  await zoom.getByRole('button', { name: '100%' }).click()
+  await expect.poll(scale).toBe('scale(1)')
+})
