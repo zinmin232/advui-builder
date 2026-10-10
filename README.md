@@ -5,6 +5,8 @@ Selection-driven visual builder for [AdvUI](https://github.com/zinmin232/advui).
 - **Component mode** customizes one component and its parts.
 - **Page mode** builds a page. Drag components from the sidebar onto the canvas or the Layers tree, or click one to add it. To move an element, select it and drag its name tag, or drag its row in Layers. A line or box shows where it will land, and drops a component can't accept are refused.
 
+The **Blocks** group in the sidebar adds ready-made sections (Navbar, Hero, Pricing, Login, Footer) made of real AdvUI components. Click one to add it below the selected section, or drag it into place. Each block adapts to phone and desktop widths.
+
 Pages are saved in your browser (localStorage) as you edit and reopen after a reload. Click the page name in the top bar to rename it, switch pages, duplicate or delete one, or start a new page. "Copy link" carries the whole page; opening a page link adds it as a new saved page.
 
 Components render from `@advui/core`. The `advui` package is the published CLI.

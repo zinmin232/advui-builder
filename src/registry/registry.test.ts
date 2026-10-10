@@ -2,7 +2,7 @@ import { generateCode } from '../builder/code/codeGenerator'
 import { createBuilderReducer, createBuilderState } from '../builder/state/builderState'
 import { acmeLibrary, meta } from '../test/acmeLibrary'
 import type { ComponentMetadata } from './metadata'
-import { createRegistry, resolveProps } from './registry'
+import { createRegistry, resolveProps, type BlockDefinition } from './registry'
 
 describe('component registry', () => {
   const registry = createRegistry(acmeLibrary)
@@ -120,6 +120,29 @@ describe('component registry', () => {
     expect(() => createRegistry({ ...acmeLibrary, columns: (spans) => ({ ...columns(spans), component: 'Tag' }) }))
       .toThrow(/Columns Tag must accept children/)
     expect(() => createRegistry({ ...acmeLibrary, columns: () => ({ component: 'Grid' }) })).toThrow(/unknown component Grid/)
+  })
+
+  it('offers blocks from the registry, and rejects unknown components and duplicate ids', () => {
+    expect(registry.blocks).toEqual([])
+    const banner = { id: 'banner', name: 'Banner', description: 'A tagged panel.', keywords: ['promo'], template: {
+      component: 'Panel',
+      label: 'Banner',
+      children: [{ component: 'Tag', text: 'New' }, { component: 'Tag', text: 'Sale' }],
+    } }
+    const withBlocks = createRegistry({ ...acmeLibrary, blocks: [banner] })
+    expect(withBlocks.blocks).toEqual([{ id: 'banner', name: 'Banner', description: 'A tagged panel.', component: 'Panel' }])
+    expect(withBlocks.searchBlocks('PROMO').map((block) => block.id)).toEqual(['banner'])
+    expect(withBlocks.searchBlocks('menu')).toEqual([])
+    const tree = withBlocks.createBlock('banner')
+    expect(tree).toMatchObject({ id: 'panel', label: 'Banner' })
+    expect(tree.children.map((child) => [child.id, child.text])).toEqual([['tag', 'New'], ['tag-2', 'Sale']])
+    expect(withBlocks.createBlock('banner')).not.toBe(tree)
+    expect(() => withBlocks.createBlock('nope')).toThrow(/Unknown block/)
+
+    const define = (blocks: BlockDefinition[]) => () => createRegistry({ ...acmeLibrary, blocks })
+    expect(define([banner, banner])).toThrow(/registered twice/)
+    expect(define([{ ...banner, template: { component: 'Panel', children: [{ component: 'Gone' }] } }]))
+      .toThrow(/Block banner template uses unknown component Gone/)
   })
 
   it('applies accepts, parents, within, capacity, and template placement rules', () => {

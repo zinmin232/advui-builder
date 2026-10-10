@@ -9,6 +9,7 @@ import {
   usePreferences,
   useRegistry,
 } from '../state/BuilderProvider'
+import { BlockPalette } from './BlockPalette'
 import { ColumnPresets } from './ColumnPresets'
 
 export function ComponentSidebar() {
@@ -27,6 +28,7 @@ export function ComponentSidebar() {
     return [...groups].map(([id, label]) => ({ id, label }))
   }, [entries])
   const results = registry.search(query)
+  const blocks = registry.searchBlocks(query)
   const recent = preferences.recent
     .map((name) => entries.find((entry) => entry.name === name))
     .filter((entry) => entry != null)
@@ -81,6 +83,7 @@ export function ComponentSidebar() {
           <ComponentGroup title="Recent" entries={recent} {...groupProps} />
         ) : null}
         {showGroups ? <ColumnPresets targetPath={targetPath} /> : null}
+        <BlockPalette blocks={blocks} />
         {showGroups
           ? categories.map((item) => (
               <ComponentGroup
@@ -97,7 +100,9 @@ export function ComponentSidebar() {
               {...groupProps}
             />
           )}
-        {!showGroups && results.length === 0 ? <p className="empty">No components match.</p> : null}
+        {!showGroups && results.length === 0 && blocks.length === 0 ? (
+          <p className="empty">No components match.</p>
+        ) : null}
       </div>
     </aside>
   )

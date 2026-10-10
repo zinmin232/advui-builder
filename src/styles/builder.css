@@ -207,6 +207,24 @@ button { cursor: pointer; }
 .column-custom { display: flex; gap: 4px; padding: 6px 4px 2px; }
 .column-custom .control { min-height: 28px; padding: 4px 8px; }
 .column-error { margin: 2px 4px 0; color: var(--builder-danger); font-size: 12px; }
+.component-group .block-list { display: flex; flex-direction: column; gap: 4px; padding: 0 4px; }
+.block-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--builder-line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--builder-ink);
+  text-align: left;
+  touch-action: none;
+}
+.block-item:not([aria-disabled]):hover { border-color: var(--builder-accent); }
+.block-item[aria-disabled] { opacity: 0.55; cursor: grab; }
+.block-name { font-weight: 600; }
+.block-description { font-size: 11px; color: var(--builder-muted); line-height: 1.35; }
 .empty { color: var(--builder-muted); padding: 12px; }
 
 .workspace-view { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; position: relative; }

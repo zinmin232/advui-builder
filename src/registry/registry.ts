@@ -27,6 +27,27 @@ export interface RegistryDefinition {
   columns?: (spans: number[]) => TemplateNode
   /** Min-width breakpoints for responsive props, smallest first. Without them, responsive props take one value. */
   breakpoints?: BreakpointMetadata[]
+  /** Ready-made page parts, in sidebar order. Without them, the sidebar has no Blocks group. */
+  blocks?: BlockDefinition[]
+}
+
+/** A ready-made part of a page (a navbar, a hero) built from the library's own components. */
+export interface BlockDefinition {
+  /** Unique within the registry: `hero`. */
+  id: string
+  name: string
+  description: string
+  keywords?: string[]
+  /** Ids may be left out; inserted copies get fresh ones anyway. */
+  template: TemplateNode
+}
+
+/** A block as the sidebar lists it. `component` is its root, which the drop rules check. */
+export interface BlockEntry {
+  id: string
+  name: string
+  description: string
+  component: string
 }
 
 export interface BuilderRegistry {
@@ -39,6 +60,12 @@ export interface BuilderRegistry {
   readonly hasColumns: boolean
   /** Breakpoints for responsive props, smallest first. Empty when the library has none. */
   readonly breakpoints: readonly BreakpointMetadata[]
+  /** Ready-made page parts, in sidebar order. Empty when the library defines none. */
+  readonly blocks: readonly BlockEntry[]
+  /** Blocks whose name, description or keywords contain the query. */
+  searchBlocks(query: string): BlockEntry[]
+  /** A fresh copy of a block's tree. Throws for an unknown block. */
+  createBlock(id: string): ConfigNode
   has(component: string): boolean
   /** Throws for an unknown component. */
   get(component: string): ComponentMetadata
@@ -176,6 +203,20 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
     }
   }
 
+  const blocks = definition.blocks ?? []
+  const blockById = new Map<string, BlockDefinition>()
+  for (const block of blocks) {
+    if (blockById.has(block.id)) throw new Error(`Block registered twice: ${block.id}`)
+    blockById.set(block.id, block)
+    checkTemplate(`Block ${block.id}`, block.template)
+  }
+  const blockEntries: BlockEntry[] = blocks.map((block) => ({
+    id: block.id,
+    name: block.name,
+    description: block.description,
+    component: block.template.component,
+  }))
+
   // Where the templates put each compound part. A part may only be placed there unless it lists `parents` or `within`.
   const templateParents = new Map<string, Set<string>>()
   const record = (parent: string, node: TemplateNode) => {
@@ -195,6 +236,7 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
   }
   page?.children?.forEach((child) => record(page.component, child))
   sampleRow?.children?.forEach((child) => record(sampleRow.component, child))
+  for (const block of blocks) block.template.children?.forEach((child) => record(block.template.component, child))
 
   const sidebar = definition.components.filter((meta) => meta.sidebar)
   if (sidebar.length === 0) throw new Error('A registry needs at least one sidebar component')
@@ -216,6 +258,20 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
     hasPage: page != null,
     hasColumns: columns != null,
     breakpoints,
+    blocks: blockEntries,
+    searchBlocks(query) {
+      const normalized = query.trim().toLowerCase()
+      return blockEntries.filter((entry) => {
+        const block = blockById.get(entry.id)!
+        const haystack = [block.name, block.description, ...(block.keywords ?? [])].join(' ').toLowerCase()
+        return haystack.includes(normalized)
+      })
+    },
+    createBlock(id) {
+      const block = blockById.get(id)
+      if (!block) throw new Error(`Unknown block: ${id}`)
+      return instantiate(block.template, allocator(templateIds(block.template)), keep)
+    },
     has: (component) => byName.has(component),
     get,
     sidebarEntries: () => sidebar,

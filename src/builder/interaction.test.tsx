@@ -354,6 +354,30 @@ describe('page mode', () => {
     expect(sidebar.queryByText(/add up to 12/)).not.toBeInTheDocument()
   })
 
+  it('adds a block from the sidebar and finds blocks by search', async () => {
+    const user = userEvent.setup()
+    render(
+      <BuilderProvider
+        registry={advuiRegistry}
+        initial={createBuilderState(advuiRegistry, 'Button', { mode: 'page' })}
+        persist={false}
+      >
+        <ComponentSidebar />
+        <Harness />
+      </BuilderProvider>,
+    )
+    const sidebar = within(screen.getByRole('complementary', { name: 'Components' }))
+    expect(sidebar.getByRole('button', { name: 'Hero block' })).toHaveAccessibleDescription(/centered headline/)
+    await user.click(sidebar.getByRole('button', { name: 'Hero block' }))
+    const layers = within(screen.getByRole('tree', { name: 'Layers' }))
+    expect(layers.getByRole('button', { name: 'Hero' })).toBeInTheDocument()
+    expect(layers.getByRole('button', { name: 'Headline' })).toBeInTheDocument()
+
+    await user.type(sidebar.getByRole('textbox', { name: 'Search components' }), 'sign in')
+    expect(sidebar.getByRole('button', { name: 'Login block' })).toBeInTheDocument()
+    expect(sidebar.queryByRole('button', { name: 'Hero block' })).not.toBeInTheDocument()
+  })
+
   it('saves pages as you edit, switches between them, and reopens the last one after a reload', async () => {
     const user = userEvent.setup()
     localStorage.clear()

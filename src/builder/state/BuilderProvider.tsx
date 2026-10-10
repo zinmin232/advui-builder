@@ -55,6 +55,8 @@ interface Actions {
   insertAt: (component: string, targetId: string, position: 'before' | 'after' | 'inside') => void
   insertColumns: (spans: number[]) => void
   insertColumnsAt: (spans: number[], targetId: string, position: 'before' | 'after' | 'inside') => void
+  insertBlock: (block: string) => void
+  insertBlockAt: (block: string, targetId: string, position: 'before' | 'after' | 'inside') => void
   addItem: () => void
   remove: () => void
   move: (direction: 'up' | 'down') => void
@@ -281,6 +283,8 @@ export function BuilderProvider({
       insertAt: (component, targetId, position) => send({ type: 'insert-at', component, targetId, position }),
       insertColumns: (spans) => send({ type: 'insert-columns', spans }),
       insertColumnsAt: (spans, targetId, position) => send({ type: 'insert-columns-at', spans, targetId, position }),
+      insertBlock: (block) => send({ type: 'insert-block', block }),
+      insertBlockAt: (block, targetId, position) => send({ type: 'insert-block-at', block, targetId, position }),
       addItem: () => send({ type: 'add-item' }),
       remove: () => send({ type: 'remove' }),
       move: (direction) => send({ type: 'move', direction }),
