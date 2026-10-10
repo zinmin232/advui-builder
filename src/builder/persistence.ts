@@ -56,12 +56,16 @@ function clamp(value: number, min: number, max: number, fallback: number): numbe
   return Math.min(max, Math.max(min, Math.round(value)))
 }
 
+/** How narrow and wide the side panes can be, in pixels. */
+export const SIDEBAR_WIDTHS = { min: 200, max: 420 } as const
+export const INSPECTOR_WIDTHS = { min: 260, max: 480 } as const
+
 export function clampSidebarWidth(width: number): number {
-  return clamp(width, 200, 420, defaultPreferences.sidebarWidth)
+  return clamp(width, SIDEBAR_WIDTHS.min, SIDEBAR_WIDTHS.max, defaultPreferences.sidebarWidth)
 }
 
 export function clampInspectorWidth(width: number): number {
-  return clamp(width, 260, 480, defaultPreferences.inspectorWidth)
+  return clamp(width, INSPECTOR_WIDTHS.min, INSPECTOR_WIDTHS.max, defaultPreferences.inspectorWidth)
 }
 
 export function clampCodeHeight(height: number): number {

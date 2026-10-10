@@ -15,6 +15,26 @@ describe('shareable configuration', () => {
     expect(configurationToSearch(toConfiguration(advuiRegistry, next))).toContain('variant=secondary')
   })
 
+  it('keeps shadow, margin, font family and line height in a link', () => {
+    let state = createBuilderState(advuiRegistry, 'Card')
+    state = builderReducer(state, {
+      type: 'set-prop',
+      id: 'card',
+      key: 'boxShadow',
+      value: '0 6px 16px $shadowColorStrong',
+    })
+    state = builderReducer(state, { type: 'set-prop', id: 'card', key: 'margin', value: 24 })
+    state = builderReducer(state, { type: 'set-prop', id: 'card-title', key: 'fontFamily', value: '$heading' })
+    state = builderReducer(state, { type: 'set-prop', id: 'card-title', key: 'lineHeight', value: 30 })
+    const search = configurationToSearch(toConfiguration(advuiRegistry, state))
+    const opened = applyConfiguration(
+      advuiRegistry,
+      createBuilderState(advuiRegistry, 'Button'),
+      configurationFromSearch(advuiRegistry, search)!,
+    )
+    expect(opened.document).toEqual(state.document)
+  })
+
   it('ignores unknown components', () => {
     expect(configurationFromSearch(advuiRegistry, '?component=nope')).toBeNull()
   })

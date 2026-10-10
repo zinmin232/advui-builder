@@ -40,6 +40,23 @@ export const opacityProp: PropMetadata = {
   step: 0.05,
 }
 
+/**
+ * AdvUI's elevation scale (`shadows` in `@advui/theme`) as one `boxShadow`. Tamagui resolves the theme colors inside
+ * it on web and native, so dark mode gets the deeper shadow color.
+ */
+export const shadowProp: PropMetadata = {
+  key: 'boxShadow',
+  type: 'select',
+  label: 'Shadow',
+  group: 'appearance',
+  options: [
+    { label: 'Extra small', value: '0 1px 2px $shadowColor' },
+    { label: 'Small', value: '0 2px 6px $shadowColor' },
+    { label: 'Medium', value: '0 6px 16px $shadowColorStrong' },
+    { label: 'Large', value: '0 12px 32px $shadowColorStrong' },
+  ],
+}
+
 export const paddingProp: PropMetadata = {
   key: 'padding',
   type: 'spacing',
@@ -91,6 +108,30 @@ export const textAlignProp: PropMetadata = {
     { label: 'Center', value: 'center' },
     { label: 'Right', value: 'right' },
   ],
+}
+
+export const fontFamilyProp: PropMetadata = {
+  key: 'fontFamily',
+  type: 'select',
+  label: 'Font family',
+  description: 'One of the theme fonts. Overrides the font the component picks.',
+  group: 'typography',
+  options: [
+    { label: 'Body', value: '$body' },
+    { label: 'Heading', value: '$heading' },
+    { label: 'Mono', value: '$mono' },
+  ],
+}
+
+export const lineHeightProp: PropMetadata = {
+  key: 'lineHeight',
+  type: 'number',
+  label: 'Line height',
+  description: 'In pixels. Overrides the line height that comes with the size.',
+  group: 'typography',
+  min: 8,
+  max: 120,
+  step: 1,
 }
 
 export const widthProp: PropMetadata = {
@@ -152,6 +193,8 @@ export function typographyProps(defaults?: { size?: string; weight?: string; ton
         value,
       })),
     },
+    fontFamilyProp,
+    lineHeightProp,
     textAlignProp,
     colorProp,
   ]
