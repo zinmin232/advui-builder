@@ -29,7 +29,7 @@ async function layerIds(page: Page): Promise<string[]> {
 async function code(page: Page): Promise<string> {
   await page.getByRole('tab', { name: 'Code' }).click()
   const text = await page.locator('.code-panel pre').innerText()
-  await page.getByRole('tab', { name: 'Preview' }).click()
+  await page.getByRole('tab', { name: 'Edit' }).click()
   return text
 }
 

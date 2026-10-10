@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -210,6 +210,66 @@ describe('keyboard shortcuts', () => {
     await user.click(within(layers).getByRole('button', { name: 'Button' }))
     await user.keyboard('{Delete}')
     expect(screen.queryByTestId('node-card-button')).not.toBeInTheDocument()
+  })
+
+  it('moves the selected layer with Alt+↑ and Alt+↓', async () => {
+    const user = userEvent.setup()
+    render(
+      <BuilderProvider
+        registry={advuiRegistry}
+        initial={createBuilderState(advuiRegistry, 'Card', { selectedId: 'card-footer' })}
+        persist={false}
+      >
+        <ShortcutHarness />
+      </BuilderProvider>,
+    )
+    const order = () => screen.getAllByTestId(/^node-card-(header|content|footer)$/).map((node) => node.dataset.testid)
+    expect(order().at(-1)).toBe('node-card-footer')
+    await user.keyboard('{Alt>}{ArrowUp}{/Alt}')
+    expect(order().at(-2)).toBe('node-card-footer')
+    await user.keyboard('{Alt>}{ArrowDown}{/Alt}')
+    expect(order().at(-1)).toBe('node-card-footer')
+  })
+
+  it('copies, cuts and pastes the selected layer, but leaves fields and selected text to the browser', async () => {
+    const user = userEvent.setup()
+    // jsdom has no ClipboardEvent; the handlers only read `clipboardData`.
+    const clipboard = new Map<string, string>()
+    const send = (type: 'copy' | 'cut' | 'paste', target: Element = document.body) => {
+      const event = new Event(type, { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'clipboardData', {
+        value: {
+          getData: (format: string) => clipboard.get(format) ?? '',
+          setData: (format: string, value: string) => clipboard.set(format, value),
+        },
+      })
+      fireEvent(target, event)
+      return event
+    }
+    render(
+      <BuilderProvider
+        registry={advuiRegistry}
+        initial={createBuilderState(advuiRegistry, 'Card', { selectedId: 'card-button' })}
+        persist={false}
+      >
+        <ShortcutHarness />
+      </BuilderProvider>,
+    )
+
+    expect(send('copy').defaultPrevented).toBe(true)
+    expect(clipboard.get('text/plain')).toBe("import { Button } from '@advui/core'\n\n<Button>Continue</Button>\n")
+    expect(clipboard.get('application/x-advui-builder-layer')).toContain('"component":"Button"')
+
+    const layers = within(screen.getByRole('tree', { name: 'Layers' }))
+    await user.click(layers.getByRole('button', { name: 'Content' }))
+    send('paste')
+    expect(within(screen.getByTestId('node-card-content')).getByTestId('node-button')).toBeInTheDocument()
+
+    send('cut')
+    expect(screen.queryByTestId('node-button')).not.toBeInTheDocument()
+    await user.click(layers.getByRole('button', { name: 'Title' }))
+    expect(send('paste', screen.getByLabelText('Content')).defaultPrevented).toBe(false)
+    expect(screen.queryByTestId('node-button')).not.toBeInTheDocument()
   })
 })
 

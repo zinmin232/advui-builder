@@ -1,6 +1,7 @@
 import { advuiRegistry } from '../../registry/componentRegistry'
 import type { ConfigNode } from '../../registry/metadata'
 import { DARK_CANVAS, LIGHT_CANVAS } from '../canvasTheme'
+import { findNode } from '../selection/selection'
 import {
   clampWidth,
   clampZoom,
@@ -479,5 +480,43 @@ describe('drop rules', () => {
     })
     expect(place(page, rowId, 'outside', 'inside')).toBe(page)
     expect(place(page, 'radio-yearly-label', 'outside', 'inside').document.children[1].children).toHaveLength(1)
+  })
+})
+
+describe('paste', () => {
+  const select = (state: BuilderState, id: string) => builderReducer(state, { type: 'select', id })
+  const childIds = (node: ConfigNode | null | undefined) => node?.children.map((child) => child.id)
+
+  it('pastes inside a layer that can hold the tree, otherwise right after it, and undo takes it out', () => {
+    const hero = builderReducer(createBuilderState(advuiRegistry, 'Button', { mode: 'page' }), {
+      type: 'insert-block',
+      block: 'hero',
+    })
+    const badge = findNode(hero.document, 'badge')
+    if (!badge) throw new Error('The Hero block has no badge')
+
+    // A Button holds no Badge, so the copy goes after the selected button.
+    const button = select(hero, 'button')
+    const after = builderReducer(button, { type: 'paste', tree: badge })
+    expect(childIds(findNode(after.document, 'hstack'))).toEqual(['button', 'badge-2', 'button-2'])
+    expect(after.selectedId).toBe('badge-2')
+    expect(builderReducer(after, { type: 'undo' }).document).toBe(button.document)
+
+    const inside = builderReducer(select(hero, 'page'), { type: 'paste', tree: badge })
+    expect(inside.document.children.at(-1)?.id).toBe('badge-2')
+  })
+
+  it('refuses a tree that breaks the drop rules, at its root or deeper down', () => {
+    const title = findNode(createBuilderState(advuiRegistry, 'Card').document, 'card-title')
+    if (!title) throw new Error('The Card has no title')
+    const page = builderReducer(createBuilderState(advuiRegistry, 'Button', { mode: 'page' }), {
+      type: 'open',
+      component: 'Button',
+    })
+    // A Card.Title only goes inside a Card.Header: not in the button, and not beside it on the page.
+    expect(builderReducer(page, { type: 'paste', tree: title })).toBe(page)
+    const stack: ConfigNode = { id: 'stack', component: 'Stack', label: 'Stack', props: {}, children: [title] }
+    const root = select(page, 'page')
+    expect(builderReducer(root, { type: 'paste', tree: stack })).toBe(root)
   })
 })

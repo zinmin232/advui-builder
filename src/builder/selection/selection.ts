@@ -225,6 +225,20 @@ function keepsContext(registry: BuilderRegistry, node: ConfigNode, ancestors: re
   })
 }
 
+/**
+ * Whether a whole tree from outside the document (a pasted layer) may go inside the last layer of `ancestors`:
+ * its root and every layer below it, checked in order as if added one by one.
+ */
+export function canPlaceTree(registry: BuilderRegistry, tree: ConfigNode, ancestors: readonly ConfigNode[]): boolean {
+  if (!registry.canPlace(tree.component, ancestors)) return false
+  const built: ConfigNode = { ...tree, children: [] }
+  for (const child of tree.children) {
+    if (!canPlaceTree(registry, child, [...ancestors, built])) return false
+    built.children.push(child)
+  }
+  return true
+}
+
 /** Puts `node` inside `targetId` (last) or beside it. Returns null when the target is missing. */
 export function insertAt(
   root: ConfigNode,

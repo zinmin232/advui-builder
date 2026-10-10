@@ -565,10 +565,18 @@ textarea.page-name { resize: vertical; font: inherit; font-size: 13px; line-heig
 .outline { position: absolute; border-radius: 2px; }
 .outline.hover { outline: 1px dashed rgba(29, 78, 216, 0.55); }
 .outline.selected { outline: 2px solid var(--builder-accent); }
-.outline-tag {
+/* The selected layer's bar: its name (the drag handle) and its actions. */
+.outline-bar {
   position: absolute;
-  top: -18px;
+  top: -20px;
   left: -1px;
+  z-index: 2;
+  display: flex;
+  gap: 1px;
+  height: 18px;
+  white-space: nowrap;
+}
+.outline-tag {
   background: #1d4ed8;
   color: #fff;
   font-size: 11px;
@@ -577,38 +585,64 @@ textarea.page-name { resize: vertical; font: inherit; font-size: 13px; line-heig
   padding: 0 6px;
   border-radius: 2px;
 }
-.outline-duplicate,
-.outline-remove {
+/* The hovered layer's name, so you can see what a click would select. */
+.outline-tag.ghost {
   position: absolute;
-  top: 0;
-  transform: translate(50%, -50%);
-  width: 18px;
-  height: 18px;
-  border: 0;
-  border-radius: 999px;
-  color: #fff;
-  font-size: 14px;
+  top: -17px;
+  left: -1px;
+  background: rgba(29, 78, 216, 0.72);
+  font-weight: 600;
   line-height: 16px;
+  padding: 0 5px;
+}
+.outline-tool {
+  width: 20px;
+  height: 18px;
   padding: 0;
-  pointer-events: auto;
-  z-index: 2;
-}
-.outline-duplicate {
-  right: 22px;
+  border: 0;
+  border-radius: 2px;
   background: #1d4ed8;
+  color: #fff;
+  font-size: 12px;
+  line-height: 18px;
+  pointer-events: auto;
+  cursor: pointer;
 }
-.outline-remove {
-  right: 0;
-  background: #9f1239;
-}
+.outline-tool:hover { background: #1e40af; }
+.outline-tool:disabled { opacity: 0.45; cursor: default; }
+.outline-tool.danger { background: #9f1239; }
+.outline-tool.danger:hover { background: #881337; }
+.outline-tool:focus-visible, .outline-handle:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
 .outline-handle {
   border: 0;
   pointer-events: auto;
   cursor: grab;
   touch-action: none;
-  z-index: 2;
 }
 .outline-handle:active { cursor: grabbing; }
+/* Inline text editing sits over the layer, in its font, on the builder's own field colors for contrast. */
+.text-editor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 120px;
+  min-height: 100%;
+  margin: 0;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 2px;
+  outline: 2px solid var(--builder-accent);
+  background: var(--builder-field);
+  color: var(--builder-ink);
+  resize: none;
+  overflow: hidden;
+  pointer-events: auto;
+}
+/* In edit mode a double-click edits text instead of selecting a word. */
+.stage:not(.interactive) { user-select: none; }
 .canvas-drop-line {
   position: absolute;
   height: 0;

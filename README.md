@@ -5,6 +5,19 @@ Selection-driven visual builder for [AdvUI](https://github.com/zinmin232/advui).
 - **Component mode** customizes one component and its parts.
 - **Page mode** builds a page. Drag components from the sidebar onto the canvas or the Layers tree, or click one to add it. To move an element, select it and drag its name tag, or drag its row in Layers. A line or box shows where it will land, and drops a component can't accept are refused.
 
+The selected element has a toolbar: select its parent, move it up or down, edit its text, duplicate or remove it. Double-click text (or press Enter) to edit it in place.
+
+| Shortcut | Does |
+|---|---|
+| Enter or double-click | Edit the selected element's text (Enter saves, Shift+Enter adds a line, Esc cancels) |
+| Alt+↑ / Alt+↓ | Move the selected element among its siblings |
+| Ctrl+C / Ctrl+X / Ctrl+V | Copy, cut, paste (inside the selected element when it can hold it, otherwise after it) |
+| Ctrl+D | Duplicate |
+| Delete | Remove |
+| Ctrl+Z / Ctrl+Shift+Z | Undo / redo |
+
+The **Edit**, **Preview** and **Code** tabs switch the workspace: Preview runs the page as it is (buttons, menus and fields respond, and nothing is drawn over them).
+
 The **Blocks** group in the sidebar adds ready-made sections (Navbar, Hero, Pricing, FAQ, Contact, Login, Dashboard, Footer) made of real AdvUI components. Click one to add it below the selected section, or drag it into place. Each block adapts to phone and desktop widths.
 
 Pages are saved in your browser (localStorage) as you edit and reopen after a reload. Click the page name in the top bar to rename it, switch pages, duplicate or delete one, or start a new page. "Copy link" carries the whole page; opening a page link adds it as a new saved page. **Export** downloads the page as a `.page.json` file and **Import** opens one as a new page, so a page can move to another browser.
