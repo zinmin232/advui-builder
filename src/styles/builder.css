@@ -392,6 +392,66 @@ button { cursor: pointer; }
   color: #6b7280;
   caret-color: #1b1e23;
 }
+.page-menu { position: relative; min-width: 0; }
+.page-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 280px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--builder-ink);
+}
+.page-menu-btn:hover, .page-menu-btn.active { border-color: var(--builder-line-strong); background: var(--builder-field); }
+.page-menu-btn svg { flex: 0 0 auto; color: var(--builder-muted); }
+.page-menu-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page-unsaved { flex: 0 0 auto; color: var(--builder-danger); font-size: 11px; }
+.toolbar-panel.page-panel {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  width: 320px;
+  max-height: min(480px, calc(100vh - 80px));
+}
+.page-name {
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid var(--builder-line-strong);
+  border-radius: 4px;
+  background: var(--builder-field);
+  color: var(--builder-ink);
+}
+.page-name:focus { border-color: var(--builder-accent); outline: none; }
+.page-list { list-style: none; margin: 0; padding: 0; overflow: auto; min-height: 0; }
+.page-row { display: flex; align-items: center; gap: 4px; padding: 2px 0; }
+.page-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--builder-ink);
+  text-align: left;
+}
+.page-open:hover { background: var(--builder-field); }
+.page-row.current .page-open { background: var(--builder-accent-soft); color: var(--builder-accent); }
+.page-open-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page-time { flex: 0 0 auto; color: var(--builder-muted); font-size: 11px; }
+.page-row .icon-btn { display: inline-flex; padding: 4px; }
+.page-row .icon-btn svg { display: block; }
+.page-confirm { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 0; }
+.page-confirm-text { flex: 1 1 100%; }
+.text-btn.danger { color: var(--builder-danger); border-color: currentColor; }
+.page-panel-foot { display: flex; align-items: center; gap: 8px; padding-top: 6px; border-top: 1px solid var(--builder-line); }
+.page-note { color: var(--builder-muted); font-size: 11px; line-height: 1.35; }
+.page-note.warning { color: var(--builder-danger); }
 .bg-control { position: relative; }
 .color-swatch {
   position: relative;

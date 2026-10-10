@@ -131,4 +131,5 @@ test('keeps the page and the component when switching modes and reloading', asyn
     'aria-pressed',
     'true',
   )
+  await expect(layer(page, 'alert')).toBeVisible()
 })

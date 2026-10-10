@@ -98,7 +98,7 @@ export function sanitizePreferences(value: unknown): Preferences {
   }
 }
 
-export function loadPreferences(storage: Pick<Storage, 'getItem'> | null = safeStorage()): Preferences {
+export function loadPreferences(storage: Pick<Storage, 'getItem'> | null = browserStorage()): Preferences {
   if (!storage) return { ...defaultPreferences }
   try {
     const raw = storage.getItem(KEY)
@@ -111,13 +111,18 @@ export function loadPreferences(storage: Pick<Storage, 'getItem'> | null = safeS
 
 export function savePreferences(
   preferences: Preferences,
-  storage: Pick<Storage, 'setItem'> | null = safeStorage(),
+  storage: Pick<Storage, 'setItem'> | null = browserStorage(),
 ): void {
   if (!storage) return
-  storage.setItem(KEY, JSON.stringify(sanitizePreferences(preferences)))
+  try {
+    storage.setItem(KEY, JSON.stringify(sanitizePreferences(preferences)))
+  } catch {
+    // Storage is full (saved pages share it) or blocked. Preferences are a convenience; carry on without them.
+  }
 }
 
-function safeStorage(): Storage | null {
+/** The browser's localStorage, or null where it is blocked. */
+export function browserStorage(): Storage | null {
   try {
     return globalThis.localStorage
   } catch {

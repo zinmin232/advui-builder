@@ -783,7 +783,6 @@ const toast = adaptAdvuiMeta(toastMeta, {
   template: node('toast', 'Toast', 'Toast', {
     title: 'Changes saved',
     description: 'Your profile is up to date.',
-    type: 'success',
   }, [], 'Show toast'),
 })
 

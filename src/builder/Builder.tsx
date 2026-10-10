@@ -6,6 +6,7 @@ import { LayersPanel } from './layers/LayersPanel'
 import { CodePanel } from './code/CodePanel'
 import { BuilderDnd } from './dnd/BuilderDnd'
 import { Inspector } from './inspector/Inspector'
+import { PageMenu } from './pages/PageMenu'
 import { PlatformSelector } from './preview/PlatformSelector'
 import type { PreviewLoader } from './preview/previewKit'
 import { PreviewToolbar } from './preview/PreviewToolbar'
@@ -149,7 +150,11 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
             ))}
           </div>
         ) : null}
-        <span className="topbar-component">{state.mode === 'page' ? 'Page' : state.selectedComponent}</span>
+        {state.mode === 'page' ? (
+          <PageMenu />
+        ) : (
+          <span className="topbar-component">{state.selectedComponent}</span>
+        )}
         <span className="spacer" />
         <div className="segment" role="group" aria-label="History">
           <button
