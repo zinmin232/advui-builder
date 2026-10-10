@@ -157,6 +157,22 @@ describe('selection-driven inspector', () => {
     expect(screen.getByLabelText('Direction')).toHaveValue('column')
   })
 
+  it('picks an icon by name from the library’s icon set', async () => {
+    const user = userEvent.setup()
+    render(
+      <BuilderProvider registry={advuiRegistry} initial={createBuilderState(advuiRegistry, 'NavigationBar')} persist={false}>
+        <Harness />
+      </BuilderProvider>,
+    )
+    await user.click(within(screen.getByRole('tree', { name: 'Layers' })).getByRole('button', { name: 'Home' }))
+    const icon = screen.getByRole('combobox', { name: 'Icon' })
+    expect(icon).toHaveValue('home')
+    // A required icon offers no "None".
+    expect(within(icon).queryByRole('option', { name: 'None' })).not.toBeInTheDocument()
+    await user.selectOptions(icon, 'star')
+    expect(screen.getByTestId('node-nav-home')).toHaveTextContent('"icon":"star"')
+  })
+
   it('filters platform properties and changes notes without touching the canvas color', async () => {
     const user = userEvent.setup()
     renderCard()

@@ -324,13 +324,30 @@ export function TypographyEditor({
   )
 }
 
+/** A choice of the library's icon names when the prop lists them (`options`), otherwise a name to type. */
 export function IconEditor({ prop, value, onChange }: EditorProps) {
+  const current = typeof value === 'string' ? value : ''
+  if (prop.options?.length) {
+    return (
+      <Field label={prop.label} description={prop.description}>
+        <select className="control" aria-label={prop.label} value={current} onChange={(event) => onChange(event.target.value)}>
+          {prop.required ? null : <option value="">None</option>}
+          {prop.options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+    )
+  }
   return (
     <Field label={prop.label} description={prop.description}>
       <input
         className="control"
         type="text"
-        value={typeof value === 'string' ? value : ''}
+        aria-label={prop.label}
+        value={current}
         placeholder="Icon name"
         onChange={(event) => onChange(event.target.value)}
       />

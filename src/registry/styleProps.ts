@@ -159,3 +159,15 @@ export function typographyProps(defaults?: {
     colorProp,
   ]
 }
+
+/**
+ * A control's accessible name, for a control on its own. Inside a Field it stays empty: the field names the control
+ * from its label, and an `aria-label` would override that.
+ */
+export const ariaLabelProp: PropMetadata = {
+  key: 'aria-label',
+  type: 'string',
+  label: 'Aria Label',
+  description: 'Names the control for screen readers. Leave it empty inside a Field, which names it from its label.',
+  group: 'advanced',
+}

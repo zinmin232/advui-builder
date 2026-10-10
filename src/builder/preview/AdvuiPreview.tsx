@@ -1,4 +1,4 @@
-import { Alert, AlertDialog, AspectRatio, AutoGrid, Avatar, Badge, Box, Button, Card, Center, Checkbox, Chip, Container, DropdownMenu, EmptyState, Grid, Hide, HStack, Image, Input, Label, List, NumberInput, Pagination, PasswordInput, Progress, RadioGroup, ScrollArea, Search, Section, Select, Separator, Show, Skeleton, Slider, Spacer, Spinner, Stack, Sticky, Switch, Tabs, Text, Textarea, Toaster, Tooltip, UniversalProvider, VStack, Wrap, createUniversalConfig, toast } from '@advui/core'
+import { Accordion, Alert, AlertDialog, AspectRatio, AutoGrid, Avatar, Badge, Box, Breadcrumb, Button, Card, Center, Checkbox, Chip, Container, Dialog, DropdownMenu, EmptyState, Field, Form, Grid, Hide, HStack, Icon, Image, Input, Label, List, NavigationBar, NumberInput, Pagination, PasswordInput, Progress, RadioGroup, ScrollArea, Search, Section, Select, Separator, Show, Sidebar, Skeleton, Slider, Spacer, Spinner, Stack, Sticky, Switch, Tabs, Text, Textarea, Toaster, Tooltip, UniversalProvider, VStack, Wrap, createUniversalConfig, toast } from '@advui/core'
 import { Children, useEffect, useRef, type ReactNode } from 'react'
 import type { ConfigNode } from '../../registry/metadata'
 import { resolveProps } from '../../registry/registry'
@@ -87,6 +87,32 @@ const views: Record<string, ViewComponent> = {
   'DropdownMenu.Label': asView(DropdownMenu.Label),
   'DropdownMenu.Item': asView(DropdownMenu.Item),
   'DropdownMenu.Separator': asView(DropdownMenu.Separator),
+  Breadcrumb: asView(Breadcrumb),
+  'Breadcrumb.Item': asView(Breadcrumb.Item),
+  Accordion: asView(Accordion),
+  'Accordion.Item': asView(Accordion.Item),
+  'Accordion.Trigger': asView(Accordion.Trigger),
+  'Accordion.Content': asView(Accordion.Content),
+  Dialog: asView(Dialog),
+  'Dialog.Trigger': asView(Dialog.Trigger),
+  'Dialog.Content': asView(Dialog.Content),
+  'Dialog.Header': asView(Dialog.Header),
+  'Dialog.Footer': asView(Dialog.Footer),
+  'Dialog.Title': asView(Dialog.Title),
+  'Dialog.Description': asView(Dialog.Description),
+  'Dialog.Close': asView(Dialog.Close),
+  Form: asView(Form),
+  'Form.Submit': asView(Form.Submit),
+  Field: asView(Field),
+  NavigationBar: asView(NavigationBar),
+  'NavigationBar.Item': asView(NavigationBar.Item),
+  Sidebar: asView(Sidebar),
+  'Sidebar.Header': asView(Sidebar.Header),
+  'Sidebar.Content': asView(Sidebar.Content),
+  'Sidebar.Footer': asView(Sidebar.Footer),
+  'Sidebar.Group': asView(Sidebar.Group),
+  'Sidebar.Item': asView(Sidebar.Item),
+  'Sidebar.Toggle': asView(Sidebar.Toggle),
 }
 
 const directChildHosts = new Set([
@@ -94,6 +120,8 @@ const directChildHosts = new Set([
   'DropdownMenu.Trigger',
   'AlertDialog.Cancel',
   'AlertDialog.Action',
+  'Dialog.Trigger',
+  'Dialog.Close',
 ])
 let lastPreviewToast = 0
 
@@ -189,9 +217,14 @@ export function renderAdvuiNode(node: ConfigNode, children: ReactNode, context: 
   const View = views[node.component]
   if (!View) return null
   const meta = context.registry.get(node.component)
-  const props = {
+  const props: Record<string, unknown> = {
     ...(meta.staticProps ?? {}),
     ...resolveProps(meta, node.props, context.platform, context.screen),
+  }
+  // Icon props store a name; AdvUI takes the icon element.
+  for (const prop of meta.props) {
+    const name = props[prop.key]
+    if (prop.type === 'icon' && typeof name === 'string' && name) props[prop.key] = <Icon name={name} />
   }
   if (node.component === 'Grid') return renderGrid(node, children, props, context)
   // Show and Hide use media queries, which follow the browser window. The preview decides from its own width.
@@ -218,8 +251,10 @@ export function renderAdvuiNode(node: ConfigNode, children: ReactNode, context: 
     return <View {...props}>{only}</View>
   }
   // `children` can hold the builder's empty-container slot even when the node has no children.
-  const hasBody = Boolean(node.text) || Children.count(children) > 0
-  if (!hasBody) return <View {...props} />
+  const hasLayers = Children.count(children) > 0
+  if (!node.text && !hasLayers) return <View {...props} />
+  // A lone text goes in as a plain string, as in the generated code: components style string children themselves.
+  if (!hasLayers) return <View {...props}>{node.text}</View>
   return (
     <View {...props}>
       {node.text}

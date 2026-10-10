@@ -1,5 +1,5 @@
 import { isSameValue } from '../../registry/adaptMeta'
-import type { ConfigNode, PlatformId } from '../../registry/metadata'
+import type { ConfigNode, PlatformId, PropMetadata } from '../../registry/metadata'
 import type { BuilderRegistry } from '../../registry/registry'
 
 export interface CodeOptions {
@@ -45,7 +45,22 @@ function formatAttr(key: string, value: unknown): string {
   return `${key}={${formatExpression(value)}}`
 }
 
-function emittedAttrs(registry: BuilderRegistry, node: ConfigNode, platform: PlatformId): string[] {
+/** An `icon` prop names an icon; it is written as the library's icon element, which is then imported too. */
+function formatProp(registry: BuilderRegistry, prop: PropMetadata, value: unknown, imports: Set<string>): string {
+  const icons = registry.icons
+  if (prop.type === 'icon' && icons && typeof value === 'string') {
+    imports.add(icons.importName)
+    return `${prop.key}={<${icons.importName} ${icons.nameProp}="${escapeAttr(value)}" />}`
+  }
+  return formatAttr(prop.key, value)
+}
+
+function emittedAttrs(
+  registry: BuilderRegistry,
+  node: ConfigNode,
+  platform: PlatformId,
+  imports: Set<string>,
+): string[] {
   const meta = registry.get(node.component)
   const attrs: string[] = []
   const seen = new Set<string>()
@@ -56,7 +71,7 @@ function emittedAttrs(registry: BuilderRegistry, node: ConfigNode, platform: Pla
     const value = node.props[prop.key]
     if (value === undefined) continue
     if (!prop.required && isSameValue(value, prop.defaultValue)) continue
-    attrs.push(formatAttr(prop.key, value))
+    attrs.push(formatProp(registry, prop, value, imports))
     seen.add(prop.key)
   }
 
@@ -83,13 +98,19 @@ function renderToastCall(node: ConfigNode, indent: number): string {
   return `${pad}<Button onPress={() => ${method}(${args})}>\n${pad}  ${label}\n${pad}</Button>`
 }
 
-function renderNode(registry: BuilderRegistry, node: ConfigNode, indent: number, platform: PlatformId): string {
+function renderNode(
+  registry: BuilderRegistry,
+  node: ConfigNode,
+  indent: number,
+  platform: PlatformId,
+  imports: Set<string>,
+): string {
   if (node.component === 'Toast') return renderToastCall(node, indent)
   const pad = '  '.repeat(indent)
   const tag = registry.get(node.component).jsxTag
-  const attrs = emittedAttrs(registry, node, platform)
+  const attrs = emittedAttrs(registry, node, platform, imports)
   const text = node.text ?? ''
-  const children = node.children.map((child) => renderNode(registry, child, indent + 1, platform))
+  const children = node.children.map((child) => renderNode(registry, child, indent + 1, platform, imports))
   const hasElements = children.length > 0
   const multiline = attrs.length >= 2 || hasElements || text.length > 48
 
@@ -114,7 +135,8 @@ function renderNode(registry: BuilderRegistry, node: ConfigNode, indent: number,
 
 /** TSX for a tree, importing from the registry's package. Props equal to their metadata default are left out. */
 export function generateCode(root: ConfigNode, { registry, platform = 'web' }: CodeOptions): string {
-  const names = [...collectImports(registry, root)].sort()
-  const jsx = renderNode(registry, root, 0, platform)
+  const imports = collectImports(registry, root)
+  const jsx = renderNode(registry, root, 0, platform, imports)
+  const names = [...imports].sort()
   return `import { ${names.join(', ')} } from '${registry.importSource}'\n\n${jsx}\n`
 }
