@@ -9,6 +9,7 @@ import { acmeLibrary } from '../test/acmeLibrary'
 import { CodePanel } from './code/CodePanel'
 import { Inspector } from './inspector/Inspector'
 import { LayersPanel } from './layers/LayersPanel'
+import { PageMenu } from './pages/PageMenu'
 import { ElementTree } from './preview/ElementTree'
 import { PlatformSelector } from './preview/PlatformSelector'
 import { ComponentSidebar } from './sidebar/ComponentSidebar'
@@ -47,6 +48,22 @@ function Harness() {
         Paint canvas
       </button>
       <output data-testid="background">{state.background}</output>
+    </>
+  )
+}
+
+/** The page and two sidebar clicks, without the whole sidebar (role queries over it are slow in jsdom). */
+function Canvas() {
+  const actions = useBuilderActions()
+  return (
+    <>
+      <button type="button" onClick={() => actions.openComponent('Card')}>
+        Add Card
+      </button>
+      <button type="button" onClick={() => actions.openComponent('Badge')}>
+        Add Badge
+      </button>
+      <ElementTree node={useBuilderState().document} renderNode={renderNode} />
     </>
   )
 }
@@ -335,6 +352,48 @@ describe('page mode', () => {
     await user.type(custom(), '3 9{Enter}')
     expect(layers.getByRole('button', { name: 'Columns 3 9' })).toBeInTheDocument()
     expect(sidebar.queryByText(/add up to 12/)).not.toBeInTheDocument()
+  })
+
+  it('saves pages as you edit, switches between them, and reopens the last one after a reload', async () => {
+    const user = userEvent.setup()
+    localStorage.clear()
+    const app = (initial?: ReturnType<typeof createBuilderState>) => (
+      <BuilderProvider registry={advuiRegistry} initial={initial}>
+        <PageMenu />
+        <Canvas />
+      </BuilderProvider>
+    )
+    const first = render(app(createBuilderState(advuiRegistry, 'Button', { mode: 'page' })))
+    await user.click(screen.getByRole('button', { name: 'Add Card' }))
+
+    await user.click(screen.getByRole('button', { name: 'Pages: Untitled page' }))
+    await user.clear(screen.getByRole('textbox', { name: 'Page name' }))
+    await user.type(screen.getByRole('textbox', { name: 'Page name' }), 'Landing{Enter}')
+    expect(screen.getByRole('button', { name: 'Pages: Landing' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'New page' }))
+    expect(screen.getByRole('button', { name: 'Pages: Untitled page' })).toBeInTheDocument()
+    expect(screen.queryByTestId('node-card')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Add Badge' }))
+
+    await user.click(screen.getByRole('button', { name: 'Pages: Untitled page' }))
+    const saved = within(screen.getByRole('list', { name: 'Saved pages' }))
+    expect(saved.getAllByRole('listitem')).toHaveLength(2)
+    await user.click(saved.getByRole('button', { name: /^Landing/ }))
+    expect(screen.getByTestId('node-card')).toBeInTheDocument()
+    expect(screen.queryByTestId('node-badge')).not.toBeInTheDocument()
+
+    first.unmount()
+    render(app())
+    expect(screen.getByRole('button', { name: 'Pages: Landing' })).toBeInTheDocument()
+    expect(screen.getByTestId('node-card')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Pages: Landing' }))
+    await user.click(screen.getByRole('button', { name: 'Delete Untitled page' }))
+    expect(screen.getByText(/Delete “Untitled page”\?/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(within(screen.getByRole('list', { name: 'Saved pages' })).getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.getByTestId('node-card')).toBeInTheDocument()
   })
 })
 

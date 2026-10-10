@@ -56,6 +56,8 @@ export interface BuilderState {
   zoom: number
   document: ConfigNode
   parked: ParkedDocument | null
+  /** The saved page that Page mode's document is, whether it is showing or parked. */
+  pageId: string | null
   past: DocumentSnapshot[]
   future: DocumentSnapshot[]
   /** Groups repeated edits of one field into a single undo step. */
@@ -88,6 +90,8 @@ export type BuilderAction =
   | { type: 'duplicate' }
   | { type: 'place'; id: string; targetId: string; position: PlacePosition }
   | { type: 'apply-document'; document: ConfigNode; component: string }
+  /** Opens a saved page in Page mode. Undo history belongs to the page that was open, so it is cleared. */
+  | { type: 'load-page'; id: string; document: ConfigNode }
   | { type: 'undo' }
   | { type: 'redo' }
 
@@ -118,6 +122,7 @@ export function createBuilderState(
     partial.document ?? (mode === 'page' ? registry.createPage() : registry.createDocument(selectedComponent))
   return {
     parked: null,
+    pageId: null,
     platform: 'web',
     viewportWidth: 1024,
     background: DARK_CANVAS,
@@ -132,6 +137,12 @@ export function createBuilderState(
     document,
     selectedId: partial.selectedId ?? document.id,
   }
+}
+
+/** Page mode's document, whether it is showing or parked behind Component mode. */
+export function pageDocument(state: BuilderState): ConfigNode | null {
+  if (state.mode === 'page') return state.document
+  return state.parked?.mode === 'page' ? state.parked.document : null
 }
 
 /** Where a new component goes: inside the selected container or its parent, or the page itself in Page mode. */
@@ -378,6 +389,22 @@ function applyAction(registry: BuilderRegistry, state: BuilderState, action: Bui
         document: action.document,
         selectedId: action.document.id,
       }
+    case 'load-page': {
+      if (!registry.hasPage) return state
+      const parked: ParkedDocument | null =
+        state.mode === 'page' ? state.parked : { mode: state.mode, document: state.document, selectedId: state.selectedId }
+      return {
+        ...state,
+        mode: 'page',
+        pageId: action.id,
+        document: action.document,
+        selectedId: action.document.id,
+        parked,
+        past: [],
+        future: [],
+        historyKey: null,
+      }
+    }
     default:
       return state
   }

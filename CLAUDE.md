@@ -4,6 +4,8 @@ Selection-driven visual builder for the AdvUI component library (`@advui/core`).
 
 There are two modes (a toggle in the top bar). **Component** mode customizes one component and its parts. **Page** mode builds a page: a blank root (`registry.page`) that you fill by dragging from the sidebar, or by clicking sidebar items, which adds them. Drag-and-drop (inspired by LayoutIt) works from the sidebar, on the canvas (the selected element's name tag is the drag handle), and in the Layers tree.
 
+Pages are saved in the browser as you edit. The page name in the top bar opens the saved pages: rename, open, duplicate, delete, or start a new one.
+
 The defining rule: **the inspector follows what the user selects.** Every panel reads one selection from one store.
 
 The Builder core knows no component library. `src/app/App.tsx` is the only place that wires in AdvUI: it passes `advuiRegistry` (metadata) to `<BuilderProvider registry>` and a lazy loader for `advuiPreview` (real components) to `<Builder loadPreview>`. Another library, or the AdvUI docs site, plugs in the same way.
@@ -64,8 +66,9 @@ On a fresh machine, run `pnpm exec playwright install chromium` once before `pnp
 | Inspector | `src/builder/inspector/`: generic. `PropertyEditor.tsx` chooses an editor by `prop.type` |
 | Editors | `src/components/property-editors/editors.tsx` |
 | Code | `src/builder/code/codeGenerator.ts` (pure `generateCode(root, { registry, platform })`, imports from `registry.importSource`), `CodePanel.tsx` (shown in the Code tab) |
-| Share links | `src/builder/shareConfig.ts`: `?component=button&variant=secondary`, plus a `doc=` JSON tree for nested edits |
-| Persistence | `src/builder/persistence.ts`: localStorage key `advui-builder.preferences.v1` |
+| Share links | `src/builder/shareConfig.ts`: `?component=button&variant=secondary`, plus a `doc=` JSON tree for nested edits. `readTree` reads any untrusted tree (links, saved pages) as typed props, responsive maps included; `compactTree` writes one |
+| Persistence | `src/builder/persistence.ts`: localStorage key `advui-builder.preferences.v1`, `browserStorage()` |
+| Saved pages | `src/builder/pages/pageStore.ts`: the page list in `advui-builder.pages.v1`, each tree in `advui-builder.page.v1.<id>` (pure, takes a storage). `BuilderProvider` boots from it, autosaves, and exposes `usePages()` / `usePageActions()`. `pages/PageMenu.tsx` is the top-bar menu |
 
 ## Rules for changes
 
@@ -82,7 +85,8 @@ On a fresh machine, run `pnpm exec playwright install chromium` once before `pnp
 - **Responsive props.** A prop with `responsive: true` stores a plain value or a mobile-first map (`{ base: 12, md: 8 }`). The inspector shows a "Per size" toggle with one row per breakpoint. The preview passes `context.screen` to `resolveProps`, which turns maps into the value for the preview width, because AdvUI's media queries follow the browser window, not the preview frame. Components that hide or switch with media queries (Show/Hide) need the same treatment in the kit. The code generator writes maps as object literals.
 - **Drag-and-drop wiring.** New drag sources use `useDragSource(id, item)` with an id that is unique on screen (sidebar ids include the group). Elements that accept drops register with `useDropSurface('canvas' | 'layers', element)`. `resolveDrop` walks up from the layer under the pointer to the nearest one that accepts the drag. Builder chrome drawn over the canvas must carry `data-drop-ignore`, so hit-testing looks through it. Canvas indicator CSS classes use a `canvas-` prefix (a bare `.drop-inside` once collided with the Layers row markers).
 - **The empty-container slot is preview-only.** It never reaches the tree or the code.
-- **Persistence scope.** Persist UI preferences (panels, widths, recent, favorites, preview settings, last component, mode). Don't persist the selection or the document; a page is lost on reload until save/load (Phase 5). Sharing goes through URLs; a page link carries `mode=page` and the whole tree in `doc`.
+- **Persistence scope.** Persist UI preferences (panels, widths, recent, favorites, preview settings, last component, mode) and Page mode's document. Don't persist the selection, undo history, or a Component mode document. Sharing goes through URLs; a page link carries `mode=page` and the whole tree in `doc`.
+- **Saved pages.** `state.pageId` names the saved page that Page mode's document is (`pageDocument(state)`, showing or parked). `BuilderProvider` writes that tree whenever it changes; the reducer never touches storage. Opening another page is the `load-page` action, which clears undo history, because the history belongs to the page that was open. A page link opens as a new "Shared page" and leaves the address bar, so it never overwrites the page in progress. Stored trees are read leniently: a layer whose component is gone is dropped, and the rest opens. Every write can fail (storage full or blocked): the menu then says "Not saved", and nothing throws.
 - **Undo.** Only document actions (listed in `documentActions`) enter history. Repeated edits to one field merge into one step through `historyKey`.
 - **Platform filtering.** Use `prop.platforms` to filter props by platform, in the inspector (`propsForPlatform`), the preview (`resolveProps`), and the code generator.
 - Upstream AdvUI types some props as `ReactNode` or unions the adapter can't edit. Add those as `extraProps` in the registry. A test fails if an AdvUI upgrade drops a prop that a template uses.
@@ -119,7 +123,8 @@ On a fresh machine, run `pnpm exec playwright install chromium` once before `pnp
 
 - Reducer and pure logic tests go next to the source (`*.test.ts`).
 - UI tests (`src/builder/interaction.test.tsx`) render `<BuilderProvider registry={advuiRegistry} initial={createBuilderState(advuiRegistry, 'Card')} persist={false}>` with a fake `renderNode`. AdvUI and Tamagui are not rendered in jsdom. To check real rendering, run `pnpm dev`, or drive Chromium with Playwright (preinstalled in cloud sessions, `executablePath: '/opt/pw-browsers/chromium'`).
-- Persistence tests pass a fake storage to `loadPreferences` and `savePreferences`.
+- Persistence tests pass a fake storage to `loadPreferences` and `savePreferences`, and `pageStore.test.ts` to the page store. A UI test that saves pages renders `BuilderProvider` with persistence on and calls `localStorage.clear()` first. Keep it off the sidebar: role queries over the whole sidebar are slow in jsdom.
+- `pageStore.test.ts` saves and reads back every sidebar starter tree. A template prop the reader drops (a stored default, an untyped value) fails it.
 - Drag-and-drop can't run in jsdom. Test the logic as pure functions (`dropTarget.test.ts`, reducer `insert-at` / `place`), and the gestures in `e2e/*.spec.ts` with real pointer events (`page.mouse` down, move with steps, up).
 - Inserted copies get component-based ids (`image`, `button`, `card-header`), not the template ids (`card-image`). E2E tests that insert a Card must use those ids. A column preset inserts `grid`, `grid-item`, `grid-item-2`…
 - `src/registry/breakpoints.test.ts` runs in the Node environment: `@advui/theme` loads Tamagui, which needs `window.matchMedia` when a window exists, and jsdom has none.
@@ -138,7 +143,7 @@ Remaining phases of that plan:
 - **Phase 2.5 (AdvUI 0.12.0):** done. Metadata comes from `@advui/core/meta`, drop rules from upstream child rules (`children`, `parents`, `within`), responsive props are edited per breakpoint and previewed at the preview width, and AutoGrid, Section, Sticky, Show and Hide are registered.
 - **Phase 3:** a "Blocks" sidebar group (Navbar, Hero, Pricing, Login, Footer) and more AdvUI components (NavigationBar, Breadcrumb, Accordion, Dialog, Form, Sidebar, AppShell). Their metadata already ships in `@advui/core/meta`.
 - **Phase 4:** double-click to edit text, a hover toolbar, Alt+↑/↓ and copy/paste, and an Edit / Preview toggle.
-- **Phase 5:** export the page as `Page.tsx`, save and load pages, page settings.
+- **Phase 5:** saving pages is done (autosave in the browser, the Pages menu). Still to do: export the page as `Page.tsx`, page settings, and import/export of page files.
 - **Phase 6:** lint/format, performance on large pages. CI is done.
 
 Decisions that differ from the brief on purpose:
@@ -149,7 +154,7 @@ Done since the first version: the registry is injected (`BuilderProvider registr
 
 Known gaps, highest value first:
 
-1. **Pages are not saved.** A reload opens an empty page; only the mode is remembered.
+1. **Pages live in one browser.** They are in localStorage: another browser or a cleared site data loses them; links are the way to move a page. Two tabs editing pages overwrite each other's page list (the last write wins).
 2. **No keyboard drag-and-drop.** Keyboard users add with **+** and reorder with the Layers ↑/↓ buttons. Dropping into pop-up components (Dialog, Dropdown menu, Tooltip) on the canvas isn't supported; use Layers.
 3. **TSX is the only code target.** There is no generator interface for React Native or JSON output. JSON config already exists in `shareConfig.toConfiguration`.
 4. `SelectionContext` / `selectionFrom()` are only used in tests. The UI derives the selection from `selectedId`. Either use `selectionFrom` in the Inspector or drop the type.

@@ -62,6 +62,15 @@ describe('shareable configuration', () => {
     expect(restored.selectedComponent).toBe('Input')
     expect(restored.past).toEqual([])
 
+    const columns = builderReducer(createBuilderState(advuiRegistry, 'Input', { mode: 'page' }), {
+      type: 'insert-columns',
+      spans: [8, 4],
+    })
+    const shared = configurationFromSearch(advuiRegistry, configurationToSearch(toConfiguration(advuiRegistry, columns)))
+    // Grid.Item spans are responsive maps; a link must carry them, not drop them.
+    expect(shared?.document).toEqual(columns.document)
+    expect(shared?.document?.children[0].children[1].props.span).toEqual({ base: 12, md: 4 })
+
     const card = encodeURIComponent(JSON.stringify({ id: 'card', component: 'Card', label: 'Card' }))
     const wrong = configurationFromSearch(advuiRegistry, `?component=button&mode=page&doc=${card}`)!
     expect(wrong.document).toBeUndefined()

@@ -6,6 +6,7 @@ import {
   clampZoom,
   createBuilderReducer,
   createBuilderState,
+  pageDocument,
   WIDTH_PRESETS,
   type BuilderAction,
   type BuilderState,
@@ -351,6 +352,25 @@ describe('page mode', () => {
     expect(back.mode).toBe('page')
     expect(ids(back.document)).toEqual(['Badge'])
     expect(ids(builderReducer(state, { type: 'set-mode', mode: 'page' }).document)).toEqual(['Badge'])
+  })
+
+  it('loads a saved page over the open one, parks a component, and starts a new undo history', () => {
+    const saved = builderReducer(createBuilderState(advuiRegistry, 'Button', { mode: 'page' }), {
+      type: 'open',
+      component: 'Card',
+    }).document
+    let state = createBuilderState(advuiRegistry, 'Input', { pageId: 'page-a' })
+    state = builderReducer(state, { type: 'set-prop', id: 'input', key: 'placeholder', value: 'Email' })
+    state = builderReducer(state, { type: 'load-page', id: 'page-b', document: saved })
+    expect(state).toMatchObject({ mode: 'page', pageId: 'page-b', selectedId: 'page', past: [], future: [] })
+    expect(state.document).toBe(saved)
+    expect(pageDocument(state)).toBe(saved)
+
+    // The component edit was parked, not lost, and the page stays the saved one behind Component mode.
+    const component = builderReducer(state, { type: 'set-mode', mode: 'component' })
+    expect(component.document.props).toMatchObject({ placeholder: 'Email' })
+    expect(pageDocument(component)).toBe(saved)
+    expect(builderReducer(state, { type: 'undo' })).toBe(state)
   })
 })
 
