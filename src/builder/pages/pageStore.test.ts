@@ -3,15 +3,18 @@ import { createBuilderReducer, createBuilderState } from '../state/builderState'
 import { compactTree, readTree } from '../shareConfig'
 import {
   addPage,
+  changedPageDocument,
   configurePage,
   loadPageDocument,
   loadPageIndex,
+  mergePageIndex,
   removePage,
   removePageDocument,
   renamePage,
   sanitizePageIndex,
   savePageDocument,
   savePageIndex,
+  storedPageKey,
   touchPage,
   untitledName,
   type PageIndex,
@@ -160,6 +163,44 @@ describe('page store', () => {
     expect(touchPage({ current: null, pages: [] }, 'page-x', 5).pages).toEqual([
       { id: 'page-x', name: 'Untitled page', updatedAt: 5 },
     ])
+  })
+
+  it('starts each change from the stored list, keeping the page this tab has open', () => {
+    const home = { id: 'page-home', name: 'Home', updatedAt: 100 }
+    const about = { id: 'page-about', name: 'About', updatedAt: 200 }
+    const own: PageIndex = { current: home.id, pages: [home] }
+    // Another tab added About and made it its current page.
+    const stored: PageIndex = { current: about.id, pages: [about, home] }
+    expect(mergePageIndex(stored, own, home.id)).toEqual({ current: home.id, pages: [about, home] })
+    // Another tab removed Home while it is open here: it stays, under the name this tab knows.
+    expect(mergePageIndex({ current: about.id, pages: [about] }, own, home.id)).toEqual({
+      current: home.id,
+      pages: [home, about],
+    })
+    // A page this tab doesn't have open is gone when another tab removed it.
+    expect(mergePageIndex({ current: about.id, pages: [about] }, { current: null, pages: [home] }, null)).toEqual({
+      current: about.id,
+      pages: [about],
+    })
+  })
+
+  it('tells which page a storage key holds, and reads a page another tab changed', () => {
+    expect(storedPageKey('advui-builder.pages.v1')).toBe('index')
+    expect(storedPageKey('advui-builder.page.v1.page-a')).toEqual({ id: 'page-a' })
+    expect(storedPageKey('advui-builder.preferences.v1')).toBeNull()
+    expect(storedPageKey(null)).toBeNull()
+
+    const storage = memory()
+    const page = builderReducer(createBuilderState(advuiRegistry, 'Button', { mode: 'page' }), {
+      type: 'insert',
+      component: 'Badge',
+    }).document
+    expect(changedPageDocument(advuiRegistry, storage, 'page-a', page)).toBeNull()
+    savePageDocument(storage, 'page-a', page)
+    expect(changedPageDocument(advuiRegistry, storage, 'page-a', page)).toBeNull()
+    const other = { ...page, children: [] }
+    expect(changedPageDocument(advuiRegistry, storage, 'page-a', other)).toEqual(page)
+    expect(changedPageDocument(advuiRegistry, storage, 'page-a', null)).toEqual(page)
   })
 
   it('tidies page settings and clears a setting set to nothing', () => {

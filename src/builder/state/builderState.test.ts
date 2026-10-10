@@ -380,6 +380,32 @@ describe('page mode', () => {
     expect(pageDocument(component)).toBe(saved)
     expect(builderReducer(state, { type: 'undo' })).toBe(state)
   })
+
+  it('takes the version of the open page another tab saved, showing or parked, and clears undo', () => {
+    let state = createBuilderState(advuiRegistry, 'Button', { mode: 'page', pageId: 'page-a' })
+    state = builderReducer(state, { type: 'open', component: 'Card' })
+    state = builderReducer(state, { type: 'select', id: 'button' })
+    const elsewhere = builderReducer(state, { type: 'remove' }).document
+
+    expect(builderReducer(state, { type: 'sync-page', id: 'page-b', document: elsewhere })).toBe(state)
+    const synced = builderReducer(state, { type: 'sync-page', id: 'page-a', document: elsewhere })
+    expect(synced).toMatchObject({ document: elsewhere, past: [], future: [], historyKey: null })
+    // The selected button is gone in the other tab's version, so the page itself is selected.
+    expect(synced.selectedId).toBe('page')
+    expect(builderReducer(synced, { type: 'undo' })).toBe(synced)
+    const kept = builderReducer(builderReducer(state, { type: 'select', id: 'card' }), {
+      type: 'sync-page',
+      id: 'page-a',
+      document: elsewhere,
+    })
+    expect(kept.selectedId).toBe('card')
+
+    const parked = builderReducer(state, { type: 'select-component', component: 'Input' })
+    const background = builderReducer(parked, { type: 'sync-page', id: 'page-a', document: elsewhere })
+    expect(background.document).toBe(parked.document)
+    expect(pageDocument(background)).toBe(elsewhere)
+    expect(background.past).toEqual([])
+  })
 })
 
 describe('layout presets', () => {

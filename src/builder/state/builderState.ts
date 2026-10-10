@@ -98,6 +98,11 @@ export type BuilderAction =
   | { type: 'apply-document'; document: ConfigNode; component: string }
   /** Opens a saved page in Page mode. Undo history belongs to the page that was open, so it is cleared. */
   | { type: 'load-page'; id: string; document: ConfigNode }
+  /**
+   * Another tab saved the open page: this tab shows that version, whether the page is showing or parked. Undo history
+   * is cleared, because undoing to this tab's older version would overwrite the other tab's work.
+   */
+  | { type: 'sync-page'; id: string; document: ConfigNode }
   | { type: 'undo' }
   | { type: 'redo' }
 
@@ -476,6 +481,18 @@ function applyAction(registry: BuilderRegistry, state: BuilderState, action: Bui
         future: [],
         historyKey: null,
       }
+    }
+    case 'sync-page': {
+      if (state.pageId !== action.id) return state
+      // The selection stays when its layer is still there.
+      const keep = (selectedId: string) => (findNode(action.document, selectedId) ? selectedId : action.document.id)
+      const cleared = { past: [], future: [], historyKey: null }
+      if (state.mode === 'page') {
+        return { ...state, ...cleared, document: action.document, selectedId: keep(state.selectedId) }
+      }
+      if (state.parked?.mode !== 'page') return state
+      const parked = { ...state.parked, document: action.document, selectedId: keep(state.parked.selectedId) }
+      return { ...state, ...cleared, parked }
     }
     default:
       return state

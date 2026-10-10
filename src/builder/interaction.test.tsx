@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -13,7 +13,8 @@ import { PageMenu } from './pages/PageMenu'
 import { ElementTree } from './preview/ElementTree'
 import { PlatformSelector } from './preview/PlatformSelector'
 import { ComponentSidebar } from './sidebar/ComponentSidebar'
-import { createBuilderState } from './state/builderState'
+import { compactTree } from './shareConfig'
+import { createBuilderReducer, createBuilderState } from './state/builderState'
 import { BuilderProvider, useBuilderActions, useBuilderState } from './state/BuilderProvider'
 import { loadPreferences } from './persistence'
 import { useShortcuts } from './useShortcuts'
@@ -498,6 +499,50 @@ describe('page mode', () => {
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     expect(within(screen.getByRole('list', { name: 'Saved pages' })).getAllByRole('listitem')).toHaveLength(1)
     expect(screen.getByTestId('node-card')).toBeInTheDocument()
+  })
+
+  it('keeps pages another tab saved, and follows its edits to the open page', async () => {
+    const user = userEvent.setup()
+    localStorage.clear()
+    render(
+      <BuilderProvider registry={advuiRegistry} initial={createBuilderState(advuiRegistry, 'Button', { mode: 'page' })}>
+        <PageMenu />
+        <Canvas />
+      </BuilderProvider>,
+    )
+    await user.click(screen.getByRole('button', { name: 'Add Card' }))
+    const INDEX = 'advui-builder.pages.v1'
+    const stored = () => JSON.parse(localStorage.getItem(INDEX) ?? '{}')
+    const openId: string = stored().current
+    /** What another tab does: write storage, which fires `storage` events only in the other tabs. */
+    const otherTab = (key: string, value: unknown) => {
+      localStorage.setItem(key, JSON.stringify(value))
+      act(() => window.dispatchEvent(new StorageEvent('storage', { key, storageArea: localStorage })))
+    }
+
+    // Another tab adds a page this tab hasn't heard of. This tab's next save keeps it in the list.
+    const index = stored()
+    localStorage.setItem(
+      INDEX,
+      JSON.stringify({ ...index, pages: [...index.pages, { id: 'page-quiet', name: 'Quiet', updatedAt: 1 }] }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Add Badge' }))
+    expect(stored().pages.map((page: { name: string }) => page.name)).toEqual(['Untitled page', 'Quiet'])
+
+    // A page list change announced by another tab shows in the menu.
+    otherTab(INDEX, { ...stored(), pages: [...stored().pages, { id: 'page-other', name: 'Other tab', updatedAt: 2 }] })
+    await user.click(screen.getByRole('button', { name: 'Pages: Untitled page' }))
+    expect(within(screen.getByRole('list', { name: 'Saved pages' })).getByText('Other tab')).toBeInTheDocument()
+
+    // Another tab edits the page open here: this tab shows its version.
+    const reduce = createBuilderReducer(advuiRegistry)
+    const theirs = reduce(createBuilderState(advuiRegistry, 'Button', { mode: 'page' }), {
+      type: 'open',
+      component: 'Input',
+    }).document
+    otherTab(`advui-builder.page.v1.${openId}`, compactTree(theirs))
+    expect(screen.getByTestId('node-input')).toBeInTheDocument()
+    expect(screen.queryByTestId('node-card')).not.toBeInTheDocument()
   })
 
   it('writes the page as a component file from its settings, and moves pages through files', async () => {
