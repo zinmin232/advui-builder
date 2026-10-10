@@ -15,14 +15,17 @@ import type { BuilderRegistry } from '../../registry/registry'
 import type { PageFile } from '../pages/pageFile'
 import {
   addPage,
+  changedPageDocument,
   configurePage,
   loadPageDocument,
   loadPageIndex,
+  mergePageIndex,
   removePage,
   removePageDocument,
   renamePage,
   savePageDocument,
   savePageIndex,
+  storedPageKey,
   touchPage,
   untitledName,
   type PageIndex,
@@ -205,6 +208,12 @@ export function BuilderProvider({
     }
   }, [start.imported])
 
+  /** The page list to change: the stored one, which another tab may have changed, with this tab's open page kept. */
+  const latestIndex = useCallback((): PageIndex => {
+    if (!storage) return indexRef.current
+    return mergePageIndex(loadPageIndex(storage), indexRef.current, stateRef.current.pageId)
+  }, [storage])
+
   const commitIndex = useCallback(
     (next: PageIndex) => {
       indexRef.current = next
@@ -213,6 +222,31 @@ export function BuilderProvider({
     },
     [storage],
   )
+
+  // Other tabs: their page list shows here, and their saves of the page open here replace it here, so neither tab's
+  // next save throws away the other's work. Nothing is written back, so tabs don't echo each other.
+  useEffect(() => {
+    if (!storage) return
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea !== storage) return
+      const key = storedPageKey(event.key)
+      if (key === 'index') {
+        const next = latestIndex()
+        indexRef.current = next
+        setPageIndex(next)
+        return
+      }
+      const id = stateRef.current.pageId
+      if (!key || key.id !== id) return
+      const stored = storedRef.current
+      const document = changedPageDocument(registry, storage, id, stored?.id === id ? stored.document : null)
+      if (!document) return
+      storedRef.current = { id, document }
+      dispatch({ type: 'sync-page', id, document })
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [registry, storage, latestIndex])
 
   // Autosave: the page is written whenever its tree changes, whether it is showing or parked.
   const page = pageDocument(state)
@@ -223,9 +257,11 @@ export function BuilderProvider({
     if (stored?.id === id && stored.document === page) return
     storedRef.current = { id, document: page }
     const saved = savePageDocument(storage, id, page)
-    commitIndex(touchPage(indexRef.current, id))
+    commitIndex(touchPage(latestIndex(), id))
+    // The write to storage happens here, so its outcome can only be recorded here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!saved) setSaveFailed(true)
-  }, [storage, state.pageId, page, commitIndex])
+  }, [storage, state.pageId, page, commitIndex, latestIndex])
 
   const updatePreferences = useCallback((patch: Partial<Preferences>) => {
     setPreferences((current) => ({ ...current, ...patch }))
@@ -329,40 +365,41 @@ export function BuilderProvider({
     const read = (id: string) => loadPageDocument(registry, storage, id) ?? registry.createPage()
     /** Saves a new page's tree first, so a refused write shows as "Not saved". */
     const addSaved = (name: string, settings: PageSettings, document: ConfigNode) => {
-      const added = addPage(indexRef.current, name)
+      const added = addPage(latestIndex(), name)
       const saved = savePageDocument(storage, added.page.id, document)
       show(added.page.id, document, configurePage(added.index, added.page.id, settings))
       if (storage && !saved) setSaveFailed(true)
     }
     return {
-      create: () => createIn(indexRef.current),
+      create: () => createIn(latestIndex()),
       open: (id) => {
         const current = stateRef.current
         if (id === current.pageId) {
           if (current.mode !== 'page') dispatch({ type: 'set-mode', mode: 'page' })
           return
         }
-        if (indexRef.current.pages.some((item) => item.id === id)) show(id, read(id), indexRef.current)
+        const index = latestIndex()
+        if (index.pages.some((item) => item.id === id)) show(id, read(id), index)
       },
-      rename: (id, name) => commitIndex(renamePage(indexRef.current, id, name)),
-      configure: (id, settings) => commitIndex(configurePage(indexRef.current, id, settings)),
+      rename: (id, name) => commitIndex(renamePage(latestIndex(), id, name)),
+      configure: (id, settings) => commitIndex(configurePage(latestIndex(), id, settings)),
       duplicate: (id) => {
         const current = stateRef.current
-        const source = indexRef.current.pages.find((item) => item.id === id)
+        const source = latestIndex().pages.find((item) => item.id === id)
         if (!source) return
         const document = (id === current.pageId ? pageDocument(current) : null) ?? read(id)
         addSaved(`${source.name} copy`, source.settings ?? {}, document)
       },
       remove: (id) => {
         removePageDocument(storage, id)
-        const index = removePage(indexRef.current, id)
+        const index = removePage(latestIndex(), id)
         if (id !== stateRef.current.pageId) commitIndex(index)
         else if (index.current) show(index.current, read(index.current), index)
         else createIn(index)
       },
       importPage: (file) => addSaved(file.name, file.settings, file.document),
     }
-  }, [registry, storage, commitIndex])
+  }, [registry, storage, commitIndex, latestIndex])
 
   const pages = useMemo<Pages>(
     () => ({
