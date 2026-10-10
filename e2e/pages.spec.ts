@@ -82,3 +82,29 @@ test('downloads the page as a component file named in its settings', async ({ pa
   expect(text).toContain('export function Landing() {')
   expect(text).toContain('<Badge>Badge</Badge>')
 })
+
+test('two tabs keep each other’s pages and follow edits to the same page', async ({ page, context }) => {
+  await openPage(page)
+  await sidebarItem(page, 'Card').click()
+  await expect(layer(page, 'card')).toBeVisible()
+
+  const other = await context.newPage()
+  await other.goto('/')
+  await expect(layer(other, 'card')).toBeVisible()
+
+  // An edit in one tab shows in the other, which has the same page open.
+  await sidebarItem(page, 'Badge').click()
+  await expect(layer(other, 'badge')).toBeVisible()
+
+  // A page the other tab starts survives this tab's next save.
+  await other.getByRole('button', { name: /^Pages: / }).click()
+  await other.getByRole('button', { name: 'New page' }).click()
+  await expect(other.getByRole('button', { name: 'Pages: Untitled page 2' })).toBeVisible()
+  await sidebarItem(page, 'Button').click()
+  await page.getByRole('button', { name: 'Pages: Untitled page' }).click()
+  const saved = page.getByRole('list', { name: 'Saved pages' })
+  await expect(saved.getByText('Untitled page 2')).toBeVisible()
+  await page.reload()
+  await page.getByRole('button', { name: /^Pages: / }).click()
+  await expect(page.getByRole('list', { name: 'Saved pages' }).getByRole('listitem')).toHaveCount(2)
+})

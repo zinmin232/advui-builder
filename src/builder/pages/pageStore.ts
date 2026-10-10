@@ -100,6 +100,27 @@ export function sanitizePageIndex(value: unknown): PageIndex {
   return { current: current ?? pagesByRecency(pages)[0]?.id ?? null, pages }
 }
 
+/**
+ * Which saved page a storage key holds: `'index'` for the page list, a page id for a page's tree, null for any
+ * other key. Lets a tab follow what another tab writes (`storage` events).
+ */
+export function storedPageKey(key: string | null): 'index' | { id: string } | null {
+  if (key === INDEX_KEY) return 'index'
+  if (key?.startsWith(PAGE_KEY)) return { id: key.slice(PAGE_KEY.length) }
+  return null
+}
+
+/**
+ * The stored page list as one tab sees it. Another tab may have added, renamed or removed pages since this tab last
+ * read it, so every change starts from the stored list, not from this tab's copy. The page this tab has open stays
+ * listed (as this tab knew it, when another tab removed it) and stays current, so this tab's next save keeps its name.
+ */
+export function mergePageIndex(stored: PageIndex, own: PageIndex, openId: string | null): PageIndex {
+  const open = openId ? own.pages.find((page) => page.id === openId) : undefined
+  const pages = open && !stored.pages.some((page) => page.id === open.id) ? [open, ...stored.pages] : stored.pages
+  return { current: open?.id ?? openId ?? stored.current, pages }
+}
+
 export function loadPageIndex(storage: PageStorage | null): PageIndex {
   try {
     const raw = storage?.getItem(INDEX_KEY)
@@ -128,6 +149,25 @@ export function loadPageDocument(
   try {
     const raw = storage?.getItem(PAGE_KEY + id)
     return raw ? readPageTree(registry, JSON.parse(raw)) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The page's stored tree when it differs from `known`, which is what this tab last saved or read: another tab saved
+ * the page since. Null when it is the same, missing, or unreadable.
+ */
+export function changedPageDocument(
+  registry: BuilderRegistry,
+  storage: PageStorage | null,
+  id: string,
+  known: ConfigNode | null,
+): ConfigNode | null {
+  try {
+    const raw = storage?.getItem(PAGE_KEY + id)
+    if (!raw || (known && raw === JSON.stringify(compactTree(known)))) return null
+    return readPageTree(registry, JSON.parse(raw))
   } catch {
     return null
   }
