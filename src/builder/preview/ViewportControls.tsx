@@ -1,13 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { MAX_WIDTH, MIN_WIDTH, WIDTH_PRESETS, clampWidth } from '../state/builderState'
 
-export function ViewportControls({
-  width,
-  onWidth,
-}: {
-  width: number
-  onWidth: (width: number) => void
-}) {
+export function ViewportControls({ width, onWidth }: { width: number; onWidth: (width: number) => void }) {
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState(String(width))
   const widthRef = useRef<HTMLDivElement>(null)
@@ -57,13 +51,7 @@ export function ViewportControls({
           onClick={() => setOpen((value) => !value)}
         >
           <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
-            <path
-              d="M4 7v10M20 7v10M4 12h16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
+            <path d="M4 7v10M20 7v10M4 12h16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </button>
         <span className="width-readout">{width}px</span>

@@ -84,7 +84,12 @@ describe('page store', () => {
         component: 'Stack',
         label: 'Page',
         children: [
-          { id: 'old', component: 'Retired', label: 'Old', children: [{ id: 'inner', component: 'Text', label: 'Text' }] },
+          {
+            id: 'old',
+            component: 'Retired',
+            label: 'Old',
+            children: [{ id: 'inner', component: 'Text', label: 'Text' }],
+          },
           { id: 'text', component: 'Text', label: 'Intro', text: 'Hello', props: { tone: 'muted', bogus: 1 } },
           { id: 'text', component: 'Text', label: 'Duplicate id' },
         ],
@@ -95,7 +100,9 @@ describe('page store', () => {
       component: 'Stack',
       label: 'Page',
       props: {},
-      children: [{ id: 'text', component: 'Text', label: 'Intro', props: { tone: 'muted' }, text: 'Hello', children: [] }],
+      children: [
+        { id: 'text', component: 'Text', label: 'Intro', props: { tone: 'muted' }, text: 'Hello', children: [] },
+      ],
     })
     storage.setItem('advui-builder.page.v1.page-b', JSON.stringify({ id: 'card', component: 'Card', label: 'Card' }))
     expect(loadPageDocument(advuiRegistry, storage, 'page-b')).toBeNull()

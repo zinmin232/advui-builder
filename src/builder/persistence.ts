@@ -75,9 +75,7 @@ export function pushRecent(recent: string[], name: string): string[] {
 export function sanitizePreferences(value: unknown): Preferences {
   const source = value && typeof value === 'object' ? (value as Partial<Preferences>) : {}
   const platform: PlatformId =
-    source.platform === 'android' || source.platform === 'ios' || source.platform === 'web'
-      ? source.platform
-      : 'web'
+    source.platform === 'android' || source.platform === 'ios' || source.platform === 'web' ? source.platform : 'web'
   return {
     sidebarCollapsed: Boolean(source.sidebarCollapsed),
     inspectorCollapsed: Boolean(source.inspectorCollapsed),
@@ -85,9 +83,7 @@ export function sanitizePreferences(value: unknown): Preferences {
     inspectorWidth: clampInspectorWidth(source.inspectorWidth ?? defaultPreferences.inspectorWidth),
     codePanelHeight: clampCodeHeight(source.codePanelHeight ?? defaultPreferences.codePanelHeight),
     recent: Array.isArray(source.recent) ? source.recent.filter((item) => typeof item === 'string').slice(0, 8) : [],
-    favorites: Array.isArray(source.favorites)
-      ? source.favorites.filter((item) => typeof item === 'string')
-      : [],
+    favorites: Array.isArray(source.favorites) ? source.favorites.filter((item) => typeof item === 'string') : [],
     background: resolveCanvas(source.background, source.theme),
     theme: resolveTheme(source.theme, source.background),
     zoom: typeof source.zoom === 'number' ? clampZoom(source.zoom) : 1,

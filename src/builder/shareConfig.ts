@@ -212,9 +212,7 @@ export function configurationFromSearch(registry: BuilderRegistry, search: strin
   if (!component) return null
   const platformValue = params.get('platform')
   const platform =
-    platformValue === 'web' || platformValue === 'android' || platformValue === 'ios'
-      ? platformValue
-      : undefined
+    platformValue === 'web' || platformValue === 'android' || platformValue === 'ios' ? platformValue : undefined
   const viewportRaw = params.get('viewport')
   const viewportWidth = viewportRaw ? Number(viewportRaw) : undefined
   const docRaw = params.get('doc')

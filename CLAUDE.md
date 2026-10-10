@@ -21,11 +21,13 @@ pnpm typecheck          # tsc --noEmit
 pnpm test               # vitest run (jsdom)
 pnpm e2e                # Playwright browser tests in e2e/ (starts its own dev server on :5174; with CI set, serves dist/)
 pnpm build              # typecheck + vite build
+pnpm lint               # ESLint (typescript-eslint, react-hooks)
+pnpm format             # Prettier, writes; pnpm format:check only checks
 ```
 
-Before committing, run `pnpm typecheck && pnpm test && pnpm build`, plus `pnpm e2e` when you touch drag-and-drop, the canvas, or Layers. There is no ESLint or Prettier config. Match the existing style by hand.
+Before committing, run `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build`, plus `pnpm e2e` when you touch drag-and-drop, the canvas, or Layers.
 
-CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`, with Node 22 and pnpm 12.8.1. One job runs typecheck and unit tests; the other runs `pnpm build`, then `pnpm e2e` against that build. On CI, Playwright serves `dist/` with `vite preview`, because a cold dev server can take longer than the test timeout on the first page load. To reproduce that run locally, use `pnpm build && CI=1 pnpm e2e`. Traces from failed browser tests are uploaded as the `playwright-traces` artifact.
+CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`, with Node 22 and pnpm 12.8.1. One job runs typecheck, lint, the format check and unit tests; the other runs `pnpm build`, then `pnpm e2e` against that build. On CI, Playwright serves `dist/` with `vite preview`, because a cold dev server can take longer than the test timeout on the first page load. To reproduce that run locally, use `pnpm build && CI=1 pnpm e2e`. Traces from failed browser tests are uploaded as the `playwright-traces` artifact.
 
 On a fresh machine, run `pnpm exec playwright install chromium` once before `pnpm e2e`. Cloud sessions already have Chromium at `/opt/pw-browsers`, which matches the pinned `@playwright/test@1.56.1`.
 
@@ -127,7 +129,8 @@ To add a block, append one entry to `advuiBlocks` in `src/registry/advuiBlocks.t
 
 ## Code style
 
-- No semicolons, single quotes, 2-space indent, trailing commas, lines up to about 120 characters.
+- Prettier formats TS, TSX, JSON and YAML (`.prettierrc.json`: no semicolons, single quotes, trailing commas, 120 columns). CSS and Markdown are left out on purpose: short CSS rules stay on one line, and Markdown tables stay unpadded. `.gitattributes` keeps LF line endings, which Prettier expects, on Windows checkouts too.
+- ESLint (`eslint.config.js`) runs `@eslint/js`, `typescript-eslint` and `react-hooks` recommended rules. Unused names are left to `tsc`. Disable a rule only on one line, with a comment that says why (today: measuring the DOM in a layout effect).
 - Named exports and function components. Props are typed inline or with a local interface.
 - Comments are sparse and explain *why*. Keep JSDoc on exported helpers when it states a contract.
 - Use accessible names (`aria-label`, roles). Tests query by role or label, so keep labels stable.
@@ -179,13 +182,12 @@ Known gaps, highest value first:
 7. Inspector properties from the brief are missing: Shadow, Margin (`marginProp` is defined but unused), Font family, and Line height.
 8. The splitters have no keyboard resizing. The layers section is labelled "Component Properties", and the collapse-inspector button sits in `LayersPanel`.
 9. Untested in UI: selection overlay outlines (the toolbar and inline editing are covered in `e2e/editing.spec.ts`), zoom/Fit/100%, width slider and preset buttons (reducer only), sidebar collapse, splitter drag, and search.
-10. There is no ESLint or Prettier config.
-11. Toast is still special-cased in the generic `codeGenerator.ts`. A per-component code hook in metadata would move it into the AdvUI registry.
-12. Fit zoom uses a global `document.querySelector('.preview .canvas')`, and the URL is not kept in sync with state (links only come from "Copy link").
-13. **AppShell is not registered.** It fills `100dvh` (a `height` prop overrides that) and turns its sidebar into a drawer from `useMedia()` and CSS media queries, which follow the browser window, so the canvas can't show it at the preview width. It needs an AdvUI option to render for a given width.
-14. AdvUI's own responsive defaults (Container `gutter`, Section's inner Container) still follow the browser window in the preview; only values set in the builder follow the preview width.
-15. `children.min` from upstream (Field, Tooltip, triggers) is not enforced: removing the last child is allowed.
-16. The registry's `breakpoints` are written out in `componentRegistry.ts` (checked against `@advui/theme` by a test), because `@advui/core/meta` does not publish them.
-17. `@advui/core/meta` uses extensionless relative imports, so plain Node can't import it (Vite and Vitest can). Fixing that upstream would let Node scripts read it.
-18. **AdvUI NavigationBar hides the active icon on web.** The active pill is absolutely positioned and the icon is not, so the pill paints over it; native draws them in child order. The preview shows the same thing. An upstream fix (`position: relative` or `zIndex` on the icon) is needed.
-19. Accordion's `defaultValue` is edited as one value. With `type="multiple"` AdvUI takes a list, so the generated code is only right for `single`.
+10. Toast is still special-cased in the generic `codeGenerator.ts`. A per-component code hook in metadata would move it into the AdvUI registry.
+11. Fit zoom uses a global `document.querySelector('.preview .canvas')`, and the URL is not kept in sync with state (links only come from "Copy link").
+12. **AppShell is not registered.** It fills `100dvh` (a `height` prop overrides that) and turns its sidebar into a drawer from `useMedia()` and CSS media queries, which follow the browser window, so the canvas can't show it at the preview width. It needs an AdvUI option to render for a given width.
+13. AdvUI's own responsive defaults (Container `gutter`, Section's inner Container) still follow the browser window in the preview; only values set in the builder follow the preview width.
+14. `children.min` from upstream (Field, Tooltip, triggers) is not enforced: removing the last child is allowed.
+15. The registry's `breakpoints` are written out in `componentRegistry.ts` (checked against `@advui/theme` by a test), because `@advui/core/meta` does not publish them.
+16. `@advui/core/meta` uses extensionless relative imports, so plain Node can't import it (Vite and Vitest can). Fixing that upstream would let Node scripts read it.
+17. **AdvUI NavigationBar hides the active icon on web.** The active pill is absolutely positioned and the icon is not, so the pill paints over it; native draws them in child order. The preview shows the same thing. An upstream fix (`position: relative` or `zIndex` on the icon) is needed.
+18. Accordion's `defaultValue` is edited as one value. With `type="multiple"` AdvUI takes a list, so the generated code is only right for `single`.

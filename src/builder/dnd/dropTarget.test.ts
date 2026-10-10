@@ -31,7 +31,9 @@ describe('drop position', () => {
 describe('resolve drop', () => {
   const card = advuiRegistry.createDocument('Card')
   // Every layer gets the same box, so only the pointer position and the rules decide.
-  const boxes = (axes: Record<string, LayoutAxis> = {}) => (id: string) => ({ box, axis: axes[id] ?? 'vertical' })
+  const boxes =
+    (axes: Record<string, LayoutAxis> = {}) =>
+    (id: string) => ({ box, axis: axes[id] ?? 'vertical' })
 
   it('drops beside the layer under the pointer when its parent accepts the component', () => {
     const footerRow = boxes({ 'card-button': 'horizontal' })

@@ -54,6 +54,8 @@ pnpm dev
 ```bash
 pnpm test
 pnpm typecheck
+pnpm lint
+pnpm format # Prettier; pnpm format:check only checks
 pnpm build
 pnpm e2e    # browser tests; run `pnpm exec playwright install chromium` once first
 ```

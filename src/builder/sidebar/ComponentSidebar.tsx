@@ -66,11 +66,7 @@ export function ComponentSidebar() {
       </div>
       <label className="search">
         <span className="sr">Search components</span>
-        <input
-          placeholder="Search components..."
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
+        <input placeholder="Search components..." value={query} onChange={(event) => setQuery(event.target.value)} />
       </label>
       <div className="sidebar-scroll">
         <p className="insert-hint">
@@ -79,27 +75,21 @@ export function ComponentSidebar() {
         {showGroups && favorites.length > 0 ? (
           <ComponentGroup title="Favorites" entries={favorites} {...groupProps} />
         ) : null}
-        {showGroups && recent.length > 0 ? (
-          <ComponentGroup title="Recent" entries={recent} {...groupProps} />
-        ) : null}
+        {showGroups && recent.length > 0 ? <ComponentGroup title="Recent" entries={recent} {...groupProps} /> : null}
         {showGroups ? <ColumnPresets targetPath={targetPath} /> : null}
         <BlockPalette blocks={blocks} />
-        {showGroups
-          ? categories.map((item) => (
-              <ComponentGroup
-                key={item.id}
-                title={item.label}
-                entries={entries.filter((entry) => entry.categoryId === item.id)}
-                {...groupProps}
-              />
-            ))
-          : (
+        {showGroups ? (
+          categories.map((item) => (
             <ComponentGroup
-              title="Results"
-              entries={results}
+              key={item.id}
+              title={item.label}
+              entries={entries.filter((entry) => entry.categoryId === item.id)}
               {...groupProps}
             />
-          )}
+          ))
+        ) : (
+          <ComponentGroup title="Results" entries={results} {...groupProps} />
+        )}
         {!showGroups && results.length === 0 && blocks.length === 0 ? (
           <p className="empty">No components match.</p>
         ) : null}
@@ -134,56 +124,53 @@ function ComponentGroup({
   return (
     <section className="component-group">
       <h2>
-        <button
-          type="button"
-          className="group-toggle"
-          aria-expanded={open}
-          onClick={() => setOpen((value) => !value)}
-        >
+        <button type="button" className="group-toggle" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
           <span aria-hidden="true">{open ? '▾' : '▸'}</span>
           {title}
         </button>
       </h2>
-      {open ? <ul>
-        {entries.map((entry) => {
-          const favorite = favorites.includes(entry.name)
-          return (
-            <li key={`${title}-${entry.name}`}>
-              <PaletteItem
-                group={title}
-                name={entry.name}
-                active={selected === entry.name}
-                onOpen={() => onOpen(entry.name)}
-              />
-              <button
-                type="button"
-                className="insert"
-                aria-label={insertLabel ? `Add ${entry.name} inside ${insertLabel}` : `Add ${entry.name}`}
-                title={
-                  insertLabel == null
-                    ? 'Select a layer that can hold components'
-                    : canInsert(entry.name)
-                      ? `Add inside ${insertLabel}`
-                      : `${insertLabel} cannot hold ${entry.name}`
-                }
-                disabled={!canInsert(entry.name)}
-                onClick={() => onInsert(entry.name)}
-              >
-                +
-              </button>
-              <button
-                type="button"
-                className={favorite ? 'star on' : 'star'}
-                aria-pressed={favorite}
-                aria-label={`${favorite ? 'Remove' : 'Add'} ${entry.name} favorite`}
-                onClick={() => onFavorite(entry.name)}
-              >
-                {favorite ? '★' : '☆'}
-              </button>
-            </li>
-          )
-        })}
-      </ul> : null}
+      {open ? (
+        <ul>
+          {entries.map((entry) => {
+            const favorite = favorites.includes(entry.name)
+            return (
+              <li key={`${title}-${entry.name}`}>
+                <PaletteItem
+                  group={title}
+                  name={entry.name}
+                  active={selected === entry.name}
+                  onOpen={() => onOpen(entry.name)}
+                />
+                <button
+                  type="button"
+                  className="insert"
+                  aria-label={insertLabel ? `Add ${entry.name} inside ${insertLabel}` : `Add ${entry.name}`}
+                  title={
+                    insertLabel == null
+                      ? 'Select a layer that can hold components'
+                      : canInsert(entry.name)
+                        ? `Add inside ${insertLabel}`
+                        : `${insertLabel} cannot hold ${entry.name}`
+                  }
+                  disabled={!canInsert(entry.name)}
+                  onClick={() => onInsert(entry.name)}
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  className={favorite ? 'star on' : 'star'}
+                  aria-pressed={favorite}
+                  aria-label={`${favorite ? 'Remove' : 'Add'} ${entry.name} favorite`}
+                  onClick={() => onFavorite(entry.name)}
+                >
+                  {favorite ? '★' : '☆'}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      ) : null}
     </section>
   )
 }

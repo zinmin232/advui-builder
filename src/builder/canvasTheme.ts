@@ -9,8 +9,6 @@ export function canvasForTheme(theme: 'light' | 'dark'): string {
 export function isThemeCanvas(color: string): boolean {
   const value = color.toLowerCase()
   return (
-    value === DARK_CANVAS.toLowerCase() ||
-    value === LIGHT_CANVAS.toLowerCase() ||
-    value === LEGACY_CANVAS.toLowerCase()
+    value === DARK_CANVAS.toLowerCase() || value === LIGHT_CANVAS.toLowerCase() || value === LEGACY_CANVAS.toLowerCase()
   )
 }

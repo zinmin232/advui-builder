@@ -313,7 +313,8 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
     },
     createColumns(spans) {
       if (!columns) throw new Error('This registry has no layout presets')
-      if (!isValidSpans(spans)) throw new Error(`Column spans must be whole numbers that add up to 12: ${spans.join(' ')}`)
+      if (!isValidSpans(spans))
+        throw new Error(`Column spans must be whole numbers that add up to 12: ${spans.join(' ')}`)
       const row = columns(spans)
       return instantiate(row, allocator(templateIds(row)), keep)
     },

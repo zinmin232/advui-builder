@@ -160,7 +160,11 @@ describe('selection-driven inspector', () => {
   it('picks an icon by name from the library’s icon set', async () => {
     const user = userEvent.setup()
     render(
-      <BuilderProvider registry={advuiRegistry} initial={createBuilderState(advuiRegistry, 'NavigationBar')} persist={false}>
+      <BuilderProvider
+        registry={advuiRegistry}
+        initial={createBuilderState(advuiRegistry, 'NavigationBar')}
+        persist={false}
+      >
         <Harness />
       </BuilderProvider>,
     )
@@ -554,4 +558,3 @@ describe('page mode', () => {
     click.mockRestore()
   })
 })
-

@@ -369,8 +369,7 @@ function applyAction(registry: BuilderRegistry, state: BuilderState, action: Bui
       return document === state.document ? state : { ...state, document }
     }
     case 'reset': {
-      const document =
-        state.mode === 'page' ? registry.createPage() : registry.createDocument(state.selectedComponent)
+      const document = state.mode === 'page' ? registry.createPage() : registry.createDocument(state.selectedComponent)
       return { ...state, document, selectedId: document.id }
     }
     case 'set-platform':
@@ -463,7 +462,9 @@ function applyAction(registry: BuilderRegistry, state: BuilderState, action: Bui
     case 'load-page': {
       if (!registry.hasPage) return state
       const parked: ParkedDocument | null =
-        state.mode === 'page' ? state.parked : { mode: state.mode, document: state.document, selectedId: state.selectedId }
+        state.mode === 'page'
+          ? state.parked
+          : { mode: state.mode, document: state.document, selectedId: state.selectedId }
       return {
         ...state,
         mode: 'page',

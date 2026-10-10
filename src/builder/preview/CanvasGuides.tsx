@@ -1,12 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 
-function paintRuler(
-  node: HTMLCanvasElement,
-  axis: 'x' | 'y',
-  origin: number,
-  zoom: number,
-  theme: 'light' | 'dark',
-) {
+function paintRuler(node: HTMLCanvasElement, axis: 'x' | 'y', origin: number, zoom: number, theme: 'light' | 'dark') {
   const width = node.clientWidth
   const height = node.clientHeight
   if (width === 0 || height === 0) return

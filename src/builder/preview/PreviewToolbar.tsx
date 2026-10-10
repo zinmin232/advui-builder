@@ -162,7 +162,9 @@ export function PreviewToolbar({
   }
 
   const commitChannel = (channel: 'r' | 'g' | 'b', value: number) => {
-    onBackground(rgbToHex(channel === 'r' ? value : rgb.r, channel === 'g' ? value : rgb.g, channel === 'b' ? value : rgb.b))
+    onBackground(
+      rgbToHex(channel === 'r' ? value : rgb.r, channel === 'g' ? value : rgb.g, channel === 'b' ? value : rgb.b),
+    )
   }
 
   const fit = () => {
@@ -174,115 +176,109 @@ export function PreviewToolbar({
 
   return (
     <div className="view-tools">
-        <div className={colorOpen ? 'bg-control open' : 'bg-control'} ref={colorRef}>
-          <button
-            type="button"
-            className="color-swatch"
-            aria-label="Background Color"
-            aria-expanded={colorOpen}
-            aria-controls={colorOpen ? colorPanelId : undefined}
-            onClick={() => {
-              setColorMode('hex')
-              setColorOpen((value) => !value)
-            }}
-          >
-            <span className="color-swatch-fill" style={{ background: swatch }} />
-            <span className="platform-tip" role="tooltip">
-              Background Color
-            </span>
-          </button>
-          <span className="mono">{swatch.toUpperCase()}</span>
-          {colorOpen ? (
-            <div className="toolbar-panel color-panel" id={colorPanelId} role="group" aria-label="Background color">
-              <div className="presets" role="group" aria-label="Color format">
-                <button
-                  type="button"
-                  className={colorMode === 'hex' ? 'text-btn active' : 'text-btn'}
-                  aria-pressed={colorMode === 'hex'}
-                  onClick={() => setColorMode('hex')}
-                >
-                  HEX
-                </button>
-                <button
-                  type="button"
-                  className={colorMode === 'rgb' ? 'text-btn active' : 'text-btn'}
-                  aria-pressed={colorMode === 'rgb'}
-                  onClick={() => setColorMode('rgb')}
-                >
-                  RGB
-                </button>
-              </div>
-              {colorMode === 'hex' ? (
-                <input
-                  ref={hexRef}
-                  className="width-number hex-input"
-                  aria-label="Hex color"
-                  value={hexDraft}
-                  spellCheck={false}
-                  onChange={(event) => {
-                    const raw = event.target.value
-                    setHexDraft(raw)
-                    const next = parseHex(raw)
-                    if (next) onBackground(next)
-                  }}
-                  onBlur={() => commitHex(hexDraft)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') event.currentTarget.blur()
-                  }}
-                />
-              ) : (
-                <div className="rgb-fields">
-                  <RgbChannel label="R" name="Red" value={rgb.r} onCommit={(value) => commitChannel('r', value)} />
-                  <RgbChannel label="G" name="Green" value={rgb.g} onCommit={(value) => commitChannel('g', value)} />
-                  <RgbChannel label="B" name="Blue" value={rgb.b} onCommit={(value) => commitChannel('b', value)} />
-                </div>
-              )}
+      <div className={colorOpen ? 'bg-control open' : 'bg-control'} ref={colorRef}>
+        <button
+          type="button"
+          className="color-swatch"
+          aria-label="Background Color"
+          aria-expanded={colorOpen}
+          aria-controls={colorOpen ? colorPanelId : undefined}
+          onClick={() => {
+            setColorMode('hex')
+            setColorOpen((value) => !value)
+          }}
+        >
+          <span className="color-swatch-fill" style={{ background: swatch }} />
+          <span className="platform-tip" role="tooltip">
+            Background Color
+          </span>
+        </button>
+        <span className="mono">{swatch.toUpperCase()}</span>
+        {colorOpen ? (
+          <div className="toolbar-panel color-panel" id={colorPanelId} role="group" aria-label="Background color">
+            <div className="presets" role="group" aria-label="Color format">
+              <button
+                type="button"
+                className={colorMode === 'hex' ? 'text-btn active' : 'text-btn'}
+                aria-pressed={colorMode === 'hex'}
+                onClick={() => setColorMode('hex')}
+              >
+                HEX
+              </button>
+              <button
+                type="button"
+                className={colorMode === 'rgb' ? 'text-btn active' : 'text-btn'}
+                aria-pressed={colorMode === 'rgb'}
+                onClick={() => setColorMode('rgb')}
+              >
+                RGB
+              </button>
             </div>
-          ) : null}
-        </div>
-        <div className="zoom" ref={zoomRef}>
-          <button
-            type="button"
-            className={open ? 'icon-btn active' : 'icon-btn'}
-            aria-label="Zoom"
-            aria-expanded={open}
-            aria-controls={panelId}
-            title="Zoom"
-            onClick={() => setOpen((value) => !value)}
-          >
-            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
-              <path
-                d="m20 20-3.5-3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-          <span className="width-readout">{percent}%</span>
-          {open ? (
-            <div className="toolbar-panel zoom-panel" id={panelId} role="group" aria-label="Zoom settings">
+            {colorMode === 'hex' ? (
               <input
-                aria-label="Zoom level"
-                type="range"
-                min={50}
-                max={150}
-                value={percent}
-                onChange={(event) => onZoom(Number(event.target.value) / 100)}
+                ref={hexRef}
+                className="width-number hex-input"
+                aria-label="Hex color"
+                value={hexDraft}
+                spellCheck={false}
+                onChange={(event) => {
+                  const raw = event.target.value
+                  setHexDraft(raw)
+                  const next = parseHex(raw)
+                  if (next) onBackground(next)
+                }}
+                onBlur={() => commitHex(hexDraft)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') event.currentTarget.blur()
+                }}
               />
-              <span className="width-readout">{percent}%</span>
-              <button type="button" className="text-btn" onClick={fit}>
-                Fit
-              </button>
-              <button type="button" className="text-btn" onClick={() => onZoom(1)}>
-                100%
-              </button>
-            </div>
-          ) : null}
-        </div>
-        <ViewportControls width={width} onWidth={onWidth} />
+            ) : (
+              <div className="rgb-fields">
+                <RgbChannel label="R" name="Red" value={rgb.r} onCommit={(value) => commitChannel('r', value)} />
+                <RgbChannel label="G" name="Green" value={rgb.g} onCommit={(value) => commitChannel('g', value)} />
+                <RgbChannel label="B" name="Blue" value={rgb.b} onCommit={(value) => commitChannel('b', value)} />
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
+      <div className="zoom" ref={zoomRef}>
+        <button
+          type="button"
+          className={open ? 'icon-btn active' : 'icon-btn'}
+          aria-label="Zoom"
+          aria-expanded={open}
+          aria-controls={panelId}
+          title="Zoom"
+          onClick={() => setOpen((value) => !value)}
+        >
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
+            <path d="m20 20-3.5-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
+        <span className="width-readout">{percent}%</span>
+        {open ? (
+          <div className="toolbar-panel zoom-panel" id={panelId} role="group" aria-label="Zoom settings">
+            <input
+              aria-label="Zoom level"
+              type="range"
+              min={50}
+              max={150}
+              value={percent}
+              onChange={(event) => onZoom(Number(event.target.value) / 100)}
+            />
+            <span className="width-readout">{percent}%</span>
+            <button type="button" className="text-btn" onClick={fit}>
+              Fit
+            </button>
+            <button type="button" className="text-btn" onClick={() => onZoom(1)}>
+              100%
+            </button>
+          </div>
+        ) : null}
+      </div>
+      <ViewportControls width={width} onWidth={onWidth} />
     </div>
   )
 }

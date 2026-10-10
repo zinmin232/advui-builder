@@ -129,11 +129,7 @@ export function duplicateNode(root: ConfigNode, id: string): { tree: ConfigNode;
   return copyBeside(root, id, used)
 }
 
-function copyBeside(
-  node: ConfigNode,
-  id: string,
-  used: Set<string>,
-): { tree: ConfigNode; copyId: string } | null {
+function copyBeside(node: ConfigNode, id: string, used: Set<string>): { tree: ConfigNode; copyId: string } | null {
   const index = node.children.findIndex((child) => child.id === id)
   if (index >= 0) {
     const copy = cloneNode(node.children[index], used)
@@ -156,11 +152,7 @@ export function moveNode(root: ConfigNode, id: string, direction: 'up' | 'down')
   return next.moved ? next.node : null
 }
 
-function shiftChild(
-  node: ConfigNode,
-  id: string,
-  delta: -1 | 1,
-): { node: ConfigNode; moved: boolean } {
+function shiftChild(node: ConfigNode, id: string, delta: -1 | 1): { node: ConfigNode; moved: boolean } {
   const index = node.children.findIndex((child) => child.id === id)
   const target = index + delta
   if (index >= 0) {
@@ -295,11 +287,7 @@ function insertBeside(
   return null
 }
 
-export function mapTree(
-  node: ConfigNode,
-  id: string,
-  update: (node: ConfigNode) => ConfigNode,
-): ConfigNode {
+export function mapTree(node: ConfigNode, id: string, update: (node: ConfigNode) => ConfigNode): ConfigNode {
   if (node.id === id) return update(node)
   let changed = false
   const children = node.children.map((child) => {

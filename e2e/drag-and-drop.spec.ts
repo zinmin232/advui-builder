@@ -126,7 +126,10 @@ test('moves a column before its sibling, along the grid row', async ({ page }) =
   await page.getByRole('complementary', { name: 'Components' }).getByRole('button', { name: 'Columns 8 4' }).click()
   await layer(page, 'grid-item-2').click()
   // Columns flow left to right, so the left edge of the first column means "before" it.
-  await drag(page, page.getByRole('button', { name: 'Drag Column 2' }), canvasNode(page, 'grid-item'), { x: 0.1, y: 0.5 })
+  await drag(page, page.getByRole('button', { name: 'Drag Column 2' }), canvasNode(page, 'grid-item'), {
+    x: 0.1,
+    y: 0.5,
+  })
   expect(await layerIds(page)).toEqual(['page', 'grid', 'grid-item-2', 'grid-item'])
 })
 

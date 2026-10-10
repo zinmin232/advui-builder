@@ -235,9 +235,7 @@ export function BuilderDnd({ children }: { children: ReactNode }) {
         <DragStateContext.Provider value={drag}>{children}</DragStateContext.Provider>
       </SurfaceContext.Provider>
       <DragOverlay dropAnimation={null}>
-        {drag.item ? (
-          <div className={drag.target ? 'drag-chip' : 'drag-chip blocked'}>{drag.item.label}</div>
-        ) : null}
+        {drag.item ? <div className={drag.target ? 'drag-chip' : 'drag-chip blocked'}>{drag.item.label}</div> : null}
       </DragOverlay>
     </DndContext>
   )

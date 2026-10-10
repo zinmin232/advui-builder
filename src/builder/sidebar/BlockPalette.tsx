@@ -16,11 +16,12 @@ export function BlockPalette({ blocks }: { blocks: readonly BlockEntry[] }) {
   const [open, setOpen] = useState(true)
   if (blocks.length === 0) return null
   const placement = blockPlacement(registry, state)
-  const where = placement == null
-    ? null
-    : placement.position === 'inside'
-      ? `inside ${placement.label}`
-      : `below ${placement.label}`
+  const where =
+    placement == null
+      ? null
+      : placement.position === 'inside'
+        ? `inside ${placement.label}`
+        : `below ${placement.label}`
 
   return (
     <section className="component-group">
@@ -36,14 +37,20 @@ export function BlockPalette({ blocks }: { blocks: readonly BlockEntry[] }) {
             const canInsert =
               placement != null &&
               canDrop(registry, state.document, block.component, placement.targetId, placement.position)
-            const hint = where == null
-              ? 'Select a layer that can hold components, or drag onto the canvas'
-              : canInsert
-                ? `Add ${where}`
-                : `A ${block.name} cannot go ${where}`
+            const hint =
+              where == null
+                ? 'Select a layer that can hold components, or drag onto the canvas'
+                : canInsert
+                  ? `Add ${where}`
+                  : `A ${block.name} cannot go ${where}`
             return (
               <li key={block.id}>
-                <BlockItem block={block} disabled={!canInsert} hint={hint} onInsert={() => actions.insertBlock(block.id)} />
+                <BlockItem
+                  block={block}
+                  disabled={!canInsert}
+                  hint={hint}
+                  onInsert={() => actions.insertBlock(block.id)}
+                />
               </li>
             )
           })}

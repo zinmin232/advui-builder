@@ -66,7 +66,9 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
     if (current.kind === 'sidebar') {
       preferenceActions.update({ sidebarWidth: clampSidebarWidth(current.origin + (event.clientX - current.start)) })
     } else {
-      preferenceActions.update({ inspectorWidth: clampInspectorWidth(current.origin - (event.clientX - current.start)) })
+      preferenceActions.update({
+        inspectorWidth: clampInspectorWidth(current.origin - (event.clientX - current.start)),
+      })
     }
   }
 
@@ -155,11 +157,7 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
             ))}
           </div>
         ) : null}
-        {state.mode === 'page' ? (
-          <PageMenu />
-        ) : (
-          <span className="topbar-component">{state.selectedComponent}</span>
-        )}
+        {state.mode === 'page' ? <PageMenu /> : <span className="topbar-component">{state.selectedComponent}</span>}
         <span className="spacer" />
         <div className="segment" role="group" aria-label="History">
           <button

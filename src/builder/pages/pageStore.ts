@@ -120,7 +120,11 @@ export function readPageTree(registry: BuilderRegistry, data: unknown): ConfigNo
 }
 
 /** The page's tree, or null when it was never saved or can't be read as a page. */
-export function loadPageDocument(registry: BuilderRegistry, storage: PageStorage | null, id: string): ConfigNode | null {
+export function loadPageDocument(
+  registry: BuilderRegistry,
+  storage: PageStorage | null,
+  id: string,
+): ConfigNode | null {
   try {
     const raw = storage?.getItem(PAGE_KEY + id)
     return raw ? readPageTree(registry, JSON.parse(raw)) : null

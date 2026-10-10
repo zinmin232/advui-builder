@@ -219,10 +219,10 @@ describe('builder state', () => {
     expect(withoutBadge.selectedId).toBe('card-button')
     expect(withoutBadge.document.children.find((child) => child.id === 'card-footer')?.children).toHaveLength(1)
 
-    const moved = builderReducer(
-      builderReducer(card, { type: 'select', id: 'card-content' }),
-      { type: 'move', direction: 'up' },
-    )
+    const moved = builderReducer(builderReducer(card, { type: 'select', id: 'card-content' }), {
+      type: 'move',
+      direction: 'up',
+    })
     expect(moved.document.children.map((child) => child.id)[0]).toBe('card-content')
     const unmoved = builderReducer(moved, { type: 'undo' })
     expect(unmoved.document.children.map((child) => child.id)).toEqual(['card-header', 'card-content', 'card-footer'])
@@ -277,24 +277,31 @@ describe('builder state', () => {
 
   it('moves a layer into another container and undo puts it back', () => {
     const start = createBuilderState(advuiRegistry, 'Card', { selectedId: 'card-image' })
-    const moved = builderReducer(start, { type: 'place', id: 'card-button', targetId: 'card-content', position: 'inside' })
+    const moved = builderReducer(start, {
+      type: 'place',
+      id: 'card-button',
+      targetId: 'card-content',
+      position: 'inside',
+    })
     const content = moved.document.children.find((child) => child.id === 'card-content')
     expect(content?.children.map((child) => child.id)).toEqual(['card-image', 'card-button'])
     expect(moved.selectedId).toBe('card-button')
 
     const undone = builderReducer(moved, { type: 'undo' })
     expect(undone.selectedId).toBe('card-image')
-    expect(undone.document.children.find((child) => child.id === 'card-footer')?.children.map((child) => child.id)).toEqual([
-      'card-button',
-    ])
-    expect(builderReducer(start, { type: 'place', id: 'card-content', targetId: 'card-footer', position: 'before' })).toBe(start)
+    expect(
+      undone.document.children.find((child) => child.id === 'card-footer')?.children.map((child) => child.id),
+    ).toEqual(['card-button'])
+    expect(
+      builderReducer(start, { type: 'place', id: 'card-content', targetId: 'card-footer', position: 'before' }),
+    ).toBe(start)
   })
 })
 
 describe('page mode', () => {
   const ids = (node: ConfigNode) => node.children.map((child) => child.component)
 
-  it('opens an empty page and keeps each mode\'s document when switching back and forth', () => {
+  it("opens an empty page and keeps each mode's document when switching back and forth", () => {
     let state = createBuilderState(advuiRegistry, 'Card', { selectedId: 'card-button' })
     state = builderReducer(state, { type: 'set-prop', id: 'card-button', key: 'variant', value: 'secondary' })
     state = builderReducer(state, { type: 'set-mode', mode: 'page' })
@@ -387,7 +394,10 @@ describe('layout presets', () => {
     ])
     expect(added.selectedId).toBe(row.id)
 
-    const nested = builderReducer({ ...added, selectedId: row.children[1].id }, { type: 'insert-columns', spans: [6, 6] })
+    const nested = builderReducer(
+      { ...added, selectedId: row.children[1].id },
+      { type: 'insert-columns', spans: [6, 6] },
+    )
     expect(nested.document.children[0].children[1].children[0].label).toBe('Columns 6 6')
     const ids = allIds(nested.document)
     expect(new Set(ids).size).toBe(ids.length)

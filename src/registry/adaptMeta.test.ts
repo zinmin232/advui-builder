@@ -155,7 +155,10 @@ describe('platform metadata', () => {
     })
     expect(state.document.children.map((child) => child.component)).toEqual(['Text', 'Spacer', 'Button', 'Spacer'])
     expect(generateCode(state.document, { registry: advuiRegistry })).toMatch(/\n {2}<Spacer \/>\n<\/HStack>\n$/)
-    const invisible = advuiRegistry.sidebarEntries().filter((entry) => entry.invisible).map((entry) => entry.name)
+    const invisible = advuiRegistry
+      .sidebarEntries()
+      .filter((entry) => entry.invisible)
+      .map((entry) => entry.name)
     expect(invisible).toEqual(['Spacer'])
   })
 
@@ -349,7 +352,7 @@ describe('platform metadata', () => {
     expect(advuiRegistry.acceptsChildren('DropdownMenu.Item')).toBe(false)
 
     const dialog = starterCode('AlertDialog')
-    expect(dialog).toContain('import { AlertDialog, Button } from \'@advui/core\'')
+    expect(dialog).toContain("import { AlertDialog, Button } from '@advui/core'")
     expect(dialog).toContain('defaultOpen')
     expect(dialog).toContain('<AlertDialog')
     expect(dialog).toContain('<AlertDialog.Trigger>Delete project</AlertDialog.Trigger>')
@@ -362,10 +365,8 @@ describe('platform metadata', () => {
     expect(dialog).not.toContain('open=')
 
     const toastCode = starterCode('Toast')
-    expect(toastCode).toContain('import { Button, toast } from \'@advui/core\'')
-    expect(toastCode).toContain(
-      'toast.success("Changes saved", { description: "Your profile is up to date." })',
-    )
+    expect(toastCode).toContain("import { Button, toast } from '@advui/core'")
+    expect(toastCode).toContain('toast.success("Changes saved", { description: "Your profile is up to date." })')
     expect(toastCode).toContain('Show toast')
     expect(toastCode).not.toContain('duration')
     expect(toastCode).not.toContain('<Toast')
@@ -392,7 +393,7 @@ describe('platform metadata', () => {
     expect(hint).not.toContain('open=')
 
     const menu = starterCode('DropdownMenu')
-    expect(menu).toContain('import { Button, DropdownMenu } from \'@advui/core\'')
+    expect(menu).toContain("import { Button, DropdownMenu } from '@advui/core'")
     expect(menu).toContain('<DropdownMenu')
     expect(menu).toContain('defaultOpen')
     expect(menu).toContain('<Button>Actions</Button>')
@@ -467,13 +468,17 @@ describe('navigation, disclosure, dialog and form components', () => {
     expect(advuiRegistry.get('Sidebar.Item').within).toBe('Sidebar')
     expect(advuiRegistry.get('Breadcrumb.Item').parents).toEqual(['Breadcrumb'])
     // Hosts that hold only their parts pass sidebar inserts on to the container around them.
-    for (const host of ['Breadcrumb', 'NavigationBar', 'Accordion', 'Sidebar']) expect(advuiRegistry.acceptsAny(host)).toBe(false)
+    for (const host of ['Breadcrumb', 'NavigationBar', 'Accordion', 'Sidebar'])
+      expect(advuiRegistry.acceptsAny(host)).toBe(false)
     expect(advuiRegistry.acceptsAny('Form')).toBe(true)
     expect(advuiRegistry.acceptsAny('Field')).toBe(true)
   })
 
   it('grows each one by its repeatable part', () => {
-    expect(add('Breadcrumb', 'breadcrumb').children.at(-1)).toMatchObject({ component: 'Breadcrumb.Item', text: 'Level 4' })
+    expect(add('Breadcrumb', 'breadcrumb').children.at(-1)).toMatchObject({
+      component: 'Breadcrumb.Item',
+      text: 'Level 4',
+    })
     const section = add('Accordion', 'accordion').children.at(-1)!
     expect(section).toMatchObject({ component: 'Accordion.Item', props: { value: 'section-3' } })
     expect(section.children.map((child) => child.component)).toEqual(['Accordion.Trigger', 'Accordion.Content'])
@@ -575,17 +580,22 @@ describe('blocks', () => {
     const stack = builderReducer(createBuilderState(advuiRegistry, 'VStack'), { type: 'insert-block', block: 'login' })
     expect(stack.document.children.at(-1)).toMatchObject({ component: 'Grid', label: 'Login' })
 
-    const twice = builderReducer(builderReducer(page, { type: 'insert-block-at', block: 'footer', targetId: 'page', position: 'inside' }), {
-      type: 'insert-block-at',
-      block: 'navbar',
-      targetId: 'vstack',
-      position: 'before',
-    })
+    const twice = builderReducer(
+      builderReducer(page, { type: 'insert-block-at', block: 'footer', targetId: 'page', position: 'inside' }),
+      {
+        type: 'insert-block-at',
+        block: 'navbar',
+        targetId: 'vstack',
+        position: 'before',
+      },
+    )
     expect(twice.document.children.map((child) => child.label)).toEqual(['Navbar', 'Footer'])
     const ids = layers(twice.document).map(([node]) => node.id)
     expect(new Set(ids).size).toBe(ids.length)
     // A block is no text: a Button cannot hold one.
     const button = builderReducer(page, { type: 'insert', component: 'Button' })
-    expect(builderReducer(button, { type: 'insert-block-at', block: 'hero', targetId: 'button', position: 'inside' })).toBe(button)
+    expect(
+      builderReducer(button, { type: 'insert-block-at', block: 'hero', targetId: 'button', position: 'inside' }),
+    ).toBe(button)
   })
 })
