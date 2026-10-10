@@ -37,12 +37,7 @@ function Harness() {
       <ElementTree node={state.document} renderNode={renderNode} />
       <LayersPanel root={state.document} selectedId={state.selectedId} onSelect={actions.select} />
       <Inspector />
-      <PlatformSelector
-        platform={state.platform}
-        width={state.viewportWidth}
-        onChange={actions.setPlatform}
-        onWidth={actions.setWidth}
-      />
+      <PlatformSelector platform={state.platform} onChange={actions.setPlatform} />
       <button type="button" onClick={() => actions.reset()}>
         Reset
       </button>

@@ -20,12 +20,8 @@ export interface CodeOptions {
 }
 
 function collectImports(registry: BuilderRegistry, node: ConfigNode, into = new Set<string>()): Set<string> {
-  if (node.component === 'Toast') {
-    into.add('Button')
-    into.add('toast')
-  } else {
-    into.add(registry.get(node.component).importName)
-  }
+  const meta = registry.get(node.component)
+  for (const name of meta.code?.imports ?? [meta.importName]) into.add(name)
   for (const child of node.children) collectImports(registry, child, into)
   return into
 }
@@ -95,21 +91,6 @@ function emittedAttrs(
   return attrs
 }
 
-function renderToastCall(node: ConfigNode, indent: number): string {
-  const pad = '  '.repeat(indent)
-  const title = typeof node.props.title === 'string' ? node.props.title : 'Changes saved'
-  const description = typeof node.props.description === 'string' ? node.props.description : ''
-  const type = typeof node.props.type === 'string' ? node.props.type : 'success'
-  const duration = typeof node.props.duration === 'number' ? node.props.duration : undefined
-  const label = jsxText(node.text || 'Show toast')
-  const method = type === 'default' ? 'toast' : `toast.${type}`
-  const fields: string[] = []
-  if (description) fields.push(`description: ${JSON.stringify(description)}`)
-  if (duration != null && duration !== 4000) fields.push(`duration: ${duration}`)
-  const args = fields.length ? `${JSON.stringify(title)}, { ${fields.join(', ')} }` : JSON.stringify(title)
-  return `${pad}<Button onPress={() => ${method}(${args})}>\n${pad}  ${label}\n${pad}</Button>`
-}
-
 function renderNode(
   registry: BuilderRegistry,
   node: ConfigNode,
@@ -117,9 +98,16 @@ function renderNode(
   platform: PlatformId,
   imports: Set<string>,
 ): string {
-  if (node.component === 'Toast') return renderToastCall(node, indent)
   const pad = '  '.repeat(indent)
-  const tag = registry.get(node.component).jsxTag
+  const meta = registry.get(node.component)
+  if (meta.code) {
+    return meta.code
+      .render(node, jsxText)
+      .split('\n')
+      .map((line) => pad + line)
+      .join('\n')
+  }
+  const tag = meta.jsxTag
   const attrs = emittedAttrs(registry, node, platform, imports)
   const text = node.text ?? ''
   const children = node.children.map((child) => renderNode(registry, child, indent + 1, platform, imports))

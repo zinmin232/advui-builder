@@ -90,6 +90,32 @@ describe('component registry', () => {
     expect(code).toContain('<Tag>Hello</Tag>')
   })
 
+  it('writes a component through its code hook, with the hook’s imports', () => {
+    const hooked = createRegistry({
+      ...acmeLibrary,
+      components: [
+        ...acmeLibrary.components,
+        meta('Alert', {
+          defaultText: 'Saved',
+          code: {
+            imports: ['Tag', 'notify'],
+            render: (node, text) => `<Tag onPress={notify}>\n  ${text(node.text ?? '')}\n</Tag>`,
+          },
+        }),
+      ],
+    })
+    const tree = {
+      id: 'panel',
+      component: 'Panel',
+      label: 'Panel',
+      props: {},
+      children: [hooked.createDocument('Alert')],
+    }
+    const code = generateCode(tree, { registry: hooked })
+    expect(code.split('\n')[0]).toBe("import { Panel, Tag, notify } from '@acme/ui'")
+    expect(code).toContain('<Panel>\n  <Tag onPress={notify}>\n    Saved\n  </Tag>\n</Panel>')
+  })
+
   it('offers Page mode only with a page template whose root accepts children', () => {
     expect(registry.hasPage).toBe(false)
     expect(() => registry.createPage()).toThrow(/no page template/)

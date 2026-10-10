@@ -16,12 +16,13 @@ import { SelectionOverlay } from './SelectionOverlay'
  */
 export function PreviewWorkspace({
   kit,
-  bar,
   interactive = false,
+  onCanvas,
 }: {
   kit: PreviewKit
-  bar: ReactNode
   interactive?: boolean
+  /** Hears about the canvas scroll area when it mounts and unmounts (the toolbar's Fit measures it). */
+  onCanvas?: (canvas: HTMLDivElement | null) => void
 }) {
   const state = useBuilderState()
   const actions = useBuilderActions()
@@ -30,6 +31,13 @@ export function PreviewWorkspace({
   const hoverId = useHoverId()
   const setHover = useSetHover()
   const [canvas, setCanvas] = useState<HTMLDivElement | null>(null)
+  const canvasRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      setCanvas(element)
+      onCanvas?.(element)
+    },
+    [onCanvas],
+  )
   const [frame, setFrame] = useState<HTMLDivElement | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   // The whole scroll area accepts drops: empty space around the page counts as the page itself.
@@ -72,41 +80,38 @@ export function PreviewWorkspace({
   )
 
   return (
-    <div className="preview">
-      {bar}
-      <div className={state.theme === 'dark' ? 'canvas-shell theme-dark' : 'canvas-shell theme-light'}>
-        <CanvasGuides canvas={canvas} zoom={state.zoom} theme={state.theme} />
-        <div
-          ref={setCanvas}
-          className={state.theme === 'dark' ? 'canvas theme-dark' : 'canvas theme-light'}
-          style={{ backgroundColor: state.background }}
-          onMouseLeave={() => setHover(null)}
-          onClick={interactive ? undefined : () => actions.select(state.document.id)}
-        >
-          <div className="scaler" style={{ transform: `scale(${state.zoom})` }}>
-            <div ref={setFrame} className={`frame ${state.platform}`}>
-              <div className={interactive ? 'stage interactive' : 'stage'} style={{ width: state.viewportWidth }}>
-                <PreviewErrorBoundary>
-                  <Frame theme={state.theme}>
-                    <CanvasModeContext.Provider value={mode}>
-                      <ElementTree node={state.document} renderNode={renderNode} />
-                    </CanvasModeContext.Provider>
-                  </Frame>
-                </PreviewErrorBoundary>
-              </div>
-              {interactive ? null : (
-                <SelectionOverlay
-                  container={frame}
-                  root={state.document}
-                  selectedId={state.selectedId}
-                  hoverId={hoverId}
-                  zoom={state.zoom}
-                  editing={editingId === state.selectedId}
-                  onEditText={() => editText(state.selectedId)}
-                  onEditDone={() => setEditingId(null)}
-                />
-              )}
+    <div className={state.theme === 'dark' ? 'canvas-shell theme-dark' : 'canvas-shell theme-light'}>
+      <CanvasGuides canvas={canvas} zoom={state.zoom} theme={state.theme} />
+      <div
+        ref={canvasRef}
+        className={state.theme === 'dark' ? 'canvas theme-dark' : 'canvas theme-light'}
+        style={{ backgroundColor: state.background }}
+        onMouseLeave={() => setHover(null)}
+        onClick={interactive ? undefined : () => actions.select(state.document.id)}
+      >
+        <div className="scaler" style={{ transform: `scale(${state.zoom})` }}>
+          <div ref={setFrame} className={`frame ${state.platform}`}>
+            <div className={interactive ? 'stage interactive' : 'stage'} style={{ width: state.viewportWidth }}>
+              <PreviewErrorBoundary>
+                <Frame theme={state.theme}>
+                  <CanvasModeContext.Provider value={mode}>
+                    <ElementTree node={state.document} renderNode={renderNode} />
+                  </CanvasModeContext.Provider>
+                </Frame>
+              </PreviewErrorBoundary>
             </div>
+            {interactive ? null : (
+              <SelectionOverlay
+                container={frame}
+                root={state.document}
+                selectedId={state.selectedId}
+                hoverId={hoverId}
+                zoom={state.zoom}
+                editing={editingId === state.selectedId}
+                onEditText={() => editText(state.selectedId)}
+                onEditDone={() => setEditingId(null)}
+              />
+            )}
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import type { ConfigNode, SelectionContext } from '../../registry/metadata'
+import type { ConfigNode } from '../../registry/metadata'
 import { nextId, type BuilderRegistry } from '../../registry/registry'
 
 export function findPath(root: ConfigNode, id: string): ConfigNode[] | null {
@@ -30,19 +30,6 @@ export function findNode(root: ConfigNode, id: string): ConfigNode | null {
 export function parentOf(root: ConfigNode, id: string): ConfigNode | null {
   const path = findPath(root, id)
   return path && path.length > 1 ? path[path.length - 2] : null
-}
-
-export function selectionFrom(root: ConfigNode, id: string): SelectionContext | null {
-  const path = findPath(root, id)
-  if (!path) return null
-  const node = path[path.length - 1]
-  return {
-    component: root.component,
-    element: node.component,
-    path: path.map((item) => item.label),
-    ids: path.map((item) => item.id),
-    props: node.props,
-  }
 }
 
 export function removeNode(root: ConfigNode, id: string): { tree: ConfigNode; parentId: string } | null {

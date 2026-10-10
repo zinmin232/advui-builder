@@ -269,7 +269,6 @@ button { cursor: pointer; }
   padding: 0;
 }
 .platform-tab { position: relative; }
-.platform-item { position: relative; }
 .platform-tab svg { display: block; }
 .platform-tip {
   display: none;
@@ -294,10 +293,6 @@ button { cursor: pointer; }
 .platform-tab:focus-visible { z-index: 8; }
 .platform-tab:hover .platform-tip,
 .platform-tab:focus-visible .platform-tip { display: block; }
-.platform-item.open .platform-tip { display: none; }
-.pixel-box { display: inline-flex; align-items: center; gap: 4px; cursor: text; }
-.pixel-unit { color: #a8b0bd; font-variant-numeric: tabular-nums; }
-.app[data-theme="light"] .pixel-unit { color: #6b7280; }
 .view-tab.active, .platform-tab.active {
   background: #2a3140;
   color: #fff;
