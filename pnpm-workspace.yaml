@@ -1,8 +1,8 @@
 allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:
-  - '@advui/core@0.10.0'
-  - '@advui/icons@0.10.0'
-  - '@advui/theme@0.10.0'
-  - '@advui/utils@0.10.0'
-  - advui@0.10.0
+  - '@advui/core@0.12.0'
+  - '@advui/icons@0.12.0'
+  - '@advui/theme@0.12.0'
+  - '@advui/utils@0.12.0'
+  - advui@0.12.0

@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import type { ComponentMetadata, PropMetadata } from '../../registry/metadata'
+import type { BreakpointMetadata, ComponentMetadata, PropMetadata } from '../../registry/metadata'
+import { BASE, breakpointKeys, isResponsiveMap, ownValue, valueAt, withValueAt } from '../../registry/responsive'
 
 interface EditorProps {
   prop: PropMetadata
@@ -166,6 +167,137 @@ export function SpacingEditor({ prop, value, onChange }: EditorProps) {
 
 export function RadiusEditor(props: EditorProps) {
   return <SpacingEditor {...props} />
+}
+
+/** Prop types the per-breakpoint editor can show in a row. */
+export const responsiveTypes = new Set<PropMetadata['type']>(['select', 'number', 'spacing', 'string'])
+
+/** One bare input for a breakpoint row. Empty means `inherited`, the value from the breakpoint below. */
+function BreakpointControl({
+  prop,
+  value,
+  onChange,
+  label,
+  inherited,
+  base,
+}: EditorProps & { label: string; inherited: unknown; base: boolean }) {
+  const hint = inherited != null ? String(inherited) : ''
+  const clear = (raw: string) => (raw === '' ? undefined : raw)
+  if (prop.type === 'select') {
+    const shown = prop.options?.find((option) => option.value === hint)?.label ?? hint
+    const empty = hint ? `${base ? 'Default' : 'Inherit'} (${shown})` : 'Default'
+    return (
+      <select
+        className="control"
+        aria-label={label}
+        value={value == null ? '' : String(value)}
+        onChange={(event) => onChange(clear(event.target.value))}
+      >
+        <option value="">{empty}</option>
+        {(prop.options ?? []).map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    )
+  }
+  if (prop.type === 'string') {
+    return (
+      <input
+        className="control"
+        type="text"
+        aria-label={label}
+        value={typeof value === 'string' ? value : ''}
+        placeholder={hint}
+        onChange={(event) => onChange(clear(event.target.value))}
+      />
+    )
+  }
+  return (
+    <input
+      className="control"
+      type="number"
+      aria-label={label}
+      min={prop.min}
+      max={prop.max}
+      step={prop.step ?? 1}
+      value={typeof value === 'number' ? value : ''}
+      placeholder={hint}
+      onChange={(event) => onChange(event.target.value === '' ? undefined : Number(event.target.value))}
+    />
+  )
+}
+
+/**
+ * A responsive prop: one value in the prop's usual editor (`single`), or a value per breakpoint, mobile-first. An
+ * empty breakpoint inherits the value below it. The row for the preview's breakpoint is marked.
+ */
+export function ResponsiveEditor({
+  prop,
+  value,
+  onChange,
+  breakpoints,
+  active,
+  single,
+}: EditorProps & { breakpoints: readonly BreakpointMetadata[]; active: string; single: ReactNode }) {
+  const keys = breakpointKeys(breakpoints)
+  const map = isResponsiveMap(value)
+  const [open, setOpen] = useState(false)
+  const expanded = open || map
+  const toggle = (
+    <button
+      type="button"
+      className="text-btn breakpoint-toggle"
+      aria-pressed={expanded}
+      aria-label={`${prop.label} per breakpoint`}
+      title={expanded ? 'Use one value for every screen size' : 'Set a value per screen size'}
+      onClick={() => {
+        // Back to one value: keep the one the preview shows now.
+        if (map) onChange(valueAt(value, active, keys))
+        setOpen(!expanded)
+      }}
+    >
+      Per size
+    </button>
+  )
+  if (!expanded) {
+    return (
+      <div className="responsive-field">
+        {toggle}
+        {single}
+      </div>
+    )
+  }
+  const minWidth = (key: string) => breakpoints.find((breakpoint) => breakpoint.name === key)?.minWidth
+  return (
+    <div className="field responsive-field">
+      {toggle}
+      <LabelText label={prop.label} description={prop.description} />
+      <div className="breakpoint-rows" role="group" aria-label={`${prop.label} by breakpoint`}>
+        {keys.map((key, index) => (
+          <div
+            key={key}
+            className={key === active ? 'breakpoint-row active' : 'breakpoint-row'}
+            aria-current={key === active || undefined}
+          >
+            <span className="breakpoint-name">
+              {key === BASE ? 'Base' : key}
+              {key === BASE ? null : <small>{minWidth(key)}+</small>}
+            </span>
+            <BreakpointControl
+              prop={prop}
+              label={`${prop.label} at ${key}`}
+              base={index === 0}
+              value={ownValue(value, key)}
+              inherited={(index === 0 ? undefined : valueAt(value, keys[index - 1], keys)) ?? prop.defaultValue}
+              onChange={(next) => onChange(withValueAt(value, key, next, keys))}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export function TypographyEditor({

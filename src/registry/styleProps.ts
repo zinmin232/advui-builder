@@ -64,7 +64,7 @@ export const flexProp: PropMetadata = {
   key: 'flex',
   type: 'number',
   label: 'Flex',
-  description: 'Share of the free space in the parent stack. Column presets set it to the span out of 12.',
+  description: 'Share of the free space in the parent stack.',
   group: 'layout',
   min: 0,
   max: 12,

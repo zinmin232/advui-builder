@@ -652,6 +652,26 @@ button { cursor: pointer; }
 .field-label.has-tip:focus-visible .field-tip { display: block; }
 .field-help { margin-top: 0; }
 .color-row, .unit-row { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.responsive-field { position: relative; }
+.breakpoint-toggle { position: absolute; top: -2px; right: 0; z-index: 1; font-size: 12px; padding: 1px 6px; }
+.breakpoint-toggle[aria-pressed="true"] {
+  background: var(--builder-accent-soft);
+  border-color: var(--builder-accent);
+  color: var(--builder-accent);
+}
+.breakpoint-rows { display: grid; gap: 4px; }
+.breakpoint-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.breakpoint-row .control { min-height: 30px; padding: 4px 8px; }
+.breakpoint-row.active { background: var(--builder-accent-soft); }
+.breakpoint-name { font-weight: 600; font-size: 12px; }
+.breakpoint-name small { display: block; color: var(--builder-muted); font-weight: 400; }
 .color-row .control, .unit-row .control { min-width: 0; }
 .swatch { border: 1px solid var(--builder-line-strong); background: var(--builder-field); }
 .unit { color: var(--builder-muted); }

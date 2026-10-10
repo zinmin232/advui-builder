@@ -80,14 +80,27 @@ test('drops a column preset on the page and fills one of its columns', async ({ 
   await openPage(page)
   const preset = page.getByRole('complementary', { name: 'Components' }).getByRole('button', { name: 'Columns 8 4' })
   await drag(page, preset, page.locator('.empty-slot.root'))
-  expect(await layerIds(page)).toEqual(['page', 'hstack', 'box', 'box-2'])
-  const wide = await canvasNode(page, 'box').boundingBox()
-  const narrow = await canvasNode(page, 'box-2').boundingBox()
+  expect(await layerIds(page)).toEqual(['page', 'grid', 'grid-item', 'grid-item-2'])
+  // The preview is wider than md, so the columns sit side by side.
+  const wide = await canvasNode(page, 'grid-item').boundingBox()
+  const narrow = await canvasNode(page, 'grid-item-2').boundingBox()
   expect(Math.round(wide!.width / narrow!.width)).toBe(2)
+  expect(Math.round(wide!.y)).toBe(Math.round(narrow!.y))
 
-  await drag(page, sidebarItem(page, 'Button'), canvasNode(page, 'box-2'))
-  expect(await layerIds(page)).toEqual(['page', 'hstack', 'box', 'box-2', 'button'])
-  expect(await code(page)).toMatch(/<Box flex=\{8\} \/>\s*<Box\s+flex=\{4\}\s*>\s*<Button>Click Me<\/Button>/)
+  await drag(page, sidebarItem(page, 'Button'), canvasNode(page, 'grid-item-2'))
+  expect(await layerIds(page)).toEqual(['page', 'grid', 'grid-item', 'grid-item-2', 'button'])
+  expect(await code(page)).toMatch(
+    /<Grid\.Item span=\{\{ base: 12, md: 8 \}\} \/>\s*<Grid\.Item\s+span=\{\{ base: 12, md: 4 \}\}\s*>\s*<Button>Click Me<\/Button>/,
+  )
+})
+
+test('moves a column before its sibling, along the grid row', async ({ page }) => {
+  await openPage(page)
+  await page.getByRole('complementary', { name: 'Components' }).getByRole('button', { name: 'Columns 8 4' }).click()
+  await layer(page, 'grid-item-2').click()
+  // Columns flow left to right, so the left edge of the first column means "before" it.
+  await drag(page, page.getByRole('button', { name: 'Drag Column 2' }), canvasNode(page, 'grid-item'), { x: 0.1, y: 0.5 })
+  expect(await layerIds(page)).toEqual(['page', 'grid', 'grid-item-2', 'grid-item'])
 })
 
 test('refuses drops the component rules do not allow', async ({ page }) => {

@@ -1,4 +1,5 @@
 import { groupedProps, propsForPlatform } from '../../registry/adaptMeta'
+import { breakpointAt } from '../../registry/responsive'
 import { findPath } from '../selection/selection'
 import { useBuilderActions, useBuilderState, useRegistry } from '../state/BuilderProvider'
 import { InspectorBreadcrumb } from './InspectorBreadcrumb'
@@ -23,6 +24,7 @@ export function Inspector() {
   const sections = groupedProps(propsForPlatform(meta, state.platform))
   const values: Record<string, unknown> = { ...node.props }
   if (node.text != null) values.children = node.text
+  const breakpoint = breakpointAt(registry.breakpoints, state.viewportWidth)
 
   return (
     <aside className="inspector" aria-label="Inspector">
@@ -40,6 +42,8 @@ export function Inspector() {
               prop={prop}
               meta={meta}
               values={values}
+              breakpoints={registry.breakpoints}
+              breakpoint={breakpoint}
               onChange={(key, value) => {
                 const target = meta.props.find((item) => item.key === key)
                 if (target?.textContent) {

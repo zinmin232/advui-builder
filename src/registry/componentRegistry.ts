@@ -1,7 +1,7 @@
+import { components as advuiMetas, type ComponentMeta } from '@advui/core/meta'
 import { adaptAdvuiMeta, type AdaptOptions } from './adaptMeta'
 import type { PropMetadata, TemplateNode } from './metadata'
 import { createRegistry } from './registry'
-import { alertDialogMeta, alertMeta, avatarMeta, badgeMeta, buttonMeta, cardMeta, chipMeta, dropdownMenuMeta, emptyStateMeta, imageMeta, inputMeta, listMeta, paginationMeta, searchMeta, typographyMeta, toastMeta, tooltipMeta, aspectRatioMeta, checkboxMeta, containerMeta, gridMeta, labelMeta, numberInputMeta, passwordInputMeta, progressMeta, radioGroupMeta, scrollAreaMeta, selectMeta, separatorMeta, skeletonMeta, sliderMeta, spinnerMeta, stackMeta, switchMeta, tabsMeta, textareaMeta, wrapMeta } from './sourceMeta'
 import {
   backgroundProp,
   borderColorProp,
@@ -16,10 +16,59 @@ import {
   widthProp,
 } from './styleProps'
 
+/** The metadata `@advui/core/meta` publishes for one component, by slug. */
+function advuiMeta(slug: string): ComponentMeta {
+  const meta = advuiMetas.find((item) => item.slug === slug)
+  if (!meta) throw new Error(`@advui/core/meta has no component ${slug}`)
+  return meta
+}
+
+const alertDialogMeta = advuiMeta('alert-dialog')
+const alertMeta = advuiMeta('alert')
+const aspectRatioMeta = advuiMeta('aspect-ratio')
+const autoGridMeta = advuiMeta('auto-grid')
+const avatarMeta = advuiMeta('avatar')
+const badgeMeta = advuiMeta('badge')
+const buttonMeta = advuiMeta('button')
+const cardMeta = advuiMeta('card')
+const checkboxMeta = advuiMeta('checkbox')
+const chipMeta = advuiMeta('chip')
+const containerMeta = advuiMeta('container')
+const dropdownMenuMeta = advuiMeta('dropdown-menu')
+const emptyStateMeta = advuiMeta('empty-state')
+const gridMeta = advuiMeta('grid')
+const imageMeta = advuiMeta('image')
+const inputMeta = advuiMeta('input')
+const labelMeta = advuiMeta('label')
+const listMeta = advuiMeta('list')
+const numberInputMeta = advuiMeta('number-input')
+const paginationMeta = advuiMeta('pagination')
+const passwordInputMeta = advuiMeta('password-input')
+const progressMeta = advuiMeta('progress')
+const radioGroupMeta = advuiMeta('radio-group')
+const scrollAreaMeta = advuiMeta('scroll-area')
+const searchMeta = advuiMeta('search')
+const sectionMeta = advuiMeta('section')
+const selectMeta = advuiMeta('select')
+const separatorMeta = advuiMeta('separator')
+const showHideMeta = advuiMeta('show-hide')
+const skeletonMeta = advuiMeta('skeleton')
+const sliderMeta = advuiMeta('slider')
+const spinnerMeta = advuiMeta('spinner')
+const stackMeta = advuiMeta('stack')
+const stickyMeta = advuiMeta('sticky')
+const switchMeta = advuiMeta('switch')
+const tabsMeta = advuiMeta('tabs')
+const textareaMeta = advuiMeta('textarea')
+const toastMeta = advuiMeta('toast')
+const tooltipMeta = advuiMeta('tooltip')
+const typographyMeta = advuiMeta('typography')
+const wrapMeta = advuiMeta('wrap')
+
 /*
  * Props below that come from `extraProps` are builder knowledge AdvUI's metadata
  * does not carry in an editable form: types like ReactNode or `number | {...}`,
- * or props a component inherits without documenting. A metadata sync never
+ * or props a component inherits without documenting. An AdvUI upgrade never
  * removes them; the registry tests check every template prop still resolves.
  */
 function stringProp(key: string, label: string, description: string, required?: boolean): PropMetadata {
@@ -76,7 +125,6 @@ const card = adaptAdvuiMeta(cardMeta, {
       node('card-button', 'Button', 'Button', {}, [], 'Continue'),
     ]),
   ]),
-  acceptsChildren: true,
 })
 
 const cardHeader = adaptAdvuiMeta(cardMeta, {
@@ -84,7 +132,6 @@ const cardHeader = adaptAdvuiMeta(cardMeta, {
   sidebar: false,
   importName: 'Card',
   extraProps: [gapProp, paddingProp, backgroundProp],
-  acceptsChildren: true,
 })
 
 const cardTitle = adaptAdvuiMeta(cardMeta, {
@@ -108,7 +155,6 @@ const cardContent = adaptAdvuiMeta(cardMeta, {
   sidebar: false,
   importName: 'Card',
   extraProps: [gapProp, paddingProp],
-  acceptsChildren: true,
 })
 
 const cardFooter = adaptAdvuiMeta(cardMeta, {
@@ -116,7 +162,6 @@ const cardFooter = adaptAdvuiMeta(cardMeta, {
   sidebar: false,
   importName: 'Card',
   extraProps: [gapProp, paddingProp],
-  acceptsChildren: true,
 })
 
 const input = adaptAdvuiMeta(inputMeta, {
@@ -174,7 +219,6 @@ const aspectRatio = adaptAdvuiMeta(aspectRatioMeta, {
       height: '100%',
     }),
   ]),
-  acceptsChildren: true,
 })
 
 const container = adaptAdvuiMeta(containerMeta, {
@@ -182,45 +226,92 @@ const container = adaptAdvuiMeta(containerMeta, {
   template: node('container', 'Container', 'Container', {}, [
     node('container-text', 'Text', 'Text', {}, [], 'Page content sits inside the container.'),
   ]),
-  acceptsChildren: true,
 })
 
-// Upstream types `columns` as `number | { sm?, md?, … }`; the builder edits the plain number.
 const grid = adaptAdvuiMeta(gridMeta, {
-  extraProps: [
-    {
-      key: 'columns',
-      type: 'number',
-      label: 'Columns',
-      description: 'How many equal columns. Children wrap onto the next row.',
-      group: 'component',
-      defaultValue: 1,
-      min: 1,
-      max: 6,
-      step: 1,
-    },
-    gapProp,
-  ],
+  extraProps: [gapProp],
   template: node('grid', 'Grid', 'Grid', { columns: 2 }, [
     node('grid-one', 'Text', 'Text', {}, [], 'One'),
     node('grid-two', 'Text', 'Text', {}, [], 'Two'),
     node('grid-three', 'Badge', 'Badge', {}, [], 'Three'),
     node('grid-four', 'Button', 'Button', {}, [], 'Four'),
   ]),
-  acceptsChildren: true,
 })
 
+const gridItem = adaptAdvuiMeta(gridMeta, {
+  part: 'Grid.Item',
+  sidebar: false,
+  importName: 'Grid',
+  propOverrides: { span: { max: 12 }, offset: { max: 11 } },
+})
+
+const tile = (id: string, label: string) =>
+  node(id, 'Box', label, { padding: 16, backgroundColor: '$muted', borderRadius: 8 }, [
+    node(`${id}-text`, 'Text', 'Text', {}, [], label),
+  ])
+
+// As many equal columns as fit at `minChildWidth`, from the AutoGrid's own width.
+const autoGrid = adaptAdvuiMeta(autoGridMeta, {
+  extraProps: [gapProp],
+  template: node('auto-grid', 'AutoGrid', 'Auto grid', { minChildWidth: 160 }, [
+    tile('auto-grid-one', 'One'),
+    tile('auto-grid-two', 'Two'),
+    tile('auto-grid-three', 'Three'),
+    tile('auto-grid-four', 'Four'),
+  ]),
+})
+
+const section = adaptAdvuiMeta(sectionMeta, {
+  template: node('section', 'Section', 'Section', { background: 'muted' }, [
+    node('section-content', 'VStack', 'Content', { gap: 8 }, [
+      node('section-title', 'Text', 'Title', { size: '2xl', weight: 'bold' }, [], 'Section title'),
+      node('section-text', 'Text', 'Text', { tone: 'muted' }, [], 'A band of the page with its own spacing.'),
+    ]),
+  ]),
+})
+
+const sticky = adaptAdvuiMeta(stickyMeta, {
+  template: node('sticky', 'Sticky', 'Sticky', {}, [
+    node('sticky-bar', 'HStack', 'Bar', { gap: 12, padding: 12, width: '100%', backgroundColor: '$background' }, [
+      node('sticky-brand', 'Text', 'Brand', { weight: 'semibold' }, [], 'Brand'),
+      node('sticky-spacer', 'Spacer', 'Spacer'),
+      node('sticky-action', 'Button', 'Button', {}, [], 'Sign in'),
+    ]),
+  ]),
+})
+
+// Show and Hide are documented on one page; each is its own entry here.
+const show = adaptAdvuiMeta(showHideMeta, {
+  part: 'Show',
+  sidebar: true,
+  importName: 'Show',
+  template: node('show', 'Show', 'Show', { above: 'md' }, [
+    node('show-text', 'Text', 'Text', {}, [], 'Shown from md up'),
+  ]),
+})
+
+const hide = adaptAdvuiMeta(showHideMeta, {
+  part: 'Hide',
+  sidebar: true,
+  importName: 'Hide',
+  template: node('hide', 'Hide', 'Hide', { below: 'md' }, [
+    node('hide-text', 'Text', 'Text', {}, [], 'Hidden below md'),
+  ]),
+})
+
+// A ScrollArea holds one child, its scrolling content.
 const scrollArea = adaptAdvuiMeta(scrollAreaMeta, {
   extraProps: [heightProp, widthProp],
   template: node('scroll-area', 'ScrollArea', 'Scroll Area', { height: '120px', 'aria-label': 'Notes' }, [
-    node('scroll-one', 'Text', 'Text', {}, [], 'First note. Add components here to fill the scrolling area.'),
-    node('scroll-two', 'Text', 'Text', {}, [], 'Second note stays inside the fixed height.'),
-    node('scroll-three', 'Text', 'Text', {}, [], 'Third note is reached by scrolling.'),
-    node('scroll-four', 'Text', 'Text', {}, [], 'Fourth note sits below the fold.'),
-    node('scroll-five', 'Text', 'Text', {}, [], 'Fifth note keeps the list long enough to scroll.'),
-    node('scroll-six', 'Button', 'Button', {}, [], 'Action'),
+    node('scroll-content', 'VStack', 'Content', { gap: 8 }, [
+      node('scroll-one', 'Text', 'Text', {}, [], 'First note. Add components here to fill the scrolling area.'),
+      node('scroll-two', 'Text', 'Text', {}, [], 'Second note stays inside the fixed height.'),
+      node('scroll-three', 'Text', 'Text', {}, [], 'Third note is reached by scrolling.'),
+      node('scroll-four', 'Text', 'Text', {}, [], 'Fourth note sits below the fold.'),
+      node('scroll-five', 'Text', 'Text', {}, [], 'Fifth note keeps the list long enough to scroll.'),
+      node('scroll-six', 'Button', 'Button', {}, [], 'Action'),
+    ]),
   ]),
-  acceptsChildren: true,
 })
 
 // `direction`, `align`, `distribute` and `wrap` set the same styles as the raw
@@ -234,8 +325,7 @@ function stackPart(part: string, options: AdaptOptions = {}) {
     sidebar: true,
     importName: part,
     omit: rawFlexProps,
-    extraProps: [gapProp, paddingProp, widthProp, flexProp],
-    acceptsChildren: true,
+    extraProps: [gapProp, paddingProp, widthProp, flexProp, backgroundProp],
     ...options,
   })
 }
@@ -283,7 +373,7 @@ const center = stackPart('Center', {
   }, [node('center-text', 'Text', 'Text', {}, [], 'Centered')]),
 })
 
-const spacer = stackPart('Spacer', { extraProps: [], acceptsChildren: false, invisible: true })
+const spacer = stackPart('Spacer', { extraProps: [], invisible: true })
 
 const wrap = adaptAdvuiMeta(wrapMeta, {
   extraProps: [gapProp, paddingProp, widthProp],
@@ -292,7 +382,6 @@ const wrap = adaptAdvuiMeta(wrapMeta, {
       node(`wrap-${tag.toLowerCase()}`, 'Badge', tag, {}, [], tag),
     ),
   ),
-  acceptsChildren: true,
 })
 
 const label = adaptAdvuiMeta(labelMeta, {
@@ -406,7 +495,6 @@ const tabsContent = adaptAdvuiMeta(tabsMeta, {
   part: 'Tabs.Content',
   sidebar: false,
   importName: 'Tabs',
-  acceptsChildren: true,
 })
 
 const avatar = adaptAdvuiMeta(avatarMeta, {
@@ -520,6 +608,8 @@ const alertDescription = adaptAdvuiMeta(alertMeta, {
   sidebar: false,
   importName: 'Alert',
   textDefault: 'The last save did not finish. Try again.',
+  // Upstream lets it hold elements; the builder edits it as text.
+  acceptsChildren: false,
 })
 
 // Upstream types title and description as ReactNode; the builder edits text.
@@ -541,7 +631,6 @@ const emptyState = adaptAdvuiMeta(emptyStateMeta, {
     },
     [node('empty-action', 'Button', 'Button', {}, [], 'Create one')],
   ),
-  acceptsChildren: true,
 })
 
 const search = adaptAdvuiMeta(searchMeta, {
@@ -563,7 +652,6 @@ const list = adaptAdvuiMeta(listMeta, {
     node('list-inbox', 'List.Item', 'Inbox', { title: 'Inbox', description: '3 new messages' }),
     node('list-drafts', 'List.Item', 'Drafts', { title: 'Drafts', description: '1 unsent draft' }),
   ]),
-  acceptsChildren: true,
   item: {
     noun: 'item',
     part: 'List.Item',
@@ -579,6 +667,8 @@ const listItem = adaptAdvuiMeta(listMeta, {
     stringProp('title', 'Title', 'Main line of the row.', true),
     stringProp('description', 'Description', 'Muted second line.'),
   ],
+  // Upstream lets a row hold elements; the builder edits it through title and description.
+  acceptsChildren: false,
 })
 
 const pagination = adaptAdvuiMeta(paginationMeta, {
@@ -618,20 +708,20 @@ const alertDialogTrigger = adaptAdvuiMeta(alertDialogMeta, {
   sidebar: false,
   importName: 'AlertDialog',
   textDefault: 'Delete project',
+  // Upstream lets it hold one element; the builder edits it as text.
+  acceptsChildren: false,
 })
 
 const alertDialogContent = adaptAdvuiMeta(alertDialogMeta, {
   part: 'AlertDialog.Content',
   sidebar: false,
   importName: 'AlertDialog',
-  acceptsChildren: true,
 })
 
 const alertDialogHeader = adaptAdvuiMeta(alertDialogMeta, {
   part: 'AlertDialog.Header',
   sidebar: false,
   importName: 'AlertDialog',
-  acceptsChildren: true,
 })
 
 const alertDialogTitle = adaptAdvuiMeta(alertDialogMeta, {
@@ -652,7 +742,6 @@ const alertDialogFooter = adaptAdvuiMeta(alertDialogMeta, {
   part: 'AlertDialog.Footer',
   sidebar: false,
   importName: 'AlertDialog',
-  acceptsChildren: true,
 })
 
 const alertDialogCancel = adaptAdvuiMeta(alertDialogMeta, {
@@ -737,7 +826,6 @@ const dropdownMenuContent = adaptAdvuiMeta(dropdownMenuMeta, {
   part: 'DropdownMenu.Content',
   sidebar: false,
   importName: 'DropdownMenu',
-  acceptsChildren: true,
   item: {
     noun: 'item',
     part: 'DropdownMenu.Item',
@@ -767,14 +855,27 @@ const dropdownMenuSeparator = adaptAdvuiMeta(dropdownMenuMeta, {
 
 export const advuiRegistry = createRegistry({
   importSource: '@advui/core',
+  // `breakpoints` from @advui/theme, which responsive props are keyed by. A test keeps them in step.
+  breakpoints: [
+    { name: 'xs', minWidth: 460 },
+    { name: 'sm', minWidth: 640 },
+    { name: 'md', minWidth: 768 },
+    { name: 'lg', minWidth: 1024 },
+    { name: 'xl', minWidth: 1280 },
+    { name: 'xxl', minWidth: 1536 },
+  ],
   page: node('page', 'Stack', 'Page', { gap: 16, padding: 24 }),
-  // A 12-column row: Boxes share the width of an HStack by their spans. Move to Grid columns once
-  // AdvUI adds `Grid.Item span`.
+  // A 12-column Grid row. Like Bootstrap's `col-md-*`, the columns sit side by side from md up and stack on
+  // smaller screens.
   columns: (spans) => ({
-    component: 'HStack',
+    component: 'Grid',
     label: `Columns ${spans.join(' ')}`,
-    props: { gap: 16, width: '100%', align: 'stretch' },
-    children: spans.map((span, index) => ({ component: 'Box', label: `Column ${index + 1}`, props: { flex: span } })),
+    props: { columns: 12 },
+    children: spans.map((span, index) => ({
+      component: 'Grid.Item',
+      label: `Column ${index + 1}`,
+      props: { span: span === 12 ? 12 : { base: 12, md: span } },
+    })),
   }),
   // Sidebar entries appear in this order. Compound parts follow their component.
   components: [
@@ -842,7 +943,13 @@ export const advuiRegistry = createRegistry({
     spacer,
     wrap,
     grid,
+    gridItem,
+    autoGrid,
     container,
+    section,
+    sticky,
+    show,
+    hide,
     aspectRatio,
     scrollArea,
     separator,

@@ -1,5 +1,13 @@
 import { isValidSpans } from './columns'
-import type { ComponentMetadata, ConfigNode, ItemTemplate, PlatformId, TemplateNode } from './metadata'
+import type {
+  BreakpointMetadata,
+  ComponentMetadata,
+  ConfigNode,
+  ItemTemplate,
+  PlatformId,
+  TemplateNode,
+} from './metadata'
+import { BASE, valueForScreen } from './responsive'
 
 /**
  * Everything the Builder knows about a component library. The Builder core never
@@ -17,6 +25,8 @@ export interface RegistryDefinition {
    * must accept children. Without it, no layout presets are offered.
    */
   columns?: (spans: number[]) => TemplateNode
+  /** Min-width breakpoints for responsive props, smallest first. Without them, responsive props take one value. */
+  breakpoints?: BreakpointMetadata[]
 }
 
 export interface BuilderRegistry {
@@ -27,6 +37,8 @@ export interface BuilderRegistry {
   readonly hasPage: boolean
   /** Whether the registry builds layout presets (`columns`). */
   readonly hasColumns: boolean
+  /** Breakpoints for responsive props, smallest first. Empty when the library has none. */
+  readonly breakpoints: readonly BreakpointMetadata[]
   has(component: string): boolean
   /** Throws for an unknown component. */
   get(component: string): ComponentMetadata
@@ -41,11 +53,14 @@ export interface BuilderRegistry {
   /** A fresh row for a layout preset. Throws when the registry has no `columns`, or for invalid spans. */
   createColumns(spans: number[]): ConfigNode
   acceptsChildren(component: string): boolean
+  /** A container that takes any component, not only listed parts. Sidebar inserts go into the nearest one. */
+  acceptsAny(component: string): boolean
   /**
-   * Whether one more `component` may go inside `parent`: container, `accepts`, `parents` and
-   * `maxChildren` rules. `sibling` checks room only, for a copy of a child the parent already holds.
+   * Whether one more `component` may go inside the last layer of `path` (the root first): container, `accepts`,
+   * `parents`, `within` and `maxChildren` rules. `sibling` checks room only, for a copy of a child the parent
+   * already holds.
    */
-  canPlace(component: string, parent: ConfigNode, sibling?: boolean): boolean
+  canPlace(component: string, path: readonly ConfigNode[], sibling?: boolean): boolean
   itemNoun(component: string): string | null
   /** Appends one item to a host. `idFor` hands out unused ids. Returns the new host and the node to select. */
   addItem(host: ConfigNode, idFor: (component: string) => string): { node: ConfigNode; selectedId: string } | null
@@ -136,12 +151,19 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
     if (meta.template) checkTemplate(meta.name, meta.template)
     if (meta.item) checkItem(meta.name, meta.item)
   }
+
+  // A container whose listed children are all missing from this registry can hold nothing here.
+  const containers = new Set(
+    [...byName.values()]
+      .filter((meta) => meta.acceptsChildren && (!meta.accepts || meta.accepts.some((name) => byName.has(name))))
+      .map((meta) => meta.name),
+  )
+  const acceptsAny = (component: string) => containers.has(component) && !byName.get(component)?.accepts
+
   const page = definition.page
   if (page) {
     checkTemplate('Page', page)
-    if (!byName.get(page.component)?.acceptsChildren) {
-      throw new Error(`Page root ${page.component} must accept children`)
-    }
+    if (!acceptsAny(page.component)) throw new Error(`Page root ${page.component} must accept children`)
   }
 
   const columns = definition.columns
@@ -150,13 +172,11 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
   if (sampleRow) {
     checkTemplate('Columns', sampleRow)
     for (const node of [sampleRow, ...(sampleRow.children ?? [])]) {
-      if (!byName.get(node.component)?.acceptsChildren) {
-        throw new Error(`Columns ${node.component} must accept children`)
-      }
+      if (!containers.has(node.component)) throw new Error(`Columns ${node.component} must accept children`)
     }
   }
 
-  // Where the templates put each compound part. A part may only be placed there unless it lists `parents`.
+  // Where the templates put each compound part. A part may only be placed there unless it lists `parents` or `within`.
   const templateParents = new Map<string, Set<string>>()
   const record = (parent: string, node: TemplateNode) => {
     if (!byName.get(node.component)?.sidebar) {
@@ -179,11 +199,23 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
   const sidebar = definition.components.filter((meta) => meta.sidebar)
   if (sidebar.length === 0) throw new Error('A registry needs at least one sidebar component')
 
+  const breakpoints = definition.breakpoints ?? []
+  breakpoints.forEach((breakpoint, index) => {
+    const previous = breakpoints[index - 1]
+    if (breakpoint.name === BASE || breakpoints.findIndex((item) => item.name === breakpoint.name) !== index) {
+      throw new Error(`Breakpoint names must be unique and not "${BASE}": ${breakpoint.name}`)
+    }
+    if (!(breakpoint.minWidth > (previous?.minWidth ?? 0))) {
+      throw new Error(`Breakpoints must be listed smallest first: ${breakpoint.name}`)
+    }
+  })
+
   return {
     importSource: definition.importSource,
     defaultComponent: sidebar[0].name,
     hasPage: page != null,
     hasColumns: columns != null,
+    breakpoints,
     has: (component) => byName.has(component),
     get,
     sidebarEntries: () => sidebar,
@@ -215,16 +247,20 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
       const row = columns(spans)
       return instantiate(row, allocator(templateIds(row)), keep)
     },
-    acceptsChildren: (component) => byName.get(component)?.acceptsChildren === true,
-    canPlace(component, parent, sibling = false) {
-      const host = byName.get(parent.component)
+    acceptsChildren: (component) => containers.has(component),
+    acceptsAny,
+    canPlace(component, path, sibling = false) {
+      const parent = path.at(-1)
+      const host = parent && byName.get(parent.component)
       const meta = byName.get(component)
-      if (!host || !meta) return false
+      if (!parent || !host || !meta) return false
       if (host.maxChildren != null && parent.children.length >= host.maxChildren) return false
       if (sibling) return true
-      if (!host.acceptsChildren) return false
+      if (!containers.has(host.name)) return false
       if (host.accepts && !host.accepts.includes(component)) return false
-      const parents = meta.parents ?? (meta.sidebar ? undefined : [...(templateParents.get(component) ?? [])])
+      if (meta.within && !path.some((node) => node.component === meta.within)) return false
+      const placed = meta.sidebar || meta.within != null
+      const parents = meta.parents ?? (placed ? undefined : [...(templateParents.get(component) ?? [])])
       return !parents || parents.includes(parent.component)
     },
     itemNoun: (component) => byName.get(component)?.item?.noun ?? null,
@@ -265,17 +301,29 @@ export function createRegistry(definition: RegistryDefinition): BuilderRegistry 
   }
 }
 
-/** Props passed to the rendered component: stored values over metadata defaults, filtered by platform. */
+/** The breakpoint the preview shows, and every breakpoint key smallest first (`base` first). */
+export interface PreviewScreen {
+  breakpoint: string
+  keys: readonly string[]
+}
+
+/**
+ * Props passed to the rendered component: stored values over metadata defaults, filtered by platform. With a
+ * `screen`, responsive maps become the value for that breakpoint, so the preview follows its own width instead of
+ * the browser window's media queries.
+ */
 export function resolveProps(
   meta: ComponentMetadata,
   props: Record<string, unknown>,
   platform: PlatformId,
+  screen?: PreviewScreen,
 ): Record<string, unknown> {
   const resolved: Record<string, unknown> = {}
   for (const prop of meta.props) {
     if (prop.textContent || prop.type === 'typography') continue
     if (prop.platforms && !prop.platforms.includes(platform)) continue
-    const value = props[prop.key] !== undefined ? props[prop.key] : prop.defaultValue
+    let value = props[prop.key] !== undefined ? props[prop.key] : prop.defaultValue
+    if (screen && prop.responsive) value = valueForScreen(value, screen.breakpoint, screen.keys)
     if (value !== undefined) resolved[prop.key] = value
   }
   return resolved

@@ -1,5 +1,3 @@
-import type { AdvuiPlatform } from './advuiMetaTypes'
-
 export type PlatformId = 'web' | 'android' | 'ios'
 
 export type PropType =
@@ -35,10 +33,18 @@ export interface PropMetadata {
   max?: number
   step?: number
   required?: boolean
+  /** Also takes a mobile-first map keyed by the registry's breakpoints, `{ base: 1, md: 2 }`. */
+  responsive?: boolean
   /** Editor writes `ConfigNode.text` instead of a component prop. */
   textContent?: boolean
   /** Typography editor writes these real AdvUI props (size, weight, tone). */
   fields?: string[]
+}
+
+/** A min-width breakpoint for responsive props, such as `md` from 768 pixels. */
+export interface BreakpointMetadata {
+  name: string
+  minWidth: number
 }
 
 export interface PlatformMetadata {
@@ -108,10 +114,12 @@ export interface ComponentMetadata {
   /** When set, only these components may go inside. */
   accepts?: string[]
   /**
-   * When set, it may only go inside these components. Compound parts without it may only go where the
-   * templates put them (`Card.Title` inside `Card.Header`).
+   * When set, it may only go directly inside these components. Compound parts without it or `within` may only
+   * go where the templates put them (`Card.Title` inside `Card.Header`).
    */
   parents?: string[]
+  /** When set, it must sit somewhere inside this component, because it reads its context. */
+  within?: string
   /** Most children it can hold. */
   maxChildren?: number
   /** The repeatable part that "Add item" appends. */
@@ -138,12 +146,6 @@ export interface SelectionContext {
 }
 
 const platformOrder: PlatformId[] = ['web', 'android', 'ios']
-
-export function toBuilderPlatform(platform: AdvuiPlatform): PlatformId {
-  if (platform === 'ios') return 'ios'
-  if (platform === 'android') return 'android'
-  return 'web'
-}
 
 export function emptyPlatforms(): Record<PlatformId, PlatformMetadata> {
   return {

@@ -1,7 +1,8 @@
-import { Alert, AlertDialog, AspectRatio, Avatar, Badge, Box, Button, Card, Center, Checkbox, Chip, Container, DropdownMenu, EmptyState, Grid, HStack, Image, Input, Label, List, NumberInput, Pagination, PasswordInput, Progress, RadioGroup, ScrollArea, Search, Select, Separator, Skeleton, Slider, Spacer, Spinner, Stack, Switch, Tabs, Text, Textarea, Toaster, Tooltip, UniversalProvider, VStack, Wrap, createUniversalConfig, toast } from '@advui/core'
+import { Alert, AlertDialog, AspectRatio, AutoGrid, Avatar, Badge, Box, Button, Card, Center, Checkbox, Chip, Container, DropdownMenu, EmptyState, Grid, Hide, HStack, Image, Input, Label, List, NumberInput, Pagination, PasswordInput, Progress, RadioGroup, ScrollArea, Search, Section, Select, Separator, Show, Skeleton, Slider, Spacer, Spinner, Stack, Sticky, Switch, Tabs, Text, Textarea, Toaster, Tooltip, UniversalProvider, VStack, Wrap, createUniversalConfig, toast } from '@advui/core'
 import { Children, useEffect, useRef, type ReactNode } from 'react'
 import type { ConfigNode } from '../../registry/metadata'
 import { resolveProps } from '../../registry/registry'
+import { inRange } from '../../registry/responsive'
 import type { PreviewContext, PreviewKit } from './previewKit'
 
 const config = createUniversalConfig({ preset: 'indigo', radius: 'md' })
@@ -27,6 +28,12 @@ const views: Record<string, ViewComponent> = {
   AspectRatio: asView(AspectRatio),
   Container: asView(Container),
   Grid: asView(Grid),
+  'Grid.Item': asView(Grid.Item),
+  AutoGrid: asView(AutoGrid),
+  Section: asView(Section),
+  Sticky: asView(Sticky),
+  Show: asView(Show),
+  Hide: asView(Hide),
   ScrollArea: asView(ScrollArea),
   Stack: asView(Stack),
   HStack: asView(HStack),
@@ -104,7 +111,7 @@ function fireToast(type: string, title: string, description: string, duration: n
 }
 
 function ToastPreview({ node, context }: { node: ConfigNode; context: PreviewContext }) {
-  const props = resolveProps(context.registry.get('Toast'), node.props, context.platform)
+  const props = resolveProps(context.registry.get('Toast'), node.props, context.platform, context.screen)
   const title = typeof props.title === 'string' ? props.title : 'Changes saved'
   const description = typeof props.description === 'string' ? props.description : ''
   const type = typeof props.type === 'string' ? props.type : 'success'
@@ -140,12 +147,40 @@ export function AdvuiFrame({ theme, children }: { theme: 'light' | 'dark'; child
 
 function renderSelectItem(child: ConfigNode, context: PreviewContext): ReactNode {
   if (child.component !== 'Select.Item') return null
-  const props = resolveProps(context.registry.get('Select.Item'), child.props, context.platform)
+  const props = resolveProps(context.registry.get('Select.Item'), child.props, context.platform, context.screen)
   const value = typeof props.value === 'string' ? props.value : ''
   return (
     <Select.Item key={child.id} value={value} disabled={props.disabled === true}>
       {child.text}
     </Select.Item>
+  )
+}
+
+/**
+ * Grid sizes its Grid.Item children by type, so a cell cannot sit inside a selection wrapper. The Grid draws
+ * each cell around the item's layer, and the layer draws a body that fills the cell. The cell lays the body out
+ * in a row, so drops between items follow the grid's rows.
+ */
+function renderGrid(node: ConfigNode, children: ReactNode, props: Record<string, unknown>, context: PreviewContext) {
+  const layers = Children.toArray(children)
+  if (node.children.length === 0) return <Grid {...props}>{children}</Grid>
+  const itemMeta = context.registry.get('Grid.Item')
+  return (
+    <Grid {...props}>
+      {node.children.map((child, index) =>
+        child.component === 'Grid.Item' ? (
+          <Grid.Item
+            key={child.id}
+            {...resolveProps(itemMeta, child.props, context.platform, context.screen)}
+            flexDirection="row"
+          >
+            {layers[index]}
+          </Grid.Item>
+        ) : (
+          layers[index]
+        ),
+      )}
+    </Grid>
   )
 }
 
@@ -156,7 +191,20 @@ export function renderAdvuiNode(node: ConfigNode, children: ReactNode, context: 
   const meta = context.registry.get(node.component)
   const props = {
     ...(meta.staticProps ?? {}),
-    ...resolveProps(meta, node.props, context.platform),
+    ...resolveProps(meta, node.props, context.platform, context.screen),
+  }
+  if (node.component === 'Grid') return renderGrid(node, children, props, context)
+  // Show and Hide use media queries, which follow the browser window. The preview decides from its own width.
+  if (node.component === 'Show' || node.component === 'Hide') {
+    const shown = inRange(context.screen.breakpoint, context.screen.keys, props) === (node.component === 'Show')
+    return <Box display={shown ? 'contents' : 'none'}>{children}</Box>
+  }
+  if (node.component === 'Grid.Item') {
+    return (
+      <Box flex={1} minWidth={0}>
+        {children}
+      </Box>
+    )
   }
   // Select matches option elements by type, so items cannot sit inside the selection wrapper.
   if (node.component === 'Select') {

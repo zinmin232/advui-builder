@@ -28,11 +28,21 @@ function jsxText(text: string): string {
   return unsafe ? `{${JSON.stringify(text)}}` : text
 }
 
+/** An object literal such as a responsive map: `{ base: "column", md: "row" }`. Other values are JSON. */
+function formatExpression(value: unknown): string {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return JSON.stringify(value)
+  const entries = Object.entries(value).map(([key, item]) => {
+    const name = /^[A-Za-z_$][\w$]*$/.test(key) ? key : JSON.stringify(key)
+    return `${name}: ${formatExpression(item)}`
+  })
+  return entries.length ? `{ ${entries.join(', ')} }` : '{}'
+}
+
 function formatAttr(key: string, value: unknown): string {
   if (typeof value === 'boolean') return value ? key : `${key}={false}`
   if (typeof value === 'number') return `${key}={${value}}`
   if (typeof value === 'string') return `${key}="${escapeAttr(value)}"`
-  return `${key}={${JSON.stringify(value)}}`
+  return `${key}={${formatExpression(value)}}`
 }
 
 function emittedAttrs(registry: BuilderRegistry, node: ConfigNode, platform: PlatformId): string[] {

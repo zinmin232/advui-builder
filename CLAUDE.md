@@ -17,20 +17,18 @@ pnpm typecheck          # tsc --noEmit
 pnpm test               # vitest run (jsdom)
 pnpm e2e                # Playwright browser tests in e2e/ (starts its own dev server on :5174; with CI set, serves dist/)
 pnpm build              # typecheck + vite build
-pnpm sync-meta          # regenerate src/registry/sourceMeta.ts from AdvUI upstream (needs GitHub access)
-pnpm sync-meta --check  # fail if the snapshot differs from upstream
 ```
 
 Before committing, run `pnpm typecheck && pnpm test && pnpm build`, plus `pnpm e2e` when you touch drag-and-drop, the canvas, or Layers. There is no ESLint or Prettier config. Match the existing style by hand.
 
-CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`, with Node 22 and pnpm 12.8.1. One job runs typecheck, unit tests and `sync-meta --check`; the other runs `pnpm build`, then `pnpm e2e` against that build. On CI, Playwright serves `dist/` with `vite preview`, because a cold dev server can take longer than the test timeout on the first page load. To reproduce that run locally, use `pnpm build && CI=1 pnpm e2e`. Traces from failed browser tests are uploaded as the `playwright-traces` artifact.
+CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`, with Node 22 and pnpm 12.8.1. One job runs typecheck and unit tests; the other runs `pnpm build`, then `pnpm e2e` against that build. On CI, Playwright serves `dist/` with `vite preview`, because a cold dev server can take longer than the test timeout on the first page load. To reproduce that run locally, use `pnpm build && CI=1 pnpm e2e`. Traces from failed browser tests are uploaded as the `playwright-traces` artifact.
 
 On a fresh machine, run `pnpm exec playwright install chromium` once before `pnpm e2e`. Cloud sessions already have Chromium at `/opt/pw-browsers`, which matches the pinned `@playwright/test@1.56.1`.
 
 ## Stack
 
 - Node >= 20, pnpm 10, React 19.2, TypeScript 5.9 (`strict`, `noUnusedLocals`, `noUnusedParameters`), Vite 6.
-- Real AdvUI components from `@advui/core@0.10.0` (Tamagui 2.7.7). `react-native` is aliased to `react-native-web` in `vite.config.ts`, and `.web.*` extensions resolve first.
+- Real AdvUI components from `@advui/core@0.12.0` (Tamagui 2.7.7). Component metadata comes from the same package, `@advui/core/meta`. `@advui/theme` is a dev dependency only, so a test can check the registry's breakpoints against it. `react-native` is aliased to `react-native-web` in `vite.config.ts`, and `.web.*` extensions resolve first.
 - Tests: Vitest 3 with globals, jsdom, Testing Library, and user-event. Setup is in `src/test/setup.ts`.
 - State is plain React (`useReducer` and context). Don't add a state library.
 - Drag-and-drop: `@dnd-kit/core` handles pointer tracking, the drag chip (`DragOverlay`) and Escape-to-cancel. Drop targets are worked out by the builder itself (see below), not by dnd-kit droppables.
@@ -40,7 +38,7 @@ On a fresh machine, run `pnpm exec playwright install chromium` once before `pnp
 ## Architecture
 
 ```
-sourceMeta.ts (generated AdvUI *.meta.ts snapshot)
+@advui/core/meta (AdvUI's published component metadata)
   → adaptMeta.ts (ComponentMeta → builder ComponentMetadata)
   → componentRegistry.ts (AdvUI definitions: extra props, templates, items → advuiRegistry)
   → registry.ts createRegistry() → BuilderRegistry          ← injected by App.tsx
@@ -53,11 +51,11 @@ sourceMeta.ts (generated AdvUI *.meta.ts snapshot)
 | Area | Files |
 |---|---|
 | Metadata types | `src/registry/metadata.ts` (`ComponentMetadata`, `PropMetadata`, `TemplateNode`, `ItemTemplate`, `ConfigNode`, `SelectionContext`) |
-| Generic registry | `src/registry/registry.ts`: `createRegistry()` → `BuilderRegistry` (`get`, `sidebarEntries`, `search`, `match`, `createDocument`, `createPage`/`hasPage`, `createColumns`/`hasColumns`, `acceptsChildren`, `canPlace`, `itemNoun`, `addItem`), `resolveProps`, `nextId`. No AdvUI imports. `src/registry/columns.ts` holds the 12-column span rules (`COLUMN_PRESETS`, `parseSpans`) |
-| Upstream schema | `src/registry/advuiMetaTypes.ts` (subset of AdvUI `ComponentMeta`) |
-| Generated snapshot | `src/registry/sourceMeta.ts`. **Never edit by hand.** Written by `scripts/sync-meta.mjs` |
-| Adapter | `src/registry/adaptMeta.ts`: prop typing, platform notes, `propsForPlatform`, `groupedProps` |
-| AdvUI registry | `src/registry/componentRegistry.ts`: one `adaptAdvuiMeta(...)` definition per component or part (extra props, `template`, `acceptsChildren`, `item`), then `advuiRegistry = createRegistry({ importSource, components, page, columns })`. Sidebar order = order in `components`. `columns(spans)` builds a layout preset row: an HStack of Boxes with `flex` = span |
+| Generic registry | `src/registry/registry.ts`: `createRegistry()` → `BuilderRegistry` (`get`, `sidebarEntries`, `search`, `match`, `createDocument`, `createPage`/`hasPage`, `createColumns`/`hasColumns`, `breakpoints`, `acceptsChildren`, `acceptsAny`, `canPlace`, `itemNoun`, `addItem`), `resolveProps`, `nextId`. No AdvUI imports. `src/registry/columns.ts` holds the 12-column span rules (`COLUMN_PRESETS`, `parseSpans`) |
+| Responsive values | `src/registry/responsive.ts`: mobile-first maps (`{ base, md, … }`) keyed by the registry's `breakpoints`: `breakpointAt`, `valueAt`, `withValueAt`, `valueForScreen`, `inRange`. Pure, no AdvUI imports |
+| Upstream metadata | `@advui/core/meta` (`components`, `categories`, the `ComponentMeta` types). Read in `componentRegistry.ts` with `advuiMeta('slug')`. Never copy it into the repo |
+| Adapter | `src/registry/adaptMeta.ts`: prop typing (incl. `responsive`), drop rules from each part's `children` / `parents` / `within`, platform notes, `propsForPlatform`, `groupedProps` |
+| AdvUI registry | `src/registry/componentRegistry.ts`: one `adaptAdvuiMeta(...)` definition per component or part (extra props, `template`, `item`, rule overrides), then `advuiRegistry = createRegistry({ importSource, breakpoints, components, page, columns })`. Sidebar order = order in `components`. `columns(spans)` builds a layout preset row: a 12-column `Grid` of `Grid.Item`s with `span={{ base: 12, md: n }}` |
 | Shared style props | `src/registry/styleProps.ts` (background, radius, padding, gap, typography…) |
 | State | `src/builder/state/builderState.ts` (`createBuilderReducer(registry)`, `createBuilderState(registry, …)`, `mode` + `parked`, `insertionTarget`, pure and unit-tested), `BuilderProvider.tsx` (`registry` prop, `useRegistry()`) |
 | Tree utils | `src/builder/selection/selection.ts`: `findPath`, `parentOf`, `mapTree`, `canDrop`, `insertAt`, insert/move/duplicate/place |
@@ -71,43 +69,43 @@ sourceMeta.ts (generated AdvUI *.meta.ts snapshot)
 
 ## Rules for changes
 
-- **Metadata-driven.** Don't add `if (component === 'X')` branches in the inspector, sidebar, layers, state, or panels. Starter trees, containers, and repeatable items are metadata (`template`, `acceptsChildren`, `item`), and `createRegistry` handles them generically. Component-specific code is allowed only where the component really needs it (today: `AdvuiPreview.tsx` for Toast, Select, and clone-child hosts; `codeGenerator.ts` for Toast).
-- **No library imports in the core.** Files under `src/builder/` (except the `AdvuiPreview.tsx` kit) must not import `componentRegistry.ts`, `sourceMeta.ts`, or `@advui/core`. Take the registry from `useRegistry()` or a `registry` parameter (registry-first for tree and state helpers; inside the options object for `generateCode`).
+- **Metadata-driven.** Don't add `if (component === 'X')` branches in the inspector, sidebar, layers, state, or panels. Starter trees, containers, and repeatable items are metadata (`template`, `acceptsChildren`, `item`), and `createRegistry` handles them generically. Component-specific code is allowed only where the component really needs it (today: `AdvuiPreview.tsx` for Toast, Select, Grid, Show/Hide, and clone-child hosts; `codeGenerator.ts` for Toast).
+- **No library imports in the core.** Files under `src/builder/` (except the `AdvuiPreview.tsx` kit) must not import `componentRegistry.ts`, `@advui/core` or `@advui/core/meta`. Take the registry from `useRegistry()` or a `registry` parameter (registry-first for tree and state helpers; inside the options object for `generateCode`).
 - **One source of truth.** The document tree and `selectedId` live in the reducer. Don't copy props or selection into local component state. Derive the path, breadcrumb, and inspector values from `findPath(state.document, state.selectedId)`.
 - **Defaults are not stored.** `storesValue()` drops values equal to `prop.defaultValue` (required props keep explicit values). The code generator also skips defaults. Keep the two consistent.
 - **The preview background is not a component prop.** `state.background` only paints the canvas.
 - **Reset scope.** `reset` rebuilds the current component's starter document (an empty page in Page mode) only. It never touches preview settings, panel sizes, or preferences.
 - **Modes.** `set-mode` parks the other mode's document in `state.parked`, so switching back restores it. `open` (a sidebar click) opens the component in Component mode and adds it at `insertionTarget` in Page mode. `select-component` always shows Component mode and parks a page in progress. Undo snapshots include `mode` and `parked`.
 - **Layout presets are registry data too.** The sidebar's Columns group (`sidebar/ColumnPresets.tsx`) shows only when the registry defines `columns`, and adds rows with `insert-columns` / `insert-columns-at`. Those go through the same drop rules as a component, checked against the row's root. Spans are whole numbers that add up to 12; the reducer ignores anything else.
-- **Drop rules live in the registry.** Every insert, drop and move goes through `canDrop` / `registry.canPlace`: container (`acceptsChildren`), `accepts`, `parents`, `maxChildren`. Compound parts without `parents` may only go where the templates put them (`Card.Title` inside `Card.Header`). Moving a layer among its own siblings is always allowed. The reducer re-checks, so the UI can't create an invalid tree.
+- **Drop rules live in the registry, and AdvUI supplies them.** `adaptAdvuiMeta` reads each part's upstream `children` (`accepts`, `max`), `parents` and `within`. Override them in `componentRegistry.ts` only with a reason in a comment (today: `acceptsChildren: false` on parts the builder edits as text). Every insert, drop and move goes through `canDrop` / `registry.canPlace(component, path)`: container (`acceptsChildren`), `accepts`, `parents`, `within` (an ancestor anywhere on the path), `maxChildren`. A moved layer's own parts must keep their `within`. A container whose listed children are all unregistered holds nothing. Compound parts without `parents` or `within` may only go where the templates put them (`Card.Title` inside `Card.Header`). Moving a layer among its own siblings is always allowed. The reducer re-checks, so the UI can't create an invalid tree.
+- **Inserts go into a container that takes anything.** Sidebar inserts and "add item" use the nearest layer where `acceptsAny` is true (a container without an `accepts` list), passing over hosts that hold only their parts (Select, Tabs.List, DropdownMenu.Content).
+- **Responsive props.** A prop with `responsive: true` stores a plain value or a mobile-first map (`{ base: 12, md: 8 }`). The inspector shows a "Per size" toggle with one row per breakpoint. The preview passes `context.screen` to `resolveProps`, which turns maps into the value for the preview width, because AdvUI's media queries follow the browser window, not the preview frame. Components that hide or switch with media queries (Show/Hide) need the same treatment in the kit. The code generator writes maps as object literals.
 - **Drag-and-drop wiring.** New drag sources use `useDragSource(id, item)` with an id that is unique on screen (sidebar ids include the group). Elements that accept drops register with `useDropSurface('canvas' | 'layers', element)`. `resolveDrop` walks up from the layer under the pointer to the nearest one that accepts the drag. Builder chrome drawn over the canvas must carry `data-drop-ignore`, so hit-testing looks through it. Canvas indicator CSS classes use a `canvas-` prefix (a bare `.drop-inside` once collided with the Layers row markers).
 - **The empty-container slot is preview-only.** It never reaches the tree or the code.
 - **Persistence scope.** Persist UI preferences (panels, widths, recent, favorites, preview settings, last component, mode). Don't persist the selection or the document; a page is lost on reload until save/load (Phase 5). Sharing goes through URLs; a page link carries `mode=page` and the whole tree in `doc`.
 - **Undo.** Only document actions (listed in `documentActions`) enter history. Repeated edits to one field merge into one step through `historyKey`.
 - **Platform filtering.** Use `prop.platforms` to filter props by platform, in the inspector (`propsForPlatform`), the preview (`resolveProps`), and the code generator.
-- Upstream AdvUI types some props as `ReactNode` or unions the adapter can't edit. Add those as `extraProps` in the registry, never by editing `sourceMeta.ts`. A test fails if a sync drops a prop that a template uses.
+- Upstream AdvUI types some props as `ReactNode` or unions the adapter can't edit. Add those as `extraProps` in the registry. A test fails if an AdvUI upgrade drops a prop that a template uses.
 
 ## Adding a component
 
-1. Add its slug to `SLUGS` in `scripts/sync-meta.mjs`, then run `pnpm sync-meta`.
-2. In `src/registry/componentRegistry.ts`, write one definition and list it in `advuiRegistry.components`:
+1. In `src/registry/componentRegistry.ts`, read its metadata (`const xMeta = advuiMeta('x')`), write one definition, and list it in `advuiRegistry.components`:
    ```ts
    const x = adaptAdvuiMeta(xMeta, {
      extraProps, staticProps, propPlatforms, propOverrides, category,
      omit,                                        // documented props to leave out of the inspector
      template: node('x', 'X', 'X', { size: 'lg' }, [/* child nodes */], 'Text'), // starter tree, unique ids
-     acceptsChildren: true,                       // other layers can go inside
      item: { noun, part, valuePrefix, nodes },    // only if "Add item" grows it (see Select, Tabs)
    })
    ```
    - Compound parts are their own definitions with `part: 'X.Part'`, `sidebar: false`, and `importName: 'X'`. List them after their component.
-   - Drop rules are optional: `accepts` (allowed children), `parents` (allowed parents), `maxChildren`. Parts already default to the parents their templates use.
+   - Drop rules come from upstream. Override `acceptsChildren`, `accepts`, `parents`, `within` or `maxChildren` only when the builder needs to differ, and say why. Starter templates must follow upstream's rules (a ScrollArea holds one child).
    - Set `invisible: true` on a component that draws nothing on its own (Spacer), so the canvas outlines it.
    - Without a `template`, the bare component opens (`id` from the name, text from the playground `children`).
    - In item templates, `{n}`, `{value}`, and `{host}` are filled in. `into` puts a node inside a host child of that component (Tabs triggers go into `Tabs.List`).
    - `createRegistry` throws at startup if a template or item names an unregistered component.
-3. In `src/builder/preview/AdvuiPreview.tsx`, add one line to `views`. Add a special render path only if the component clones or type-matches its children (see `directChildHosts` and `Select`).
-4. Add assertions to `src/registry/adaptMeta.test.ts`. The template-prop check runs automatically for every sidebar entry.
+2. In `src/builder/preview/AdvuiPreview.tsx`, add one line to `views`. Add a special render path only if the component clones or type-matches its children (see `directChildHosts`, `Select` and `renderGrid`), or decides layout from window media queries (Show/Hide).
+3. Add assertions to `src/registry/adaptMeta.test.ts`. The template-prop check runs automatically for every sidebar entry.
 
 ## Code style
 
@@ -123,20 +121,22 @@ sourceMeta.ts (generated AdvUI *.meta.ts snapshot)
 - UI tests (`src/builder/interaction.test.tsx`) render `<BuilderProvider registry={advuiRegistry} initial={createBuilderState(advuiRegistry, 'Card')} persist={false}>` with a fake `renderNode`. AdvUI and Tamagui are not rendered in jsdom. To check real rendering, run `pnpm dev`, or drive Chromium with Playwright (preinstalled in cloud sessions, `executablePath: '/opt/pw-browsers/chromium'`).
 - Persistence tests pass a fake storage to `loadPreferences` and `savePreferences`.
 - Drag-and-drop can't run in jsdom. Test the logic as pure functions (`dropTarget.test.ts`, reducer `insert-at` / `place`), and the gestures in `e2e/*.spec.ts` with real pointer events (`page.mouse` down, move with steps, up).
-- Inserted copies get component-based ids (`image`, `button`, `card-header`), not the template ids (`card-image`). E2E tests that insert a Card must use those ids.
+- Inserted copies get component-based ids (`image`, `button`, `card-header`), not the template ids (`card-image`). E2E tests that insert a Card must use those ids. A column preset inserts `grid`, `grid-item`, `grid-item-2`…
+- `src/registry/breakpoints.test.ts` runs in the Node environment: `@advui/theme` loads Tamagui, which needs `window.matchMedia` when a window exists, and jsdom has none.
 - Test files bind the AdvUI reducer once: `const builderReducer = createBuilderReducer(advuiRegistry)`.
 - `src/test/acmeLibrary.ts` is a small non-AdvUI library. `registry.test.ts` and the "injected registry" UI test use it to prove the core runs from metadata alone. Keep them passing when you change the registry contract.
 
 ## Status against the original build brief
 
-All 24 "Definition of Done" steps work, checked in Chromium on 2026-10-03: search, select, platform switch, width, background, click-to-select with outline, context inspector, breadcrumb, platform notes, reset, TSX, copy, collapse, resize, and reload persistence. There are 42 sidebar components (plus compound parts) built on real AdvUI. Extras beyond the brief: undo/redo, insert/remove/duplicate/move, drag-and-drop layers, "add item" for Select/Tabs/List/RadioGroup/Menu, share links, keyboard shortcuts, and canvas rulers.
+All 24 "Definition of Done" steps work, checked in Chromium on 2026-10-03: search, select, platform switch, width, background, click-to-select with outline, context inspector, breadcrumb, platform notes, reset, TSX, copy, collapse, resize, and reload persistence. There are 47 sidebar components (plus compound parts) built on real AdvUI. Extras beyond the brief: undo/redo, insert/remove/duplicate/move, drag-and-drop layers, "add item" for Select/Tabs/List/RadioGroup/Menu, share links, keyboard shortcuts, and canvas rulers.
 
 Phase 1 of the LayoutIt-style plan is done: Page mode, @dnd-kit drag-and-drop (sidebar → canvas or Layers, moving on the canvas and in Layers), drop lines and boxes, empty-container slots, drop rules, and Playwright tests.
 
 Remaining phases of that plan:
 
-- **Phase 2:** done. Box, HStack, VStack, Center, Spacer and Wrap are registered, with upstream's `direction` / `align` / `distribute` / `wrap` instead of raw flex props. Layout presets (`12`, `6 6`, `8 4`, `4 8`, `4 4 4`, `3 3 3 3`, or custom spans) add an HStack of Boxes sized by `flex`. Switch `columns` to real column spans once AdvUI adds `Grid.Item span`.
-- **Phase 3:** a "Blocks" sidebar group (Navbar, Hero, Pricing, Login, Footer) and more AdvUI components (NavigationBar, Breadcrumb, Accordion, Dialog, Form, Sidebar).
+- **Phase 2:** done. Box, HStack, VStack, Center, Spacer and Wrap are registered, with upstream's `direction` / `align` / `distribute` / `wrap` instead of raw flex props. Layout presets (`12`, `6 6`, `8 4`, `4 8`, `4 4 4`, `3 3 3 3`, or custom spans) add a 12-column Grid of Grid.Items that sit side by side from md up and stack on phones.
+- **Phase 2.5 (AdvUI 0.12.0):** done. Metadata comes from `@advui/core/meta`, drop rules from upstream child rules (`children`, `parents`, `within`), responsive props are edited per breakpoint and previewed at the preview width, and AutoGrid, Section, Sticky, Show and Hide are registered.
+- **Phase 3:** a "Blocks" sidebar group (Navbar, Hero, Pricing, Login, Footer) and more AdvUI components (NavigationBar, Breadcrumb, Accordion, Dialog, Form, Sidebar, AppShell). Their metadata already ships in `@advui/core/meta`.
 - **Phase 4:** double-click to edit text, a hover toolbar, Alt+↑/↓ and copy/paste, and an Edit / Preview toggle.
 - **Phase 5:** export the page as `Page.tsx`, save and load pages, page settings.
 - **Phase 6:** lint/format, performance on large pages. CI is done.
@@ -161,3 +161,8 @@ Known gaps, highest value first:
 10. There is no ESLint or Prettier config.
 11. Toast is still special-cased in the generic `codeGenerator.ts`. A per-component code hook in metadata would move it into the AdvUI registry.
 12. Fit zoom uses a global `document.querySelector('.preview .canvas')`, and the URL is not kept in sync with state (links only come from "Copy link").
+13. **AppShell is not registered.** It fills `100dvh` and turns its sidebar into a drawer from a window media query, so the canvas can't show it at the preview width. It needs an AdvUI option to render for a given width.
+14. AdvUI's own responsive defaults (Container `gutter`, Section's inner Container) still follow the browser window in the preview; only values set in the builder follow the preview width.
+15. `children.min` from upstream (Field, Tooltip, triggers) is not enforced: removing the last child is allowed.
+16. The registry's `breakpoints` are written out in `componentRegistry.ts` (checked against `@advui/theme` by a test), because `@advui/core/meta` does not publish them.
+17. `@advui/core/meta` uses extensionless relative imports, so plain Node can't import it (Vite and Vitest can). Fixing that upstream would let Node scripts read it.

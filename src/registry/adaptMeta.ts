@@ -1,8 +1,6 @@
-import type { CategoryId, ComponentMeta, PlaygroundControl, PropDoc } from './advuiMetaTypes'
-import { categoryLabels } from './advuiMetaTypes'
+import { categories, type CategoryId, type ComponentMeta, type PlaygroundControl, type PropDoc } from '@advui/core/meta'
 import {
   emptyPlatforms,
-  toBuilderPlatform,
   type ComponentMetadata,
   type ItemTemplate,
   type PlatformId,
@@ -13,6 +11,11 @@ import {
 } from './metadata'
 
 const groupOrder = ['component', 'typography', 'appearance', 'layout', 'advanced'] as const
+
+const categoryLabels = Object.fromEntries(categories.map((category) => [category.id, category.label])) as Record<
+  CategoryId,
+  string
+>
 
 const labels: Record<string, string> = {
   src: 'Source',
@@ -104,7 +107,8 @@ function editorType(doc: PropDoc): PropType | null {
   if (!/^[A-Za-z][\w-]*$/.test(doc.name) || /^on[A-Z]/.test(doc.name)) return null
   if (selectOptions(doc)) return 'select'
   if (doc.type === 'boolean') return 'boolean'
-  if (doc.type === 'number') return 'number'
+  // A number that also takes keywords (`number | 'full' | 'auto'`) is edited as the number.
+  if (/^number( \| '[^']*')*$/.test(doc.type)) return 'number'
   if (/^string( \||$)/.test(doc.type)) return 'string'
   return null
 }
@@ -123,8 +127,9 @@ function propFromDoc(doc: PropDoc): PropMetadata | null {
     defaultValue: documented === undefined && type === 'boolean' ? false : documented,
     options,
     required: doc.required,
+    ...(doc.responsive ? { responsive: true } : {}),
     ...(type === 'number' ? { min: doc.min, max: doc.max, step: doc.step } : {}),
-    platforms: doc.platforms?.map(toBuilderPlatform),
+    platforms: doc.platforms,
   }
 }
 
@@ -170,11 +175,14 @@ export interface AdaptOptions {
   omit?: string[]
   /** Starter tree opened from the sidebar. */
   template?: TemplateNode
-  /** Other layers can be inserted or dropped inside it. */
+  /**
+   * Drop rules, which default to the part's upstream `children`, `parents` and `within`. Set `acceptsChildren:
+   * false` where upstream allows elements but the builder edits the part as text. See `ComponentMetadata`.
+   */
   acceptsChildren?: boolean
-  /** Drop rules: allowed children, allowed parents, and capacity. See `ComponentMetadata`. */
   accepts?: string[]
   parents?: string[]
+  within?: string
   maxChildren?: number
   /** The repeatable part that "Add item" appends. */
   item?: ItemTemplate
@@ -248,11 +256,13 @@ export function adaptAdvuiMeta(meta: ComponentMeta, options: AdaptOptions = {}):
     }
   }
 
+  const rules = part?.children
+  const holds = rules != null && rules.accepts !== 'text' && rules.accepts !== 'none'
+
   const platforms = emptyPlatforms()
   for (const platform of meta.platforms) {
-    const id = toBuilderPlatform(platform)
     const note = meta.platformNotes?.[platform]
-    platforms[id] = {
+    platforms[platform] = {
       supported: true,
       notes: note ? [plain(note)] : undefined,
     }
@@ -273,10 +283,11 @@ export function adaptAdvuiMeta(meta: ComponentMeta, options: AdaptOptions = {}):
     platforms,
     staticProps: options.staticProps,
     template: options.template,
-    acceptsChildren: options.acceptsChildren,
-    accepts: options.accepts,
-    parents: options.parents,
-    maxChildren: options.maxChildren,
+    acceptsChildren: options.acceptsChildren ?? holds,
+    accepts: options.accepts ?? (Array.isArray(rules?.accepts) ? rules.accepts : undefined),
+    parents: options.parents ?? part?.parents,
+    within: options.within ?? part?.within,
+    maxChildren: options.maxChildren ?? rules?.max,
     item: options.item,
     invisible: options.invisible,
     examples: meta.examples.map((example) => ({

@@ -1,10 +1,12 @@
 import type { ComponentType, ReactNode } from 'react'
 import type { ConfigNode, PlatformId } from '../../registry/metadata'
-import type { BuilderRegistry } from '../../registry/registry'
+import type { BuilderRegistry, PreviewScreen } from '../../registry/registry'
 
 export interface PreviewContext {
   platform: PlatformId
   registry: BuilderRegistry
+  /** The breakpoint of the preview width. Pass it to `resolveProps` so responsive props follow the preview. */
+  screen: PreviewScreen
 }
 
 /**

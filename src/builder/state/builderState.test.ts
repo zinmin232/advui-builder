@@ -359,8 +359,11 @@ describe('layout presets', () => {
     const page = createBuilderState(advuiRegistry, 'Button', { mode: 'page' })
     const added = builderReducer(page, { type: 'insert-columns', spans: [8, 4] })
     const row = added.document.children[0]
-    expect(row).toMatchObject({ component: 'HStack', label: 'Columns 8 4', props: { align: 'stretch' } })
-    expect(row.children.map((column) => [column.component, column.props.flex])).toEqual([['Box', 8], ['Box', 4]])
+    expect(row).toMatchObject({ component: 'Grid', label: 'Columns 8 4', props: { columns: 12 } })
+    expect(row.children.map((column) => [column.component, column.props.span])).toEqual([
+      ['Grid.Item', { base: 12, md: 8 }],
+      ['Grid.Item', { base: 12, md: 4 }],
+    ])
     expect(added.selectedId).toBe(row.id)
 
     const nested = builderReducer({ ...added, selectedId: row.children[1].id }, { type: 'insert-columns', spans: [6, 6] })
@@ -370,7 +373,7 @@ describe('layout presets', () => {
     expect(builderReducer(added, { type: 'undo' }).document.children).toEqual([])
   })
 
-  it('ignores spans that do not add up to 12, and drops a row only where a stack may go', () => {
+  it('ignores spans that do not add up to 12, and drops a row only where a grid may go', () => {
     const page = createBuilderState(advuiRegistry, 'Button', { mode: 'page' })
     expect(builderReducer(page, { type: 'insert-columns', spans: [6, 5] })).toBe(page)
     const card = builderReducer(page, { type: 'insert', component: 'Card' })
@@ -379,7 +382,7 @@ describe('layout presets', () => {
 
     const beside = builderReducer(card, { ...inside, spans: [4, 4, 4], position: 'before' })
     const footer = beside.document.children[0].children.find((child) => child.component === 'Card.Footer')!
-    expect(footer.children.map((child) => child.component)).toEqual(['HStack', 'Button'])
+    expect(footer.children.map((child) => child.component)).toEqual(['Grid', 'Button'])
     expect(footer.children[0].children).toHaveLength(3)
   })
 })
@@ -431,7 +434,30 @@ describe('drop rules', () => {
     expect(moved.document.children.map((child) => child.id)).toEqual(['select-pear', 'select-apple', 'select-orange'])
     const copied = builderReducer(select, { type: 'duplicate' })
     expect(copied.document.children).toHaveLength(4)
-    // Select is not a container, so new layers cannot be dropped into it from outside.
+    // Select holds only its options, so other layers cannot be dropped into it.
     expect(insertAt(select, 'Badge', 'select-pear', 'after')).toBe(select)
+  })
+
+  it('keeps parts that read a component’s context inside it when their layer moves', () => {
+    const radio = createBuilderState(advuiRegistry, 'RadioGroup')
+    const row = insertAt(radio, 'HStack', 'radio-group', 'inside')
+    const rowId = row.selectedId
+    const moved = place(row, 'radio-monthly', rowId, 'inside')
+    expect(moved.document.children.find((child) => child.id === rowId)?.children.at(-1)?.id).toBe('radio-monthly')
+
+    // Moved into a Box outside the group, the stack would take the radio item out of its RadioGroup.
+    const page = builderReducer(createBuilderState(advuiRegistry, 'Button', { mode: 'page' }), {
+      type: 'apply-document',
+      component: 'Button',
+      document: {
+        id: 'page',
+        component: 'Stack',
+        label: 'Page',
+        props: {},
+        children: [moved.document, { id: 'outside', component: 'Box', label: 'Box', props: {}, children: [] }],
+      },
+    })
+    expect(place(page, rowId, 'outside', 'inside')).toBe(page)
+    expect(place(page, 'radio-yearly-label', 'outside', 'inside').document.children[1].children).toHaveLength(1)
   })
 })

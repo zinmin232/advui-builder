@@ -9,14 +9,14 @@ importers:
   .:
     dependencies:
       '@advui/core':
-        specifier: 0.10.0
-        version: 0.10.0(react-dom@19.2.3(react@19.2.3))(react-native-svg@15.15.4(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(tamagui@2.7.7(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))
+        specifier: 0.12.0
+        version: 0.12.0(react-dom@19.2.3(react@19.2.3))(react-native-svg@15.15.4(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(tamagui@2.7.7(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       advui:
-        specifier: 0.10.0
-        version: 0.10.0
+        specifier: 0.12.0
+        version: 0.12.0
       react:
         specifier: 19.2.3
         version: 19.2.3
@@ -33,6 +33,9 @@ importers:
         specifier: 2.7.7
         version: 2.7.7(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
     devDependencies:
+      '@advui/theme':
+        specifier: 0.12.0
+        version: 0.12.0(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(tamagui@2.7.7(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))
       '@playwright/test':
         specifier: 1.56.1
         version: 1.56.1
@@ -72,8 +75,8 @@ packages:
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
 
-  '@advui/core@0.10.0':
-    resolution: {integrity: sha512-yrRSx+CbP0hrjWowYwscvYY+OnXi3DbQus4iFBEiJpyjavi+EYr361NFEcb7Bf4NXIHD+jCgE7A4CaHzBxIckg==}
+  '@advui/core@0.12.0':
+    resolution: {integrity: sha512-t8leecxFOOSOrpOL8hj8mcJa1sRf6LyV4/dgFhbc+YcbRAy6RFzc4LOAVtJbiEYcub1qVo2oSeQu5lFCWoO4Ww==}
     peerDependencies:
       react: '>=19'
       react-native: '*'
@@ -83,8 +86,8 @@ packages:
       react-native-svg:
         optional: true
 
-  '@advui/icons@0.10.0':
-    resolution: {integrity: sha512-1vagga7i72YZ72jg4Qt4bdhnZ/QOSkcx1Lpai3GF5WY+FbSIzEoE/vfgiDg4TOvZupplQcb/SUF4m+MGTRq3DQ==}
+  '@advui/icons@0.12.0':
+    resolution: {integrity: sha512-SFugT86Dwx19pl7yvo6O/6asF4Jlcunyh0HbTcVdy8SyJCSG9s7KQqy+TjwHJuiGO9Yj1pL6mx45nZDiPh1n/A==}
     peerDependencies:
       react: '>=19'
       react-native: '*'
@@ -94,15 +97,15 @@ packages:
       react-native-svg:
         optional: true
 
-  '@advui/theme@0.10.0':
-    resolution: {integrity: sha512-WPuaKxGjvIwxiscqlzQH6TH0n/2PWKw3BVlqzx0T1Ot7IycwU9ISfwdRihELDQQ8dPpbB7Xhkql1JF/ZYtD4Mg==}
+  '@advui/theme@0.12.0':
+    resolution: {integrity: sha512-8emZ2ct9StGhH6XReWLA44ev5qJY5n7CHy0rZwfDyNn0nTWYrtnL473kofzoilR4a1K99VTnk0uDO4tPTx0AMA==}
     peerDependencies:
       react: '>=19'
       react-native: '*'
       tamagui: ^2.7.7
 
-  '@advui/utils@0.10.0':
-    resolution: {integrity: sha512-aiSjL9URgEqsVt4q29l8vzoF+n2d5eFvY5laiC3knL/dfzMDeQSkx9l/Gc9zk6ITM4A+lzXMVi+neG6bOHopiA==}
+  '@advui/utils@0.12.0':
+    resolution: {integrity: sha512-bwciCg0biYkj4cPA3O63Er3uN4PtGYBacNCfP0GWtCNEQjY8F+Uo2Sh+1kr5RrClrCsJoSjEnJQBBUXaEoZP9A==}
     peerDependencies:
       react: '>=19'
     peerDependenciesMeta:
@@ -1268,8 +1271,8 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-  advui@0.10.0:
-    resolution: {integrity: sha512-sFM/iyV/No6Je8CnDXUYTjisH2/KQNeiDyYkCjSfXaay0oibr4zmXjZjpv+6PBj3Hyd3e4DjQ0JFIxZ9Uh4pHg==}
+  advui@0.12.0:
+    resolution: {integrity: sha512-N1b1k+wz9qNd9EzGoQTLRfeNBqcxmbuH2/h2JusAsJ7naSrqbvd5dYwj1VOdzRWw6AMreOQJslpQG4xs64gyJw==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -2448,11 +2451,11 @@ snapshots:
 
   '@adobe/css-tools@4.5.0': {}
 
-  '@advui/core@0.10.0(react-dom@19.2.3(react@19.2.3))(react-native-svg@15.15.4(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(tamagui@2.7.7(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))':
+  '@advui/core@0.12.0(react-dom@19.2.3(react@19.2.3))(react-native-svg@15.15.4(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(tamagui@2.7.7(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))':
     dependencies:
-      '@advui/icons': 0.10.0(react-dom@19.2.3(react@19.2.3))(react-native-svg@15.15.4(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(tamagui@2.7.7(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))
-      '@advui/theme': 0.10.0(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(tamagui@2.7.7(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))
-      '@advui/utils': 0.10.0(react@19.2.3)
+      '@advui/icons': 0.12.0(react-dom@19.2.3(react@19.2.3))(react-native-svg@15.15.4(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(tamagui@2.7.7(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))
+      '@advui/theme': 0.12.0(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(tamagui@2.7.7(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))
+      '@advui/utils': 0.12.0(react@19.2.3)
       '@tamagui/core': 2.7.7(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@tamagui/dismissable': 2.7.7(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@tamagui/floating': 2.7.7(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
@@ -2468,7 +2471,7 @@ snapshots:
     transitivePeerDependencies:
       - react-dom
 
-  '@advui/icons@0.10.0(react-dom@19.2.3(react@19.2.3))(react-native-svg@15.15.4(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(tamagui@2.7.7(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))':
+  '@advui/icons@0.12.0(react-dom@19.2.3(react@19.2.3))(react-native-svg@15.15.4(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(tamagui@2.7.7(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))':
     dependencies:
       '@tamagui/core': 2.7.7(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@tamagui/web': 2.7.7(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -2480,9 +2483,9 @@ snapshots:
     transitivePeerDependencies:
       - react-dom
 
-  '@advui/theme@0.10.0(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(tamagui@2.7.7(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))':
+  '@advui/theme@0.12.0(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(tamagui@2.7.7(react-dom@19.2.3(react@19.2.3))(react-native@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))':
     dependencies:
-      '@advui/utils': 0.10.0(react@19.2.3)
+      '@advui/utils': 0.12.0(react@19.2.3)
       '@material/material-color-utilities': 0.3.0
       '@tamagui/animations-css': 2.7.7(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@tamagui/animations-react-native': 2.7.7(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -2494,7 +2497,7 @@ snapshots:
     transitivePeerDependencies:
       - react-dom
 
-  '@advui/utils@0.10.0(react@19.2.3)':
+  '@advui/utils@0.12.0(react@19.2.3)':
     optionalDependencies:
       react: 19.2.3
 
@@ -4117,7 +4120,7 @@ snapshots:
 
   acorn@8.18.0: {}
 
-  advui@0.10.0: {}
+  advui@0.12.0: {}
 
   agent-base@7.1.4: {}
 

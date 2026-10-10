@@ -1,8 +1,6 @@
-import corePackage from '@advui/core/package.json'
 import { platformNote, propsForPlatform } from './adaptMeta'
 import { advuiRegistry } from './componentRegistry'
 import type { ConfigNode } from './metadata'
-import { advuiMetaVersion } from './sourceMeta'
 import { generateCode } from '../builder/code/codeGenerator'
 import { createBuilderReducer, createBuilderState } from '../builder/state/builderState'
 
@@ -12,9 +10,22 @@ function starterCode(component: string): string {
   return generateCode(advuiRegistry.createDocument(component), { registry: advuiRegistry })
 }
 
-describe('AdvUI metadata snapshot', () => {
-  it('was taken from the installed @advui/core version', () => {
-    expect(advuiMetaVersion, 'Run `pnpm sync-meta` after changing the @advui/core version').toBe(corePackage.version)
+describe('AdvUI metadata', () => {
+  it('marks responsive props', () => {
+    expect(advuiRegistry.get('HStack').props.find((prop) => prop.key === 'direction')?.responsive).toBe(true)
+    expect(advuiRegistry.get('Grid').props.find((prop) => prop.key === 'columns')).toMatchObject({
+      type: 'number',
+      responsive: true,
+      min: 1,
+      max: 12,
+    })
+    expect(advuiRegistry.get('HStack').props.find((prop) => prop.key === 'gap')?.responsive).toBeUndefined()
+  })
+
+  it('writes a responsive value as an object literal', () => {
+    const stack = advuiRegistry.createDocument('Stack')
+    stack.props.direction = { base: 'column', md: 'row' }
+    expect(generateCode(stack, { registry: advuiRegistry })).toContain('direction={{ base: "column", md: "row" }}')
   })
 
   it('still describes every prop the starter templates and added items set', () => {
@@ -36,7 +47,7 @@ describe('AdvUI metadata snapshot', () => {
     ]) {
       check(builderReducer(createBuilderState(advuiRegistry, component, { selectedId }), { type: 'add-item' }).document)
     }
-    expect(unknown, 'A metadata sync dropped these props; add them back as registry extraProps').toEqual([])
+    expect(unknown, 'An AdvUI upgrade dropped these props; add them back as registry extraProps').toEqual([])
   })
 })
 
@@ -64,7 +75,23 @@ describe('platform metadata', () => {
   })
 
   it('lists the layout components and gives them a starter document', () => {
-    const layout = ['AspectRatio', 'Container', 'Grid', 'ScrollArea', 'Stack', 'HStack', 'VStack', 'Box', 'Center', 'Wrap']
+    const layout = [
+      'AspectRatio',
+      'Container',
+      'Grid',
+      'ScrollArea',
+      'Stack',
+      'HStack',
+      'VStack',
+      'Box',
+      'Center',
+      'Wrap',
+      'AutoGrid',
+      'Section',
+      'Sticky',
+      'Show',
+      'Hide',
+    ]
     const names = advuiRegistry.sidebarEntries().map((entry) => entry.name)
     expect(names).toEqual(expect.arrayContaining([...layout, 'Spacer']))
     for (const name of layout) {
@@ -76,6 +103,10 @@ describe('platform metadata', () => {
     expect(starterCode('Grid')).toContain('<Grid\n  columns={2}\n>')
     expect(starterCode('Stack')).toContain('gap={12}')
     expect(starterCode('ScrollArea')).toContain('aria-label="Notes"')
+    expect(starterCode('Show')).toContain('<Show\n  above="md"\n>')
+    expect(starterCode('Hide')).toContain("import { Hide, Text } from '@advui/core'")
+    expect(starterCode('AutoGrid')).toContain('minChildWidth={160}')
+    expect(starterCode('Section')).toContain('background="muted"')
   })
 
   it('edits each stack with the short flex props, with that stack’s defaults', () => {
@@ -92,22 +123,27 @@ describe('platform metadata', () => {
     expect(starterCode('HStack')).toContain("import { Button, HStack, Spacer, Text } from '@advui/core'")
   })
 
-  it('writes a layout preset as an HStack of Boxes that share the row by their spans', () => {
+  it('writes a layout preset as a 12-column Grid whose items stack below md', () => {
     expect(generateCode(advuiRegistry.createColumns([8, 4]), { registry: advuiRegistry })).toBe(
       [
-        "import { Box, HStack } from '@advui/core'",
+        "import { Grid } from '@advui/core'",
         '',
-        '<HStack',
-        '  align="stretch"',
-        '  gap={16}',
-        '  width="100%"',
+        '<Grid',
+        '  columns={12}',
         '>',
-        '  <Box flex={8} />',
-        '  <Box flex={4} />',
-        '</HStack>',
+        '  <Grid.Item span={{ base: 12, md: 8 }} />',
+        '  <Grid.Item span={{ base: 12, md: 4 }} />',
+        '</Grid>',
         '',
       ].join('\n'),
     )
+    expect(advuiRegistry.createColumns([12]).children[0].props).toEqual({ span: 12 })
+
+    const span = advuiRegistry.get('Grid.Item').props.find((prop) => prop.key === 'span')
+    expect(span).toMatchObject({ type: 'number', defaultValue: 1, min: 1, max: 12, responsive: true })
+    const grid = advuiRegistry.createDocument('Grid')
+    expect(advuiRegistry.canPlace('Grid.Item', [grid])).toBe(true)
+    expect(advuiRegistry.canPlace('Grid.Item', [advuiRegistry.createDocument('Stack')])).toBe(false)
   })
 
   it('puts a Spacer beside the selected layer, and marks only the Spacer as invisible', () => {
@@ -147,9 +183,10 @@ describe('platform metadata', () => {
     expect(advuiRegistry.get('Slider').categoryId).toBe('forms')
     expect(advuiRegistry.get('Avatar').categoryId).toBe('data-display')
     expect(advuiRegistry.get('Tabs').categoryId).toBe('navigation')
-    expect(advuiRegistry.acceptsChildren('Select')).toBe(false)
-    expect(advuiRegistry.acceptsChildren('Tabs')).toBe(false)
-    expect(advuiRegistry.acceptsChildren('Tabs.Content')).toBe(true)
+    expect(advuiRegistry.acceptsAny('Select')).toBe(false)
+    expect(advuiRegistry.acceptsAny('Tabs')).toBe(false)
+    expect(advuiRegistry.acceptsAny('Tabs.Content')).toBe(true)
+    // Avatar takes only Avatar.Image and Avatar.Fallback, which the builder does not register.
     expect(advuiRegistry.acceptsChildren('Avatar')).toBe(false)
     expect(advuiRegistry.acceptsChildren('Slider')).toBe(false)
 
@@ -183,9 +220,11 @@ describe('platform metadata', () => {
     expect(advuiRegistry.get('PasswordInput').categoryId).toBe('forms')
     expect(advuiRegistry.get('NumberInput').categoryId).toBe('forms')
     expect(advuiRegistry.get('Progress').categoryId).toBe('feedback')
-    for (const name of ['RadioGroup', 'PasswordInput', 'NumberInput', 'Progress']) {
+    for (const name of ['PasswordInput', 'NumberInput', 'Progress']) {
       expect(advuiRegistry.acceptsChildren(name)).toBe(false)
     }
+    // Labels and stacks may sit among the radio items.
+    expect(advuiRegistry.acceptsAny('RadioGroup')).toBe(true)
 
     const radio = starterCode('RadioGroup')
     expect(radio).toContain('defaultValue="monthly"')
@@ -224,7 +263,9 @@ describe('platform metadata', () => {
     }
     expect(advuiRegistry.acceptsChildren('Spinner')).toBe(false)
     expect(advuiRegistry.acceptsChildren('Skeleton')).toBe(false)
-    expect(advuiRegistry.acceptsChildren('Alert')).toBe(false)
+    expect(advuiRegistry.acceptsAny('Alert')).toBe(true)
+    expect(advuiRegistry.acceptsChildren('Alert.Title')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('Alert.Description')).toBe(false)
     expect(advuiRegistry.acceptsChildren('EmptyState')).toBe(true)
 
     const spinner = starterCode('Spinner')
@@ -292,14 +333,17 @@ describe('platform metadata', () => {
     for (const name of ['AlertDialog', 'Toast', 'Tooltip', 'DropdownMenu']) {
       expect(advuiRegistry.get(name).categoryId).toBe('overlay')
     }
-    expect(advuiRegistry.acceptsChildren('AlertDialog')).toBe(false)
+    expect(advuiRegistry.acceptsAny('AlertDialog')).toBe(false)
+    expect(advuiRegistry.acceptsChildren('AlertDialog.Trigger')).toBe(false)
     expect(advuiRegistry.acceptsChildren('AlertDialog.Content')).toBe(true)
     expect(advuiRegistry.acceptsChildren('AlertDialog.Header')).toBe(true)
     expect(advuiRegistry.acceptsChildren('AlertDialog.Footer')).toBe(true)
     expect(advuiRegistry.acceptsChildren('AlertDialog.Title')).toBe(false)
     expect(advuiRegistry.acceptsChildren('Toast')).toBe(false)
-    expect(advuiRegistry.acceptsChildren('Tooltip')).toBe(false)
-    expect(advuiRegistry.acceptsChildren('DropdownMenu')).toBe(false)
+    // Tooltip clones the one element it wraps.
+    expect(advuiRegistry.get('Tooltip').maxChildren).toBe(1)
+    expect(advuiRegistry.acceptsAny('DropdownMenu')).toBe(false)
+    expect(advuiRegistry.acceptsAny('DropdownMenu.Content')).toBe(false)
     expect(advuiRegistry.acceptsChildren('DropdownMenu.Content')).toBe(true)
     expect(advuiRegistry.acceptsChildren('DropdownMenu.Item')).toBe(false)
 
@@ -360,5 +404,39 @@ describe('platform metadata', () => {
     expect(menu).not.toContain('align=')
     expect(menu).not.toContain('minWidth=')
     expect(menu).not.toContain('open=')
+  })
+
+  it('takes drop rules from AdvUI’s child rules', () => {
+    const tabs = advuiRegistry.createDocument('Tabs')
+    const list = tabs.children[0]
+    const panel = tabs.children[1]
+    expect(advuiRegistry.get('Tabs.Trigger').within).toBe('Tabs.List')
+    expect(advuiRegistry.canPlace('Tabs.Trigger', [tabs, list])).toBe(true)
+    expect(advuiRegistry.canPlace('Tabs.Trigger', [tabs, panel])).toBe(false)
+    expect(advuiRegistry.canPlace('Button', [tabs, list])).toBe(false)
+
+    // RadioGroup.Item reads its group's context, so it may sit in a stack inside the group, but not outside it.
+    const radio = advuiRegistry.createDocument('RadioGroup')
+    const row = advuiRegistry.createDocument('HStack')
+    expect(advuiRegistry.canPlace('RadioGroup.Item', [radio, row])).toBe(true)
+    expect(advuiRegistry.canPlace('RadioGroup.Item', [row])).toBe(false)
+
+    expect(advuiRegistry.get('List.Item').parents).toEqual(['List'])
+    expect(advuiRegistry.get('ScrollArea').maxChildren).toBe(1)
+    expect(advuiRegistry.createDocument('ScrollArea').children).toHaveLength(1)
+  })
+
+  it('adds to the nearest layer that takes any component, past hosts that hold only their parts', () => {
+    const page = builderReducer(createBuilderState(advuiRegistry, 'Button', { mode: 'page' }), {
+      type: 'insert',
+      component: 'Tabs',
+    })
+    const trigger = page.document.children[0].children[0].children[0]
+    expect(trigger.component).toBe('Tabs.Trigger')
+    const state = builderReducer({ ...page, selectedId: trigger.id }, { type: 'insert', component: 'Button' })
+    expect(state.document.children.map((child) => child.component)).toEqual(['Tabs', 'Button'])
+    // The Tabs list between the trigger and the Tabs does not stop "add item" from finding the Tabs.
+    const added = builderReducer({ ...page, selectedId: trigger.id }, { type: 'add-item' })
+    expect(added.document.children[0].children[0].children).toHaveLength(3)
   })
 })

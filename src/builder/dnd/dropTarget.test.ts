@@ -61,6 +61,23 @@ describe('resolve drop', () => {
     })
   })
 
+  it('puts a column beside an empty column, since it cannot go inside one', () => {
+    const row = advuiRegistry.createColumns([8, 4])
+    const [first, second] = row.children
+    const column = { component: 'Grid.Item', movingId: second.id }
+    const flow = boxes({ [first.id]: 'horizontal' })
+    expect(resolveDrop(advuiRegistry, row, first.id, { x: 10, y: 150 }, column, flow)).toEqual({
+      id: first.id,
+      position: 'before',
+      axis: 'horizontal',
+    })
+    // Other components still drop into the empty column.
+    expect(resolveDrop(advuiRegistry, row, first.id, { x: 10, y: 150 }, { component: 'Badge' }, flow)).toMatchObject({
+      id: first.id,
+      position: 'inside',
+    })
+  })
+
   it('never drops a layer onto itself or into its own children', () => {
     const footer = { component: 'Card.Footer', movingId: 'card-footer' }
     expect(resolveDrop(advuiRegistry, card, 'card-button', { x: 10, y: 110 }, footer, boxes())).toBeNull()

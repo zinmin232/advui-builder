@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   check:
-    name: Typecheck, unit tests, metadata
+    name: Typecheck and unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -29,10 +29,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
-      # Compares sourceMeta.ts with upstream AdvUI at the installed version's tag.
-      - run: pnpm sync-meta --check
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
 
   e2e:
     name: Build and browser tests

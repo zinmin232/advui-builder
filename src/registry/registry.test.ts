@@ -2,7 +2,7 @@ import { generateCode } from '../builder/code/codeGenerator'
 import { createBuilderReducer, createBuilderState } from '../builder/state/builderState'
 import { acmeLibrary, meta } from '../test/acmeLibrary'
 import type { ComponentMetadata } from './metadata'
-import { createRegistry } from './registry'
+import { createRegistry, resolveProps } from './registry'
 
 describe('component registry', () => {
   const registry = createRegistry(acmeLibrary)
@@ -122,7 +122,7 @@ describe('component registry', () => {
     expect(() => createRegistry({ ...acmeLibrary, columns: () => ({ component: 'Grid' }) })).toThrow(/unknown component Grid/)
   })
 
-  it('applies accepts, parents, capacity, and template placement rules', () => {
+  it('applies accepts, parents, within, capacity, and template placement rules', () => {
     const rules = createRegistry({
       importSource: '@acme/ui',
       components: [
@@ -131,6 +131,8 @@ describe('component registry', () => {
         meta('Note', { parents: ['Cell'] }),
         meta('Box', { acceptsChildren: true, template: { component: 'Box', children: [{ component: 'Box.Slot' }] } }),
         meta('Box.Slot'),
+        meta('Box.Hint', { within: 'Box' }),
+        meta('Badge', { acceptsChildren: true, accepts: ['Badge.Icon'] }),
       ],
     })
     const node = (component: string, count = 0) => ({
@@ -146,15 +148,55 @@ describe('component registry', () => {
         children: [],
       })),
     })
-    expect(rules.canPlace('Cell', node('Row'))).toBe(true)
-    expect(rules.canPlace('Note', node('Row'))).toBe(false)
-    expect(rules.canPlace('Cell', node('Row', 2))).toBe(false)
-    expect(rules.canPlace('Cell', node('Row', 1), true)).toBe(true)
-    expect(rules.canPlace('Cell', node('Row', 2), true)).toBe(false)
-    expect(rules.canPlace('Note', node('Cell'))).toBe(true)
-    expect(rules.canPlace('Note', node('Box'))).toBe(false)
-    expect(rules.canPlace('Box.Slot', node('Box'))).toBe(true)
-    expect(rules.canPlace('Box.Slot', node('Cell'))).toBe(false)
-    expect(rules.canPlace('Cell', node('Note'))).toBe(false)
+    expect(rules.canPlace('Cell', [node('Row')])).toBe(true)
+    expect(rules.canPlace('Note', [node('Row')])).toBe(false)
+    expect(rules.canPlace('Cell', [node('Row', 2)])).toBe(false)
+    expect(rules.canPlace('Cell', [node('Row', 1)], true)).toBe(true)
+    expect(rules.canPlace('Cell', [node('Row', 2)], true)).toBe(false)
+    expect(rules.canPlace('Note', [node('Cell')])).toBe(true)
+    expect(rules.canPlace('Note', [node('Box')])).toBe(false)
+    expect(rules.canPlace('Box.Slot', [node('Box')])).toBe(true)
+    expect(rules.canPlace('Box.Slot', [node('Cell')])).toBe(false)
+    expect(rules.canPlace('Cell', [node('Note')])).toBe(false)
+    expect(rules.canPlace('Cell', [])).toBe(false)
+    // `within` looks at every ancestor, not only the parent, and replaces the template placement.
+    expect(rules.canPlace('Box.Hint', [node('Box'), node('Cell')])).toBe(true)
+    expect(rules.canPlace('Box.Hint', [node('Row'), node('Cell')])).toBe(false)
+
+    expect(rules.acceptsAny('Cell')).toBe(true)
+    expect(rules.acceptsAny('Row')).toBe(false)
+    expect(rules.acceptsChildren('Row')).toBe(true)
+    // Every part Badge lists is missing from this registry, so it holds nothing here.
+    expect(rules.acceptsChildren('Badge')).toBe(false)
+  })
+
+  it('checks breakpoints, and resolves responsive props for the preview breakpoint only', () => {
+    const tile = meta('Tile', {
+      props: [
+        { key: 'columns', type: 'number', label: 'Columns', group: 'component', responsive: true, defaultValue: 1 },
+        { key: 'cells', type: 'number', label: 'Cells', group: 'component' },
+      ],
+    })
+    const sized = createRegistry({
+      importSource: '@acme/ui',
+      components: [tile],
+      breakpoints: [
+        { name: 'md', minWidth: 768 },
+        { name: 'lg', minWidth: 1024 },
+      ],
+    })
+    expect(sized.breakpoints.map((breakpoint) => breakpoint.name)).toEqual(['md', 'lg'])
+    expect(createRegistry(acmeLibrary).breakpoints).toEqual([])
+    const props = { columns: { base: 1, lg: 3 }, cells: 2 }
+    const screen = { breakpoint: 'md', keys: ['base', 'md', 'lg'] }
+    expect(resolveProps(tile, props, 'web', screen)).toEqual({ columns: 1, cells: 2 })
+    expect(resolveProps(tile, props, 'web', { ...screen, breakpoint: 'lg' })).toEqual({ columns: 3, cells: 2 })
+    // Without a screen (code, other callers) the map passes through for the component to resolve.
+    expect(resolveProps(tile, props, 'web')).toEqual(props)
+
+    const define = (breakpoints: { name: string; minWidth: number }[]) => () =>
+      createRegistry({ importSource: '@acme/ui', components: [tile], breakpoints })
+    expect(define([{ name: 'lg', minWidth: 1024 }, { name: 'md', minWidth: 768 }])).toThrow(/smallest first/)
+    expect(define([{ name: 'base', minWidth: 300 }])).toThrow(/unique/)
   })
 })

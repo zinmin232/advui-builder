@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useDragSource } from '../dnd/BuilderDnd'
-import { findNode } from '../selection/selection'
+import { findPath } from '../selection/selection'
 import { insertionTarget } from '../state/builderState'
 import {
   useBuilderActions,
@@ -35,7 +35,8 @@ export function ComponentSidebar() {
     .filter((entry) => entry != null)
   const showGroups = query.trim() === ''
   const targetId = insertionTarget(registry, state)
-  const target = targetId ? findNode(document, targetId) : null
+  const targetPath = targetId ? findPath(document, targetId) : null
+  const target = targetPath?.at(-1) ?? null
   const groupProps = {
     // In Page mode a click adds to the page, so no entry is the "open" one.
     selected: mode === 'page' ? null : state.selectedComponent,
@@ -44,7 +45,7 @@ export function ComponentSidebar() {
     onFavorite: preferenceActions.toggleFavorite,
     onInsert: actions.insertComponent,
     insertLabel: target?.label ?? null,
-    canInsert: (name: string) => target != null && registry.canPlace(name, target),
+    canInsert: (name: string) => targetPath != null && registry.canPlace(name, targetPath),
   }
 
   return (
@@ -79,7 +80,7 @@ export function ComponentSidebar() {
         {showGroups && recent.length > 0 ? (
           <ComponentGroup title="Recent" entries={recent} {...groupProps} />
         ) : null}
-        {showGroups ? <ColumnPresets target={target} /> : null}
+        {showGroups ? <ColumnPresets targetPath={targetPath} /> : null}
         {showGroups
           ? categories.map((item) => (
               <ComponentGroup
