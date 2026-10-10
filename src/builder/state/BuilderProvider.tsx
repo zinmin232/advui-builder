@@ -227,20 +227,15 @@ export function BuilderProvider({
     if (!saved) setSaveFailed(true)
   }, [storage, state.pageId, page, commitIndex])
 
-  const updatePreferences = useCallback(
-    (patch: Partial<Preferences>) => {
-      setPreferences((current) => {
-        const next = { ...current, ...patch }
-        if (persist) savePreferences(next)
-        return next
-      })
-    },
-    [persist],
-  )
+  const updatePreferences = useCallback((patch: Partial<Preferences>) => {
+    setPreferences((current) => ({ ...current, ...patch }))
+  }, [])
 
-  useEffect(() => {
-    if (!persist) return
-    updatePreferences({
+  // The preview settings, last component and mode live in the builder state; they are kept with the preferences so
+  // the next visit starts there.
+  const storedPreferences = useMemo<Preferences>(
+    () => ({
+      ...preferences,
       background: state.background,
       theme: state.theme,
       zoom: state.zoom,
@@ -248,27 +243,27 @@ export function BuilderProvider({
       platform: state.platform,
       lastComponent: state.selectedComponent,
       mode: state.mode,
-    })
-  }, [
-    persist,
-    state.mode,
-    state.background,
-    state.theme,
-    state.zoom,
-    state.viewportWidth,
-    state.platform,
-    state.selectedComponent,
-    updatePreferences,
-  ])
+    }),
+    [
+      preferences,
+      state.background,
+      state.theme,
+      state.zoom,
+      state.viewportWidth,
+      state.platform,
+      state.selectedComponent,
+      state.mode,
+    ],
+  )
+
+  useEffect(() => {
+    if (persist) savePreferences(storedPreferences)
+  }, [persist, storedPreferences])
 
   const actions = useMemo<Actions>(() => {
     const send = (action: BuilderAction) => dispatch(action)
     const remember = (component: string) =>
-      setPreferences((current) => {
-        const next = { ...current, recent: pushRecent(current.recent, component) }
-        if (persist) savePreferences(next)
-        return next
-      })
+      setPreferences((current) => ({ ...current, recent: pushRecent(current.recent, component) }))
     return {
       openComponent: (component) => {
         send({ type: 'open', component })
@@ -303,7 +298,7 @@ export function BuilderProvider({
       undo: () => send({ type: 'undo' }),
       redo: () => send({ type: 'redo' }),
     }
-  }, [persist])
+  }, [])
 
   const preferenceActions = useMemo<PreferenceActions>(
     () => ({
@@ -313,13 +308,11 @@ export function BuilderProvider({
           const favorites = current.favorites.includes(component)
             ? current.favorites.filter((item) => item !== component)
             : [...current.favorites, component]
-          const next = { ...current, favorites }
-          if (persist) savePreferences(next)
-          return next
+          return { ...current, favorites }
         })
       },
     }),
-    [persist, updatePreferences],
+    [updatePreferences],
   )
 
   const pageActions = useMemo<PageActions>(() => {
@@ -388,7 +381,7 @@ export function BuilderProvider({
     <RegistryContext.Provider value={registry}>
       <BuilderContext.Provider value={state}>
         <ActionsContext.Provider value={actions}>
-          <PreferencesContext.Provider value={preferences}>
+          <PreferencesContext.Provider value={storedPreferences}>
             <PreferenceActionsContext.Provider value={preferenceActions}>
               <PagesContext.Provider value={pages}>
                 <PageActionsContext.Provider value={pageActions}>

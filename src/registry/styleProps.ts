@@ -109,11 +109,7 @@ export const heightProp: PropMetadata = {
 }
 
 /** Text, Heading and Card.Title share these AdvUI typography props. */
-export function typographyProps(defaults?: {
-  size?: string
-  weight?: string
-  tone?: string
-}): PropMetadata[] {
+export function typographyProps(defaults?: { size?: string; weight?: string; tone?: string }): PropMetadata[] {
   return [
     {
       key: 'typography',
@@ -151,9 +147,10 @@ export function typographyProps(defaults?: {
       label: 'Tone',
       group: 'typography',
       defaultValue: defaults?.tone,
-      options: ['default', 'muted', 'primary', 'success', 'warning', 'error', 'info', 'inherit'].map(
-        (value) => ({ label: value, value }),
-      ),
+      options: ['default', 'muted', 'primary', 'success', 'warning', 'error', 'info', 'inherit'].map((value) => ({
+        label: value,
+        value,
+      })),
     },
     textAlignProp,
     colorProp,

@@ -25,7 +25,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** ASCII letters and digits, accents folded (`Café` → `Cafe`). */
 function words(text: string): string[] {
-  return text.normalize('NFKD').replace(/[̀-ͯ]/g, '').match(/[A-Za-z0-9]+/g) ?? []
+  return (
+    text
+      .normalize('NFKD')
+      .replace(/[̀-ͯ]/g, '')
+      .match(/[A-Za-z0-9]+/g) ?? []
+  )
 }
 
 /** Words as a component name: `pricing table` → `PricingTable`. Null when no letters or digits are left. */

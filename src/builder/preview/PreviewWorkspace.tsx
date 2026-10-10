@@ -83,31 +83,31 @@ export function PreviewWorkspace({
           onMouseLeave={() => setHover(null)}
           onClick={interactive ? undefined : () => actions.select(state.document.id)}
         >
-        <div className="scaler" style={{ transform: `scale(${state.zoom})` }}>
-          <div ref={setFrame} className={`frame ${state.platform}`}>
-            <div className={interactive ? 'stage interactive' : 'stage'} style={{ width: state.viewportWidth }}>
-              <PreviewErrorBoundary>
-                <Frame theme={state.theme}>
-                  <CanvasModeContext.Provider value={mode}>
-                    <ElementTree node={state.document} renderNode={renderNode} />
-                  </CanvasModeContext.Provider>
-                </Frame>
-              </PreviewErrorBoundary>
+          <div className="scaler" style={{ transform: `scale(${state.zoom})` }}>
+            <div ref={setFrame} className={`frame ${state.platform}`}>
+              <div className={interactive ? 'stage interactive' : 'stage'} style={{ width: state.viewportWidth }}>
+                <PreviewErrorBoundary>
+                  <Frame theme={state.theme}>
+                    <CanvasModeContext.Provider value={mode}>
+                      <ElementTree node={state.document} renderNode={renderNode} />
+                    </CanvasModeContext.Provider>
+                  </Frame>
+                </PreviewErrorBoundary>
+              </div>
+              {interactive ? null : (
+                <SelectionOverlay
+                  container={frame}
+                  root={state.document}
+                  selectedId={state.selectedId}
+                  hoverId={hoverId}
+                  zoom={state.zoom}
+                  editing={editingId === state.selectedId}
+                  onEditText={() => editText(state.selectedId)}
+                  onEditDone={() => setEditingId(null)}
+                />
+              )}
             </div>
-            {interactive ? null : (
-              <SelectionOverlay
-                container={frame}
-                root={state.document}
-                selectedId={state.selectedId}
-                hoverId={hoverId}
-                zoom={state.zoom}
-                editing={editingId === state.selectedId}
-                onEditText={() => editText(state.selectedId)}
-                onEditDone={() => setEditingId(null)}
-              />
-            )}
           </div>
-        </div>
         </div>
       </div>
     </div>

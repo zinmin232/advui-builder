@@ -72,8 +72,7 @@ export function resolveDrop(
       root: index === 0,
       axis: measured.axis,
     })
-    const accepts = (at: PlacePosition) =>
-      canDrop(registry, root, subject.component, node.id, at, subject.movingId)
+    const accepts = (at: PlacePosition) => canDrop(registry, root, subject.component, node.id, at, subject.movingId)
     if (accepts(position)) return { id: node.id, position, axis: measured.axis }
     if (container && position !== 'inside' && accepts('inside')) {
       return { id: node.id, position: 'inside', axis: measured.axis }

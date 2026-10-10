@@ -684,7 +684,9 @@ textarea.page-name { resize: vertical; font: inherit; font-size: 13px; line-heig
   cursor: grabbing;
 }
 .drag-chip.blocked { background: #6b7280; }
-.builder-dragging, .builder-dragging * { user-select: none; cursor: grabbing; }
+.drag-shield { position: fixed; inset: 0; z-index: 998; cursor: grabbing; user-select: none; }
+/* The chip follows the pointer; the wheel and hit tests look through it to the shield and the page. */
+.drag-overlay { pointer-events: none; }
 .empty-slot {
   display: flex;
   align-items: center;

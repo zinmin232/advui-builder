@@ -226,6 +226,8 @@ function DropIndicator({ container, root, zoom }: { container: HTMLElement | nul
   const canvasTarget = target?.surface === 'canvas' ? target : null
 
   useLayoutEffect(() => {
+    // Measured from the page after it commits, before the indicator paints.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setBox(container && canvasTarget ? measure(container, canvasTarget.id, zoom, root) : null)
   }, [canvasTarget, container, root, zoom])
 

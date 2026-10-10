@@ -15,7 +15,10 @@ export function isValidSpans(spans: readonly number[]): boolean {
 
 /** Reads typed spans (`3 9`, `4, 4, 4`). Null unless they are valid. */
 export function parseSpans(text: string): number[] | null {
-  const parts = text.trim().split(/[\s,]+/).filter(Boolean)
+  const parts = text
+    .trim()
+    .split(/[\s,]+/)
+    .filter(Boolean)
   if (parts.length === 0 || parts.some((part) => !/^\d+$/.test(part))) return null
   const spans = parts.map(Number)
   return isValidSpans(spans) ? spans : null

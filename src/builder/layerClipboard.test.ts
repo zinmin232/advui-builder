@@ -9,7 +9,8 @@ describe('layer clipboard', () => {
 
   it('ignores anything that is not a whole layer this registry can show', () => {
     const badge = { id: 'badge', component: 'Badge' }
-    const copy = (fields: object) => JSON.stringify({ format: 'advui-builder.layer', version: 1, tree: badge, ...fields })
+    const copy = (fields: object) =>
+      JSON.stringify({ format: 'advui-builder.layer', version: 1, tree: badge, ...fields })
     expect(readLayerClipboard(advuiRegistry, 'Plain text')).toBeNull()
     expect(readLayerClipboard(advuiRegistry, copy({ format: 'other' }))).toBeNull()
     expect(readLayerClipboard(advuiRegistry, copy({ version: 2 }))).toBeNull()

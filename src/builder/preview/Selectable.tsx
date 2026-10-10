@@ -2,7 +2,15 @@ import type { ReactNode } from 'react'
 import { useBuilderActions, useSetHover } from '../state/BuilderProvider'
 import { useCanvasMode } from './canvasMode'
 
-export function Selectable({ id, invisible = false, children }: { id: string; invisible?: boolean; children: ReactNode }) {
+export function Selectable({
+  id,
+  invisible = false,
+  children,
+}: {
+  id: string
+  invisible?: boolean
+  children: ReactNode
+}) {
   const actions = useBuilderActions()
   const setHover = useSetHover()
   const { interactive, editText } = useCanvasMode()

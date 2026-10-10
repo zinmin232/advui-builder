@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react'
+import { Suspense, use, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { writeToClipboard } from './clipboard'
 import { clampInspectorWidth, clampSidebarWidth } from './persistence'
 import { shareUrl } from './shareConfig'
@@ -8,7 +8,7 @@ import { BuilderDnd } from './dnd/BuilderDnd'
 import { Inspector } from './inspector/Inspector'
 import { PageMenu } from './pages/PageMenu'
 import { PlatformSelector } from './preview/PlatformSelector'
-import type { PreviewLoader } from './preview/previewKit'
+import type { PreviewKit, PreviewLoader } from './preview/previewKit'
 import { PreviewToolbar } from './preview/PreviewToolbar'
 import { PreviewWorkspace } from './preview/PreviewWorkspace'
 import { ComponentSidebar } from './sidebar/ComponentSidebar'
@@ -21,16 +21,21 @@ import {
 } from './state/BuilderProvider'
 import { useShortcuts } from './useShortcuts'
 
-/** The preview waits for the component library to load. The panels render without it. */
-function lazyPreview(load: PreviewLoader) {
-  return lazy(async () => {
-    const kit = await load()
-    return {
-      default: function LoadedPreview({ bar, interactive }: { bar: ReactNode; interactive: boolean }) {
-        return <PreviewWorkspace kit={kit} bar={bar} interactive={interactive} />
-      },
-    }
-  })
+// One load per loader, so a re-render never starts another.
+const kits = new WeakMap<PreviewLoader, Promise<PreviewKit>>()
+
+function kitFor(load: PreviewLoader): Promise<PreviewKit> {
+  let kit = kits.get(load)
+  if (!kit) {
+    kit = load()
+    kits.set(load, kit)
+  }
+  return kit
+}
+
+/** The preview waits for the component library to load (it suspends). The panels render without it. */
+function LoadedPreview({ load, bar, interactive }: { load: PreviewLoader; bar: ReactNode; interactive: boolean }) {
+  return <PreviewWorkspace kit={use(kitFor(load))} bar={bar} interactive={interactive} />
 }
 
 /** Edit selects and changes layers on the canvas; Preview runs the page as it is; Code shows the TSX. */
@@ -47,7 +52,6 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
   const state = useBuilderState()
   const actions = useBuilderActions()
   const registry = useRegistry()
-  const Preview = useMemo(() => lazyPreview(loadPreview), [loadPreview])
   const preferences = usePreferences()
   const preferenceActions = usePreferenceActions()
   const drag = useRef<{ kind: 'sidebar' | 'inspector'; start: number; origin: number } | null>(null)
@@ -66,7 +70,9 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
     if (current.kind === 'sidebar') {
       preferenceActions.update({ sidebarWidth: clampSidebarWidth(current.origin + (event.clientX - current.start)) })
     } else {
-      preferenceActions.update({ inspectorWidth: clampInspectorWidth(current.origin - (event.clientX - current.start)) })
+      preferenceActions.update({
+        inspectorWidth: clampInspectorWidth(current.origin - (event.clientX - current.start)),
+      })
     }
   }
 
@@ -155,11 +161,7 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
             ))}
           </div>
         ) : null}
-        {state.mode === 'page' ? (
-          <PageMenu />
-        ) : (
-          <span className="topbar-component">{state.selectedComponent}</span>
-        )}
+        {state.mode === 'page' ? <PageMenu /> : <span className="topbar-component">{state.selectedComponent}</span>}
         <span className="spacer" />
         <div className="segment" role="group" aria-label="History">
           <button
@@ -301,7 +303,7 @@ export function Builder({ loadPreview }: { loadPreview: PreviewLoader }) {
                     </div>
                   }
                 >
-                  <Preview bar={viewBar} interactive={workspaceView === 'preview'} />
+                  <LoadedPreview load={loadPreview} bar={viewBar} interactive={workspaceView === 'preview'} />
                 </Suspense>
               ) : (
                 <>

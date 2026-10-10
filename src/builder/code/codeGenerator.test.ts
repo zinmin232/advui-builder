@@ -31,7 +31,9 @@ describe('code generator', () => {
       }),
       { type: 'set-prop', id: 'button', key: 'size', value: 'lg' },
     )
-    expect(generateCode(changed.document, { registry: advuiRegistry })).toContain('<Button\n  variant="secondary"\n  size="lg"\n>\n  Click Me\n</Button>')
+    expect(generateCode(changed.document, { registry: advuiRegistry })).toContain(
+      '<Button\n  variant="secondary"\n  size="lg"\n>\n  Click Me\n</Button>',
+    )
   })
 
   it('renders nested Card elements and drops web-only image props on Android', () => {
@@ -53,10 +55,10 @@ describe('code generator', () => {
   })
 
   it('includes a component inserted into the selected layer', () => {
-    const inserted = builderReducer(
-      createBuilderState(advuiRegistry, 'Card', { selectedId: 'card-content' }),
-      { type: 'insert', component: 'Text' },
-    )
+    const inserted = builderReducer(createBuilderState(advuiRegistry, 'Card', { selectedId: 'card-content' }), {
+      type: 'insert',
+      component: 'Text',
+    })
     const code = generateCode(inserted.document, { registry: advuiRegistry })
     expect(code).toContain("import { Button, Card, Image, Text } from '@advui/core'")
     expect(code).toContain('The quick brown fox jumps over the lazy dog.')

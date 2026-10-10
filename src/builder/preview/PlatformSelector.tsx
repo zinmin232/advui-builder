@@ -170,7 +170,12 @@ export function PlatformSelector({
               </div>
             ) : null}
             {open && item !== 'web' ? (
-              <div className="toolbar-panel device-width-panel" id={panelId} role="group" aria-label={`${platformLabel(item)} width`}>
+              <div
+                className="toolbar-panel device-width-panel"
+                id={panelId}
+                role="group"
+                aria-label={`${platformLabel(item)} width`}
+              >
                 <div className="presets" role="group" aria-label="Device size">
                   {deviceSizes.map((size) => (
                     <button

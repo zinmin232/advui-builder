@@ -26,7 +26,10 @@ describe('page files', () => {
     state = builderReducer(state, { type: 'insert-block', block: 'pricing' })
     const page = { id: 'page-a', name: 'Pricing', updatedAt: 1, settings: { title: 'Plans' } }
     const result = readPageFile(advuiRegistry, pageFileText(page, state.document))
-    expect(result).toEqual({ ok: true, page: { name: 'Pricing', settings: { title: 'Plans' }, document: state.document } })
+    expect(result).toEqual({
+      ok: true,
+      page: { name: 'Pricing', settings: { title: 'Plans' }, document: state.document },
+    })
   })
 
   it('refuses files that are not pages and drops layers this version cannot show', () => {

@@ -115,39 +115,62 @@ describe('component registry', () => {
     expect(withColumns.hasColumns).toBe(true)
     const row = withColumns.createColumns([8, 4])
     expect(row).toMatchObject({ id: 'panel', label: 'Row 8 4' })
-    expect(row.children.map((child) => [child.id, child.props.span])).toEqual([['panel-2', 8], ['panel-3', 4]])
+    expect(row.children.map((child) => [child.id, child.props.span])).toEqual([
+      ['panel-2', 8],
+      ['panel-3', 4],
+    ])
     expect(() => withColumns.createColumns([6, 5])).toThrow(/add up to 12/)
-    expect(() => createRegistry({ ...acmeLibrary, columns: (spans) => ({ ...columns(spans), component: 'Tag' }) }))
-      .toThrow(/Columns Tag must accept children/)
-    expect(() => createRegistry({ ...acmeLibrary, columns: () => ({ component: 'Grid' }) })).toThrow(/unknown component Grid/)
+    expect(() =>
+      createRegistry({ ...acmeLibrary, columns: (spans) => ({ ...columns(spans), component: 'Tag' }) }),
+    ).toThrow(/Columns Tag must accept children/)
+    expect(() => createRegistry({ ...acmeLibrary, columns: () => ({ component: 'Grid' }) })).toThrow(
+      /unknown component Grid/,
+    )
   })
 
   it('offers blocks from the registry, and rejects unknown components and duplicate ids', () => {
     expect(registry.blocks).toEqual([])
-    const banner = { id: 'banner', name: 'Banner', description: 'A tagged panel.', keywords: ['promo'], template: {
-      component: 'Panel',
-      label: 'Banner',
-      children: [{ component: 'Tag', text: 'New' }, { component: 'Tag', text: 'Sale' }],
-    } }
+    const banner = {
+      id: 'banner',
+      name: 'Banner',
+      description: 'A tagged panel.',
+      keywords: ['promo'],
+      template: {
+        component: 'Panel',
+        label: 'Banner',
+        children: [
+          { component: 'Tag', text: 'New' },
+          { component: 'Tag', text: 'Sale' },
+        ],
+      },
+    }
     const withBlocks = createRegistry({ ...acmeLibrary, blocks: [banner] })
-    expect(withBlocks.blocks).toEqual([{ id: 'banner', name: 'Banner', description: 'A tagged panel.', component: 'Panel' }])
+    expect(withBlocks.blocks).toEqual([
+      { id: 'banner', name: 'Banner', description: 'A tagged panel.', component: 'Panel' },
+    ])
     expect(withBlocks.searchBlocks('PROMO').map((block) => block.id)).toEqual(['banner'])
     expect(withBlocks.searchBlocks('menu')).toEqual([])
     const tree = withBlocks.createBlock('banner')
     expect(tree).toMatchObject({ id: 'panel', label: 'Banner' })
-    expect(tree.children.map((child) => [child.id, child.text])).toEqual([['tag', 'New'], ['tag-2', 'Sale']])
+    expect(tree.children.map((child) => [child.id, child.text])).toEqual([
+      ['tag', 'New'],
+      ['tag-2', 'Sale'],
+    ])
     expect(withBlocks.createBlock('banner')).not.toBe(tree)
     expect(() => withBlocks.createBlock('nope')).toThrow(/Unknown block/)
 
     const define = (blocks: BlockDefinition[]) => () => createRegistry({ ...acmeLibrary, blocks })
     expect(define([banner, banner])).toThrow(/registered twice/)
-    expect(define([{ ...banner, template: { component: 'Panel', children: [{ component: 'Gone' }] } }]))
-      .toThrow(/Block banner template uses unknown component Gone/)
+    expect(define([{ ...banner, template: { component: 'Panel', children: [{ component: 'Gone' }] } }])).toThrow(
+      /Block banner template uses unknown component Gone/,
+    )
   })
 
   it('writes icon props with the library’s icon element, or as plain names without one', () => {
     const badge = meta('Badge', {
-      props: [{ key: 'icon', type: 'icon', label: 'Icon', group: 'component', options: [{ label: 'star', value: 'star' }] }],
+      props: [
+        { key: 'icon', type: 'icon', label: 'Icon', group: 'component', options: [{ label: 'star', value: 'star' }] },
+      ],
     })
     const node = { id: 'badge', component: 'Badge', label: 'Badge', props: { icon: 'star' }, children: [] }
     const withIcons = createRegistry({
@@ -157,7 +180,7 @@ describe('component registry', () => {
     })
     expect(registry.icons).toBeNull()
     expect(generateCode(node, { registry: withIcons })).toBe(
-      "import { Badge, Glyph } from '@acme/ui'\n\n<Badge icon={<Glyph shape=\"star\" />} />\n",
+      'import { Badge, Glyph } from \'@acme/ui\'\n\n<Badge icon={<Glyph shape="star" />} />\n',
     )
     const plain = createRegistry({ importSource: '@acme/ui', components: [badge] })
     expect(generateCode(node, { registry: plain })).toContain('<Badge icon="star" />')
@@ -237,7 +260,12 @@ describe('component registry', () => {
 
     const define = (breakpoints: { name: string; minWidth: number }[]) => () =>
       createRegistry({ importSource: '@acme/ui', components: [tile], breakpoints })
-    expect(define([{ name: 'lg', minWidth: 1024 }, { name: 'md', minWidth: 768 }])).toThrow(/smallest first/)
+    expect(
+      define([
+        { name: 'lg', minWidth: 1024 },
+        { name: 'md', minWidth: 768 },
+      ]),
+    ).toThrow(/smallest first/)
     expect(define([{ name: 'base', minWidth: 300 }])).toThrow(/unique/)
   })
 })

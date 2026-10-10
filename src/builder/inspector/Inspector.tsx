@@ -28,7 +28,11 @@ export function Inspector() {
 
   return (
     <aside className="inspector" aria-label="Inspector">
-      <InspectorBreadcrumb labels={path.map((item) => item.label)} ids={path.map((item) => item.id)} onSelect={actions.select} />
+      <InspectorBreadcrumb
+        labels={path.map((item) => item.label)}
+        ids={path.map((item) => item.id)}
+        onSelect={actions.select}
+      />
       <header className="inspector-head">
         <p>{meta.description}</p>
       </header>

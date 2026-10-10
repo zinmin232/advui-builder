@@ -126,7 +126,10 @@ test('moves a column before its sibling, along the grid row', async ({ page }) =
   await page.getByRole('complementary', { name: 'Components' }).getByRole('button', { name: 'Columns 8 4' }).click()
   await layer(page, 'grid-item-2').click()
   // Columns flow left to right, so the left edge of the first column means "before" it.
-  await drag(page, page.getByRole('button', { name: 'Drag Column 2' }), canvasNode(page, 'grid-item'), { x: 0.1, y: 0.5 })
+  await drag(page, page.getByRole('button', { name: 'Drag Column 2' }), canvasNode(page, 'grid-item'), {
+    x: 0.1,
+    y: 0.5,
+  })
   expect(await layerIds(page)).toEqual(['page', 'grid', 'grid-item-2', 'grid-item'])
 })
 
@@ -159,4 +162,27 @@ test('keeps the page and the component when switching modes and reloading', asyn
     'true',
   )
   await expect(layer(page, 'alert')).toBeVisible()
+})
+
+test('covers the page while dragging, and the wheel still scrolls the canvas', async ({ page }) => {
+  await openPage(page)
+  for (const block of ['Hero', 'Pricing', 'FAQ']) await page.getByRole('button', { name: `${block} block` }).click()
+  const canvas = page.locator('.canvas')
+  const item = sidebarItem(page, 'Badge')
+  await item.scrollIntoViewIfNeeded()
+  const box = await canvas.boundingBox()
+  const source = await item.boundingBox()
+  if (!box || !source) throw new Error('Canvas or sidebar item is not visible')
+
+  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(source.x + source.width / 2 + 12, source.y + source.height / 2 + 12, { steps: 4 })
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 10 })
+  await expect(page.locator('.drag-shield')).toBeVisible()
+  const before = await canvas.evaluate((element) => element.scrollTop)
+  await page.mouse.wheel(0, 400)
+  await expect.poll(() => canvas.evaluate((element) => element.scrollTop)).toBeGreaterThan(before)
+  await page.keyboard.press('Escape')
+  await page.mouse.up()
+  await expect(page.locator('.drag-shield')).toHaveCount(0)
 })

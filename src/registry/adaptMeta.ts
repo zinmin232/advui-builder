@@ -25,9 +25,7 @@ const labels: Record<string, string> = {
 
 function titleCase(name: string): string {
   if (labels[name]) return labels[name]
-  const spaced = name
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/[_-]/g, ' ')
+  const spaced = name.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]/g, ' ')
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
@@ -116,7 +114,7 @@ function editorType(doc: PropDoc): PropType | null {
 function propFromDoc(doc: PropDoc): PropMetadata | null {
   const type = editorType(doc)
   if (!type) return null
-  const options = type === 'select' ? selectOptions(doc) ?? undefined : undefined
+  const options = type === 'select' ? (selectOptions(doc) ?? undefined) : undefined
   const documented = parseLiteralDefault(doc.default)
   return {
     key: doc.name,
@@ -197,7 +195,9 @@ export interface AdaptOptions {
 export function adaptAdvuiMeta(meta: ComponentMeta, options: AdaptOptions = {}): ComponentMetadata {
   // Upstream names are for people ("Radio Group"); parts and exports use the code name.
   const name =
-    options.part ?? [meta.exports[0], meta.name].find((candidate) => meta.parts.some((item) => item.name === candidate)) ?? meta.name
+    options.part ??
+    [meta.exports[0], meta.name].find((candidate) => meta.parts.some((item) => item.name === candidate)) ??
+    meta.name
   const part = meta.parts.find((item) => item.name === name)
   // The docs playground demos one component; its controls do not describe the other parts.
   const playground = meta.playground?.component === name ? meta.playground : undefined

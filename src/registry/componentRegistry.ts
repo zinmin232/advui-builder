@@ -114,14 +114,7 @@ const card = adaptAdvuiMeta(cardMeta, {
   template: node('card', 'Card', 'Card', {}, [
     node('card-header', 'Card.Header', 'Header', {}, [
       node('card-title', 'Card.Title', 'Title', {}, [], 'Project update'),
-      node(
-        'card-description',
-        'Card.Description',
-        'Description',
-        {},
-        [],
-        'A nested surface with selectable parts.',
-      ),
+      node('card-description', 'Card.Description', 'Description', {}, [], 'A nested surface with selectable parts.'),
     ]),
     node('card-content', 'Card.Content', 'Content', {}, [
       node('card-image', 'Image', 'Image', {
@@ -131,9 +124,7 @@ const card = adaptAdvuiMeta(cardMeta, {
         width: '100%',
       }),
     ]),
-    node('card-footer', 'Card.Footer', 'Footer', {}, [
-      node('card-button', 'Button', 'Button', {}, [], 'Continue'),
-    ]),
+    node('card-footer', 'Card.Footer', 'Footer', {}, [node('card-button', 'Button', 'Button', {}, [], 'Continue')]),
   ]),
 })
 
@@ -375,19 +366,29 @@ const box = stackPart('Box', {
 
 const center = stackPart('Center', {
   extraProps: boxProps,
-  template: node('center', 'Center', 'Center', {
-    width: '320px',
-    height: '160px',
-    backgroundColor: '$muted',
-    borderRadius: 8,
-  }, [node('center-text', 'Text', 'Text', {}, [], 'Centered')]),
+  template: node(
+    'center',
+    'Center',
+    'Center',
+    {
+      width: '320px',
+      height: '160px',
+      backgroundColor: '$muted',
+      borderRadius: 8,
+    },
+    [node('center-text', 'Text', 'Text', {}, [], 'Centered')],
+  ),
 })
 
 const spacer = stackPart('Spacer', { extraProps: [], invisible: true })
 
 const wrap = adaptAdvuiMeta(wrapMeta, {
   extraProps: [gapProp, paddingProp, widthProp],
-  template: node('wrap', 'Wrap', 'Wrap', { width: '320px' },
+  template: node(
+    'wrap',
+    'Wrap',
+    'Wrap',
+    { width: '320px' },
     ['Design', 'Research', 'Engineering', 'Marketing', 'Support'].map((tag) =>
       node(`wrap-${tag.toLowerCase()}`, 'Badge', tag, {}, [], tag),
     ),
@@ -433,16 +434,22 @@ const separator = adaptAdvuiMeta(separatorMeta, {
 
 const select = adaptAdvuiMeta(selectMeta, {
   extraProps: [ariaLabelProp, widthProp],
-  template: node('select', 'Select', 'Select', {
-    'aria-label': 'Fruit',
-    defaultValue: 'apple',
-    placeholder: 'Choose a fruit',
-    width: '280px',
-  }, [
-    node('select-apple', 'Select.Item', 'Apple', { value: 'apple' }, [], 'Apple'),
-    node('select-orange', 'Select.Item', 'Orange', { value: 'orange' }, [], 'Orange'),
-    node('select-pear', 'Select.Item', 'Pear', { value: 'pear' }, [], 'Pear'),
-  ]),
+  template: node(
+    'select',
+    'Select',
+    'Select',
+    {
+      'aria-label': 'Fruit',
+      defaultValue: 'apple',
+      placeholder: 'Choose a fruit',
+      width: '280px',
+    },
+    [
+      node('select-apple', 'Select.Item', 'Apple', { value: 'apple' }, [], 'Apple'),
+      node('select-orange', 'Select.Item', 'Orange', { value: 'orange' }, [], 'Orange'),
+      node('select-pear', 'Select.Item', 'Pear', { value: 'pear' }, [], 'Pear'),
+    ],
+  ),
   item: {
     noun: 'option',
     part: 'Select.Item',
@@ -601,14 +608,7 @@ const alert = adaptAdvuiMeta(alertMeta, {
   extraProps: [widthProp],
   template: node('alert', 'Alert', 'Alert', { variant: 'warning', width: '320px' }, [
     node('alert-title', 'Alert.Title', 'Title', {}, [], 'Check your connection'),
-    node(
-      'alert-description',
-      'Alert.Description',
-      'Description',
-      {},
-      [],
-      'The last save did not finish. Try again.',
-    ),
+    node('alert-description', 'Alert.Description', 'Description', {}, [], 'The last save did not finish. Try again.'),
   ]),
 })
 
@@ -796,10 +796,17 @@ const toast = adaptAdvuiMeta(toastMeta, {
     },
     { ...numberProp('duration', 'Duration', 'How long the message stays, in milliseconds.'), defaultValue: 4000 },
   ],
-  template: node('toast', 'Toast', 'Toast', {
-    title: 'Changes saved',
-    description: 'Your profile is up to date.',
-  }, [], 'Show toast'),
+  template: node(
+    'toast',
+    'Toast',
+    'Toast',
+    {
+      title: 'Changes saved',
+      description: 'Your profile is up to date.',
+    },
+    [],
+    'Show toast',
+  ),
 })
 
 // Upstream types `content` as ReactNode; the builder edits text.
@@ -807,12 +814,16 @@ const tooltip = adaptAdvuiMeta(tooltipMeta, {
   extraProps: [
     stringProp('content', 'Content', 'Short supplementary text. Do not put essential information only here.', true),
   ],
-  template: node('tooltip', 'Tooltip', 'Tooltip', {
-    content: 'Saves your changes',
-    defaultOpen: true,
-  }, [
-    node('tooltip-button', 'Button', 'Button', {}, [], 'Save'),
-  ]),
+  template: node(
+    'tooltip',
+    'Tooltip',
+    'Tooltip',
+    {
+      content: 'Saves your changes',
+      defaultOpen: true,
+    },
+    [node('tooltip-button', 'Button', 'Button', {}, [], 'Save')],
+  ),
 })
 
 const dropdownMenu = adaptAdvuiMeta(dropdownMenuMeta, {
@@ -906,35 +917,44 @@ const accordion = adaptAdvuiMeta(accordionMeta, {
   extraProps: [widthProp],
   propOverrides: {
     defaultValue: {
-      description: 'The section open at first, by its value. With `multiple`, AdvUI takes a list; leave it empty there.',
+      description:
+        'The section open at first, by its value. With `multiple`, AdvUI takes a list; leave it empty there.',
     },
   },
-  template: node('accordion', 'Accordion', 'Accordion', {
-    type: 'single',
-    collapsible: true,
-    defaultValue: 'shipping',
-    width: '360px',
-  }, [
-    accordionSection('accordion-shipping', 'shipping', 'How long does shipping take?', 'Three to five working days.'),
-    accordionSection('accordion-returns', 'returns', 'Can I return an order?', 'Yes, within 30 days of delivery.'),
-  ]),
+  template: node(
+    'accordion',
+    'Accordion',
+    'Accordion',
+    {
+      type: 'single',
+      collapsible: true,
+      defaultValue: 'shipping',
+      width: '360px',
+    },
+    [
+      accordionSection('accordion-shipping', 'shipping', 'How long does shipping take?', 'Three to five working days.'),
+      accordionSection('accordion-returns', 'returns', 'Can I return an order?', 'Yes, within 30 days of delivery.'),
+    ],
+  ),
   item: {
     noun: 'section',
     part: 'Accordion.Item',
     valuePrefix: 'section',
-    nodes: [{
-      component: 'Accordion.Item',
-      label: 'Section {n}',
-      props: { value: '{value}' },
-      children: [
-        { component: 'Accordion.Trigger', label: 'Trigger', text: 'Section {n}' },
-        {
-          component: 'Accordion.Content',
-          label: 'Content',
-          children: [{ component: 'Text', label: 'Text', text: 'Section {n} details' }],
-        },
-      ],
-    }],
+    nodes: [
+      {
+        component: 'Accordion.Item',
+        label: 'Section {n}',
+        props: { value: '{value}' },
+        children: [
+          { component: 'Accordion.Trigger', label: 'Trigger', text: 'Section {n}' },
+          {
+            component: 'Accordion.Content',
+            label: 'Content',
+            children: [{ component: 'Text', label: 'Text', text: 'Section {n} details' }],
+          },
+        ],
+      },
+    ],
   },
 })
 
@@ -1013,19 +1033,25 @@ const form = adaptAdvuiMeta(formMeta, {
     gapProp,
     widthProp,
   ],
-  template: node('form', 'Form', 'Form', {
-    title: 'Create account',
-    description: 'Enter your details.',
-    width: '360px',
-  }, [
-    node('form-name', 'Field', 'Name field', { label: 'Name' }, [
-      node('form-name-input', 'Input', 'Name', { placeholder: 'Ada Lovelace', width: '100%' }),
-    ]),
-    node('form-email', 'Field', 'Email field', { label: 'Email' }, [
-      node('form-email-input', 'Input', 'Email', { placeholder: 'you@example.com', width: '100%' }),
-    ]),
-    node('form-submit', 'Form.Submit', 'Submit', {}, [], 'Create account'),
-  ]),
+  template: node(
+    'form',
+    'Form',
+    'Form',
+    {
+      title: 'Create account',
+      description: 'Enter your details.',
+      width: '360px',
+    },
+    [
+      node('form-name', 'Field', 'Name field', { label: 'Name' }, [
+        node('form-name-input', 'Input', 'Name', { placeholder: 'Ada Lovelace', width: '100%' }),
+      ]),
+      node('form-email', 'Field', 'Email field', { label: 'Email' }, [
+        node('form-email-input', 'Input', 'Email', { placeholder: 'you@example.com', width: '100%' }),
+      ]),
+      node('form-submit', 'Form.Submit', 'Submit', {}, [], 'Create account'),
+    ],
+  ),
 })
 
 // A Loading Button: it takes the Button props AdvUI's metadata leaves to that page.
@@ -1053,25 +1079,33 @@ const formSubmit = adaptAdvuiMeta(formMeta, {
 
 const navigationBar = adaptAdvuiMeta(navigationBarMeta, {
   extraProps: [widthProp],
-  template: node('navigation-bar', 'NavigationBar', 'Navigation bar', {
-    defaultValue: 'home',
-    'aria-label': 'Main',
-    width: '360px',
-  }, [
-    node('nav-home', 'NavigationBar.Item', 'Home', { value: 'home', icon: 'home', label: 'Home' }),
-    node('nav-search', 'NavigationBar.Item', 'Search', { value: 'search', icon: 'search', label: 'Search' }),
-    node('nav-inbox', 'NavigationBar.Item', 'Inbox', { value: 'inbox', icon: 'bell', label: 'Inbox', badge: 3 }),
-    node('nav-profile', 'NavigationBar.Item', 'Profile', { value: 'profile', icon: 'user', label: 'Profile' }),
-  ]),
+  template: node(
+    'navigation-bar',
+    'NavigationBar',
+    'Navigation bar',
+    {
+      defaultValue: 'home',
+      'aria-label': 'Main',
+      width: '360px',
+    },
+    [
+      node('nav-home', 'NavigationBar.Item', 'Home', { value: 'home', icon: 'home', label: 'Home' }),
+      node('nav-search', 'NavigationBar.Item', 'Search', { value: 'search', icon: 'search', label: 'Search' }),
+      node('nav-inbox', 'NavigationBar.Item', 'Inbox', { value: 'inbox', icon: 'bell', label: 'Inbox', badge: 3 }),
+      node('nav-profile', 'NavigationBar.Item', 'Profile', { value: 'profile', icon: 'user', label: 'Profile' }),
+    ],
+  ),
   item: {
     noun: 'destination',
     part: 'NavigationBar.Item',
     valuePrefix: 'tab',
-    nodes: [{
-      component: 'NavigationBar.Item',
-      label: 'Destination {n}',
-      props: { value: '{value}', icon: 'circle', label: 'Tab {n}' },
-    }],
+    nodes: [
+      {
+        component: 'NavigationBar.Item',
+        label: 'Destination {n}',
+        props: { value: '{value}', icon: 'circle', label: 'Tab {n}' },
+      },
+    ],
   },
 })
 

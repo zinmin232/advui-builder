@@ -66,7 +66,10 @@ describe('shareable configuration', () => {
       type: 'insert-columns',
       spans: [8, 4],
     })
-    const shared = configurationFromSearch(advuiRegistry, configurationToSearch(toConfiguration(advuiRegistry, columns)))
+    const shared = configurationFromSearch(
+      advuiRegistry,
+      configurationToSearch(toConfiguration(advuiRegistry, columns)),
+    )
     // Grid.Item spans are responsive maps; a link must carry them, not drop them.
     expect(shared?.document).toEqual(columns.document)
     expect(shared?.document?.children[0].children[1].props.span).toEqual({ base: 12, md: 4 })

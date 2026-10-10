@@ -1,8 +1,23 @@
-import { useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import type { ConfigNode } from '../../registry/metadata'
 import { useDragSource, useDragState, useDropSurface } from '../dnd/BuilderDnd'
-import { findNode, itemHostId } from '../selection/selection'
+import { findNode, findPath, itemHostId, type PlacePosition } from '../selection/selection'
 import { useBuilderActions, usePreferenceActions, useRegistry } from '../state/BuilderProvider'
+
+/**
+ * The ids from the root down to one row. A row gets a trail only when it lies on it, so a new selection or drop
+ * target re-renders the rows along the old and new trails, not the whole tree.
+ */
+type Trail = readonly string[]
+
+interface DropMarker {
+  trail: Trail
+  position: PlacePosition
+}
+
+function trailTo(root: ConfigNode, id: string): Trail | null {
+  return findPath(root, id)?.map((node) => node.id) ?? null
+}
 
 export function LayersPanel({
   root,
@@ -21,6 +36,14 @@ export function LayersPanel({
   const hostId = itemHostId(registry, root, selectedId)
   const host = hostId ? findNode(root, hostId) : null
   const noun = host ? registry.itemNoun(host.component) : null
+  const selection = useMemo(() => trailTo(root, selectedId), [root, selectedId])
+  const { target } = useDragState()
+  const dropId = target?.surface === 'layers' ? target.id : null
+  const dropPosition = target?.surface === 'layers' ? target.position : null
+  const drop = useMemo<DropMarker | null>(() => {
+    const trail = dropId && dropPosition ? trailTo(root, dropId) : null
+    return trail && dropPosition ? { trail, position: dropPosition } : null
+  }, [root, dropId, dropPosition])
 
   return (
     <section className="layers" aria-label="Component Properties">
@@ -43,7 +66,8 @@ export function LayersPanel({
           depth={0}
           index={0}
           count={1}
-          selectedId={selectedId}
+          selection={selection?.[0] === root.id ? selection : null}
+          drop={drop?.trail[0] === root.id ? drop : null}
           onSelect={onSelect}
           onMove={actions.move}
           onDuplicate={actions.duplicate}
@@ -58,12 +82,14 @@ export function LayersPanel({
   )
 }
 
-function LayerNode({
+// The inner function has another name: inside it, `LayerNode` must mean the memoized one.
+const LayerNode = memo(function LayerRow({
   node,
   depth,
   index,
   count,
-  selectedId,
+  selection,
+  drop,
   onSelect,
   onMove,
   onDuplicate,
@@ -72,13 +98,15 @@ function LayerNode({
   depth: number
   index: number
   count: number
-  selectedId: string
+  /** The trail to the selected row, when this row is on it. */
+  selection: Trail | null
+  /** The trail to the row under a drag, when this row is on it. */
+  drop: DropMarker | null
   onSelect: (id: string) => void
   onMove: (direction: 'up' | 'down') => void
   onDuplicate: () => void
 }) {
   const [open, setOpen] = useState(true)
-  const { target } = useDragState()
   // The root layer stays put; every other row can be dragged onto the canvas or another row.
   const { setNodeRef, listeners, attributes, isDragging } = useDragSource(
     `layer:${node.id}`,
@@ -86,8 +114,8 @@ function LayerNode({
     depth === 0,
   )
   const hasChildren = node.children.length > 0
-  const selected = node.id === selectedId
-  const marker = target?.surface === 'layers' && target.id === node.id ? target.position : null
+  const selected = selection?.at(-1) === node.id
+  const marker = drop?.trail.at(-1) === node.id ? drop.position : null
   // Dropping inside a collapsed layer shows its children, so the result is visible.
   if (marker === 'inside' && !open && hasChildren) setOpen(true)
 
@@ -177,7 +205,8 @@ function LayerNode({
               depth={depth + 1}
               index={childIndex}
               count={node.children.length}
-              selectedId={selectedId}
+              selection={selection?.[depth + 1] === child.id ? selection : null}
+              drop={drop?.trail[depth + 1] === child.id ? drop : null}
               onSelect={onSelect}
               onMove={onMove}
               onDuplicate={onDuplicate}
@@ -186,4 +215,4 @@ function LayerNode({
         : null}
     </div>
   )
-}
+})

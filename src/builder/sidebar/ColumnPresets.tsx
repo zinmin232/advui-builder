@@ -22,11 +22,12 @@ export function ColumnPresets({ targetPath }: { targetPath: readonly ConfigNode[
   if (!root) return null
   const target = targetPath?.at(-1) ?? null
   const canInsert = targetPath != null && registry.canPlace(root, targetPath)
-  const hint = target == null
-    ? 'Select a layer that can hold components, or drag onto the canvas'
-    : canInsert
-      ? `Add inside ${target.label}`
-      : `${target.label} cannot hold columns`
+  const hint =
+    target == null
+      ? 'Select a layer that can hold components, or drag onto the canvas'
+      : canInsert
+        ? `Add inside ${target.label}`
+        : `${target.label} cannot hold columns`
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -124,7 +125,9 @@ function ColumnPreset({
       }}
     >
       <span className="column-bars" aria-hidden="true">
-        {spans.map((span, index) => <i key={index} style={{ flexGrow: span }} />)}
+        {spans.map((span, index) => (
+          <i key={index} style={{ flexGrow: span }} />
+        ))}
       </span>
       <span className="column-label">{spans.join(' ')}</span>
     </button>

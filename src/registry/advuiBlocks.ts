@@ -19,13 +19,23 @@ const links = ['Features', 'Pricing', 'About']
 const navbar = n('HStack', 'Navbar', { gap: 12, padding: 16, width: '100%', backgroundColor: '$background' }, [
   n('Text', 'Brand', { size: 'lg', weight: 'bold' }, 'Acme'),
   n('Show', 'Desktop links', { above: 'md' }, [
-    n('HStack', 'Links', { gap: 4 }, links.map((link) => n('Button', link, { variant: 'ghost' }, link))),
+    n(
+      'HStack',
+      'Links',
+      { gap: 4 },
+      links.map((link) => n('Button', link, { variant: 'ghost' }, link)),
+    ),
   ]),
   n('Spacer', 'Spacer'),
   n('Show', 'Phone menu', { below: 'md' }, [
     n('DropdownMenu', 'Menu', {}, [
       n('DropdownMenu.Trigger', 'Trigger', {}, [n('Button', 'Menu button', { variant: 'outline' }, 'Menu')]),
-      n('DropdownMenu.Content', 'Content', {}, links.map((link) => n('DropdownMenu.Item', link, {}, link))),
+      n(
+        'DropdownMenu.Content',
+        'Content',
+        {},
+        links.map((link) => n('DropdownMenu.Item', link, {}, link)),
+      ),
     ]),
   ]),
   n('Button', 'Sign in', {}, 'Sign in'),
@@ -60,7 +70,12 @@ function plan(name: string, price: string, summary: string, features: string[], 
       ...features.map((feature) => n('Text', 'Feature', { tone: 'muted' }, `✓ ${feature}`)),
     ]),
     n('Card.Footer', 'Footer', {}, [
-      n('Button', 'Choose plan', featured ? { fullWidth: true } : { fullWidth: true, variant: 'outline' }, `Choose ${name}`),
+      n(
+        'Button',
+        'Choose plan',
+        featured ? { fullWidth: true } : { fullWidth: true, variant: 'outline' },
+        `Choose ${name}`,
+      ),
     ]),
   ])
 }
@@ -86,19 +101,24 @@ const login = n('Grid', 'Login', { columns: 12 }, [
   n('Grid.Item', 'Form column', { span: { base: 12, md: 6, lg: 4 }, offset: { md: 3, lg: 4 } }, [
     n('Card', 'Sign-in card', {}, [
       n('Card.Content', 'Content', {}, [
-        n('Form', 'Sign-in form', {
-          title: 'Sign in',
-          description: 'Welcome back. Enter your details to continue.',
-          fullWidth: true,
-        }, [
-          n('Field', 'Email field', { label: 'Email' }, [
-            n('Input', 'Email', { placeholder: 'you@example.com', width: '100%' }),
-          ]),
-          n('Field', 'Password field', { label: 'Password' }, [
-            n('PasswordInput', 'Password', { placeholder: 'Enter your password', width: '100%' }),
-          ]),
-          n('Form.Submit', 'Submit', { fullWidth: true }, 'Sign in'),
-        ]),
+        n(
+          'Form',
+          'Sign-in form',
+          {
+            title: 'Sign in',
+            description: 'Welcome back. Enter your details to continue.',
+            fullWidth: true,
+          },
+          [
+            n('Field', 'Email field', { label: 'Email' }, [
+              n('Input', 'Email', { placeholder: 'you@example.com', width: '100%' }),
+            ]),
+            n('Field', 'Password field', { label: 'Password' }, [
+              n('PasswordInput', 'Password', { placeholder: 'Enter your password', width: '100%' }),
+            ]),
+            n('Form.Submit', 'Submit', { fullWidth: true }, 'Sign in'),
+          ],
+        ),
       ]),
     ]),
   ]),
@@ -130,20 +150,27 @@ const faq = n('Section', 'FAQ', { spacing: 'lg' }, [
 const contact = n('Section', 'Contact', { spacing: 'lg' }, [
   n('Grid', 'Layout', { columns: 12 }, [
     n('Grid.Item', 'Form column', { span: { base: 12, md: 8, lg: 6 }, offset: { md: 2, lg: 3 } }, [
-      n('Form', 'Contact form', {
-        title: 'Contact us',
-        description: 'We reply within one working day.',
-        fullWidth: true,
-      }, [
-        n('Field', 'Name field', { label: 'Name' }, [n('Input', 'Name', { placeholder: 'Ada Lovelace', width: '100%' })]),
-        n('Field', 'Email field', { label: 'Email' }, [
-          n('Input', 'Email', { placeholder: 'you@example.com', width: '100%' }),
-        ]),
-        n('Field', 'Message field', { label: 'Message' }, [
-          n('Textarea', 'Message', { placeholder: 'How can we help?', rows: 5, width: '100%' }),
-        ]),
-        n('Form.Submit', 'Submit', {}, 'Send message'),
-      ]),
+      n(
+        'Form',
+        'Contact form',
+        {
+          title: 'Contact us',
+          description: 'We reply within one working day.',
+          fullWidth: true,
+        },
+        [
+          n('Field', 'Name field', { label: 'Name' }, [
+            n('Input', 'Name', { placeholder: 'Ada Lovelace', width: '100%' }),
+          ]),
+          n('Field', 'Email field', { label: 'Email' }, [
+            n('Input', 'Email', { placeholder: 'you@example.com', width: '100%' }),
+          ]),
+          n('Field', 'Message field', { label: 'Message' }, [
+            n('Textarea', 'Message', { placeholder: 'How can we help?', rows: 5, width: '100%' }),
+          ]),
+          n('Form.Submit', 'Submit', {}, 'Send message'),
+        ],
+      ),
     ]),
   ]),
 ])
@@ -176,9 +203,19 @@ const dashboard = n('VStack', 'Dashboard', { gap: 0, width: '100%' }, [
           n('Sidebar.Toggle', 'Toggle'),
         ]),
         n('Sidebar.Content', 'Content', {}, [
-          n('Sidebar.Group', 'Workspace', { label: 'Workspace' }, destinations.map((item, index) =>
-            n('Sidebar.Item', item.label, index === 0 ? { icon: item.icon, active: true } : { icon: item.icon }, item.label),
-          )),
+          n(
+            'Sidebar.Group',
+            'Workspace',
+            { label: 'Workspace' },
+            destinations.map((item, index) =>
+              n(
+                'Sidebar.Item',
+                item.label,
+                index === 0 ? { icon: item.icon, active: true } : { icon: item.icon },
+                item.label,
+              ),
+            ),
+          ),
         ]),
         n('Sidebar.Footer', 'Footer', {}, [n('Sidebar.Item', 'Settings', { icon: 'settings' }, 'Settings')]),
       ]),
@@ -202,7 +239,10 @@ const dashboard = n('VStack', 'Dashboard', { gap: 0, width: '100%' }, [
     ]),
   ]),
   n('Show', 'Phone navigation', { below: 'md' }, [
-    n('NavigationBar', 'Bottom navigation', { defaultValue: 'overview', 'aria-label': 'Main', width: '100%' },
+    n(
+      'NavigationBar',
+      'Bottom navigation',
+      { defaultValue: 'overview', 'aria-label': 'Main', width: '100%' },
       destinations.map((item) => n('NavigationBar.Item', item.label, item)),
     ),
   ]),
@@ -211,13 +251,21 @@ const dashboard = n('VStack', 'Dashboard', { gap: 0, width: '100%' }, [
 // Brand and links in a row from md, stacked on phones.
 const footer = n('VStack', 'Footer', { gap: 16, padding: 24, width: '100%' }, [
   n('Separator', 'Separator', { width: '100%' }),
-  n('HStack', 'Row', { gap: 12, width: '100%', direction: { base: 'column', md: 'row' }, align: { base: 'start', md: 'center' } }, [
-    n('Text', 'Brand', { weight: 'semibold' }, 'Acme'),
-    n('Spacer', 'Spacer'),
-    n('HStack', 'Links', { gap: 4, wrap: 'wrap' }, ['Privacy', 'Terms', 'Contact'].map((link) =>
-      n('Button', link, { variant: 'link', size: 'sm' }, link),
-    )),
-  ]),
+  n(
+    'HStack',
+    'Row',
+    { gap: 12, width: '100%', direction: { base: 'column', md: 'row' }, align: { base: 'start', md: 'center' } },
+    [
+      n('Text', 'Brand', { weight: 'semibold' }, 'Acme'),
+      n('Spacer', 'Spacer'),
+      n(
+        'HStack',
+        'Links',
+        { gap: 4, wrap: 'wrap' },
+        ['Privacy', 'Terms', 'Contact'].map((link) => n('Button', link, { variant: 'link', size: 'sm' }, link)),
+      ),
+    ],
+  ),
   n('Text', 'Copyright', { size: 'sm', tone: 'muted' }, '© 2026 Acme, Inc. All rights reserved.'),
 ])
 

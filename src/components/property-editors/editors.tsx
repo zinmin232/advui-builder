@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { BreakpointMetadata, ComponentMetadata, PropMetadata } from '../../registry/metadata'
 import { BASE, breakpointKeys, isResponsiveMap, ownValue, valueAt, withValueAt } from '../../registry/responsive'
 
@@ -85,7 +85,12 @@ export function BooleanEditor({ prop, value, onChange }: EditorProps) {
   return (
     <div className="field field-check">
       <label>
-        <input type="checkbox" aria-label={prop.label} checked={checked} onChange={(event) => onChange(event.target.checked)} />
+        <input
+          type="checkbox"
+          aria-label={prop.label}
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+        />
         <LabelText label={prop.label} description={prop.description} />
       </label>
     </div>
@@ -96,7 +101,12 @@ export function SelectEditor({ prop, value, onChange }: EditorProps) {
   const current = value == null || value === '' ? '' : String(value)
   return (
     <Field label={prop.label} description={prop.description}>
-      <select className="control" aria-label={prop.label} value={current} onChange={(event) => onChange(event.target.value)}>
+      <select
+        className="control"
+        aria-label={prop.label}
+        value={current}
+        onChange={(event) => onChange(event.target.value)}
+      >
         {prop.defaultValue == null ? <option value="">Default</option> : null}
         {(prop.options ?? []).map((option) => (
           <option key={option.value} value={option.value}>
@@ -110,10 +120,14 @@ export function SelectEditor({ prop, value, onChange }: EditorProps) {
 
 export function ColorEditor({ prop, value, onChange }: EditorProps) {
   const hex = typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#000000'
-  const [draft, setDraft] = useState(typeof value === 'string' ? value : '')
-  useEffect(() => {
-    setDraft(typeof value === 'string' ? value : '')
-  }, [value])
+  const text = typeof value === 'string' ? value : ''
+  const [draft, setDraft] = useState(text)
+  // A new value from outside (the swatch, undo) replaces a half-typed one.
+  const [shown, setShown] = useState(text)
+  if (text !== shown) {
+    setShown(text)
+    setDraft(text)
+  }
   return (
     <Field label={prop.label} description={prop.description}>
       <span className="color-row">
@@ -330,7 +344,12 @@ export function IconEditor({ prop, value, onChange }: EditorProps) {
   if (prop.options?.length) {
     return (
       <Field label={prop.label} description={prop.description}>
-        <select className="control" aria-label={prop.label} value={current} onChange={(event) => onChange(event.target.value)}>
+        <select
+          className="control"
+          aria-label={prop.label}
+          value={current}
+          onChange={(event) => onChange(event.target.value)}
+        >
           {prop.required ? null : <option value="">None</option>}
           {prop.options.map((option) => (
             <option key={option.value} value={option.value}>
