@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { BreakpointMetadata, ComponentMetadata, PropMetadata } from '../../registry/metadata'
 import { BASE, breakpointKeys, isResponsiveMap, ownValue, valueAt, withValueAt } from '../../registry/responsive'
 
@@ -120,10 +120,14 @@ export function SelectEditor({ prop, value, onChange }: EditorProps) {
 
 export function ColorEditor({ prop, value, onChange }: EditorProps) {
   const hex = typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#000000'
-  const [draft, setDraft] = useState(typeof value === 'string' ? value : '')
-  useEffect(() => {
-    setDraft(typeof value === 'string' ? value : '')
-  }, [value])
+  const text = typeof value === 'string' ? value : ''
+  const [draft, setDraft] = useState(text)
+  // A new value from outside (the swatch, undo) replaces a half-typed one.
+  const [shown, setShown] = useState(text)
+  if (text !== shown) {
+    setShown(text)
+    setDraft(text)
+  }
   return (
     <Field label={prop.label} description={prop.description}>
       <span className="color-row">

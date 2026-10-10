@@ -171,7 +171,7 @@ export function untitledName(pages: readonly SavedPage[]): string {
 
 export function createPageId(pages: readonly SavedPage[], now = Date.now()): string {
   const taken = new Set(pages.map((page) => page.id))
-  let id = ''
+  let id: string
   do {
     id = `page-${now.toString(36)}-${Math.random().toString(36).slice(2, 6)}`
   } while (taken.has(id))

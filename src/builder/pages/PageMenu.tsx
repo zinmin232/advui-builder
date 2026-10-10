@@ -108,22 +108,23 @@ export function PageMenu() {
   const [open, setOpen] = useState(false)
   const [confirming, setConfirming] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
-  const [draft, setDraft] = useState(current?.name ?? '')
+  // Null while the name field is not being edited, so it shows the stored name (like SettingField).
+  const [draft, setDraft] = useState<string | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const panelId = useId()
   const name = current?.name ?? 'Untitled page'
 
-  useEffect(() => {
-    setDraft(current?.name ?? '')
-  }, [current?.name, open])
-
-  useEffect(() => {
+  const toggle = () => {
     if (!open) {
       setConfirming(null)
       setImportError(null)
-      return
     }
+    setOpen(!open)
+  }
+
+  useEffect(() => {
+    if (!open) return
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
     }
@@ -139,8 +140,8 @@ export function PageMenu() {
   }, [open])
 
   const commitName = () => {
-    if (current && pageName(draft)) actions.rename(current.id, draft)
-    else setDraft(current?.name ?? '')
+    if (current && draft !== null && draft !== current.name && pageName(draft)) actions.rename(current.id, draft)
+    setDraft(null)
   }
 
   const exportPage = () => {
@@ -170,7 +171,7 @@ export function PageMenu() {
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         title={statusNotes[status]}
-        onClick={() => setOpen((value) => !value)}
+        onClick={toggle}
       >
         <span className="page-menu-name">{name}</span>
         {status === 'failed' ? <span className="page-unsaved">Not saved</span> : null}
@@ -185,8 +186,9 @@ export function PageMenu() {
               <input
                 className="page-name"
                 aria-label="Page name"
-                value={draft}
+                value={draft ?? current.name}
                 maxLength={80}
+                onFocus={() => setDraft(current.name)}
                 onChange={(event) => setDraft(event.target.value)}
                 onBlur={commitName}
                 onKeyDown={(event) => {

@@ -153,25 +153,29 @@ export function BuilderDnd({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const track = useCallback(() => {
-    const current = session.current
-    if (!current) return
-    const { registry: reg, document } = latest.current
-    current.scrollers.forEach((scroller) => scrollNearEdge(scroller, current.pointer))
-    const hit = hitAt(surfaces.current, current.pointer)
-    const item = current.item
-    const subject =
-      item.kind === 'layer' ? { component: item.component, movingId: item.id } : { component: item.component }
-    const resolved = hit
-      ? resolveDrop(reg, document, hit.id ?? document.id, current.pointer, subject, (id) => measure(hit.surface, id))
-      : null
-    const target = resolved && hit ? { ...resolved, surface: hit.surface } : null
-    if (!sameTarget(current.target, target)) {
-      current.target = target
-      setDrag({ item, target })
-    }
-    current.frame = requestAnimationFrame(track)
-  }, [measure])
+  // Named, so each frame can schedule the next one.
+  const track = useCallback(
+    function step() {
+      const current = session.current
+      if (!current) return
+      const { registry: reg, document } = latest.current
+      current.scrollers.forEach((scroller) => scrollNearEdge(scroller, current.pointer))
+      const hit = hitAt(surfaces.current, current.pointer)
+      const item = current.item
+      const subject =
+        item.kind === 'layer' ? { component: item.component, movingId: item.id } : { component: item.component }
+      const resolved = hit
+        ? resolveDrop(reg, document, hit.id ?? document.id, current.pointer, subject, (id) => measure(hit.surface, id))
+        : null
+      const target = resolved && hit ? { ...resolved, surface: hit.surface } : null
+      if (!sameTarget(current.target, target)) {
+        current.target = target
+        setDrag({ item, target })
+      }
+      current.frame = requestAnimationFrame(step)
+    },
+    [measure],
+  )
 
   const stop = useCallback(() => {
     const current = session.current

@@ -46,6 +46,8 @@ export function TextEditor({
     const element = container ? nodeElement(container, node.id) : null
     if (element) {
       const style = getComputedStyle(textElement(element))
+      // The layer's font can only be read once the layer is on the page, before the editor paints.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFont(Object.fromEntries(fontKeys.map((key) => [key, style[key]])))
     }
     ref.current?.focus()
