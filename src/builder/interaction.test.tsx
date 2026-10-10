@@ -435,5 +435,63 @@ describe('page mode', () => {
     expect(within(screen.getByRole('list', { name: 'Saved pages' })).getAllByRole('listitem')).toHaveLength(1)
     expect(screen.getByTestId('node-card')).toBeInTheDocument()
   })
+
+  it('writes the page as a component file from its settings, and moves pages through files', async () => {
+    const user = userEvent.setup()
+    localStorage.clear()
+    // jsdom has no object URLs; the download link is caught before it navigates.
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:page')
+    Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() })
+    const downloads: string[] = []
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      downloads.push(this.download)
+    })
+    const downloaded = (index: number) => createObjectURL.mock.calls[index][0].text()
+    render(
+      <BuilderProvider registry={advuiRegistry} initial={createBuilderState(advuiRegistry, 'Button', { mode: 'page' })}>
+        <PageMenu />
+        <Canvas />
+        <CodePanel />
+      </BuilderProvider>,
+    )
+    const code = () => screen.getByRole('region', { name: 'Generated code' })
+    await user.click(screen.getByRole('button', { name: 'Add Badge' }))
+    expect(within(code()).getByText('UntitledPage.tsx')).toBeInTheDocument()
+    expect(code()).toHaveTextContent('export function UntitledPage()')
+
+    await user.click(screen.getByRole('button', { name: 'Pages: Untitled page' }))
+    await user.click(screen.getByText('Page settings'))
+    await user.type(screen.getByRole('textbox', { name: 'Component name' }), 'home screen{Enter}')
+    expect(screen.getByRole('textbox', { name: 'Component name' })).toHaveValue('HomeScreen')
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Welcome{Enter}')
+    expect(code()).toHaveTextContent('export function HomeScreen()')
+    expect(code()).toHaveTextContent('<title>Welcome</title>')
+
+    await user.click(within(code()).getByRole('button', { name: 'Download' }))
+    expect(downloads).toEqual(['HomeScreen.tsx'])
+    expect(await downloaded(0)).toContain('export function HomeScreen() {')
+
+    await user.click(screen.getByRole('button', { name: 'Pages: Untitled page' }))
+    await user.click(screen.getByRole('button', { name: 'Export' }))
+    expect(downloads[1]).toBe('untitled-page.page.json')
+    const file = await downloaded(1)
+    expect(JSON.parse(file)).toMatchObject({
+      format: 'advui-builder.page',
+      name: 'Untitled page',
+      settings: { component: 'HomeScreen', title: 'Welcome' },
+    })
+
+    // Importing opens the file as a new page, settings included.
+    await user.upload(screen.getByLabelText('Page file'), new File([file], 'untitled-page.page.json'))
+    expect(await screen.findByRole('button', { name: 'Pages: Untitled page 2' })).toBeInTheDocument()
+    expect(screen.getByTestId('node-badge')).toBeInTheDocument()
+    expect(code()).toHaveTextContent('export function HomeScreen()')
+
+    await user.click(screen.getByRole('button', { name: 'Pages: Untitled page 2' }))
+    await user.upload(screen.getByLabelText('Page file'), new File(['{"notes": []}'], 'notes.json'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('This file isn’t an AdvUI Builder page.')
+    expect(within(screen.getByRole('list', { name: 'Saved pages' })).getAllByRole('listitem')).toHaveLength(2)
+    click.mockRestore()
+  })
 })
 

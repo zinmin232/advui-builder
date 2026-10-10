@@ -8,6 +8,10 @@ const PAGE_KEY = 'advui-builder.page.v1.'
 const UNTITLED = 'Untitled page'
 const ID_PATTERN = /^[\w-]{1,64}$/
 const NAME_LIMIT = 80
+const TITLE_LIMIT = 120
+const DESCRIPTION_LIMIT = 300
+/** A React component name: capitalized, so JSX treats it as a component. */
+export const COMPONENT_NAME_PATTERN = /^[A-Z][A-Za-z0-9_]{0,63}$/
 
 /**
  * Saved pages are the user's own work, so they are read generously: a layer this version can't show (a component
@@ -17,11 +21,23 @@ const pageLimits: TreeLimits = { nodes: 5000, depth: 64, lenient: true }
 
 export type PageStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
+/** What the exported page file says beyond its tree. */
+export interface PageSettings {
+  /** The function the page file exports, such as `HomePage`. Unset: derived from the page name. */
+  component?: string
+  /** The document title the page file sets on web. */
+  title?: string
+  /** The meta description the page file sets on web. */
+  description?: string
+}
+
 export interface SavedPage {
   id: string
   name: string
   /** When the page last changed, in milliseconds since the epoch. */
   updatedAt: number
+  /** Left out when nothing is set. */
+  settings?: PageSettings
 }
 
 export interface PageIndex {
@@ -34,11 +50,34 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function tidy(value: unknown, limit: number): string | null {
+  if (typeof value !== 'string') return null
+  const text = value.trim().replace(/\s+/g, ' ').slice(0, limit).trim()
+  return text === '' ? null : text
+}
+
 /** A page name as typed, tidied: trimmed, single spaces, at most 80 characters. Null when nothing is left. */
 export function pageName(value: unknown): string | null {
-  if (typeof value !== 'string') return null
-  const name = value.trim().replace(/\s+/g, ' ').slice(0, NAME_LIMIT).trim()
-  return name === '' ? null : name
+  return tidy(value, NAME_LIMIT)
+}
+
+/** Settings as typed or stored, tidied like names. An invalid component name or an empty field is left out. */
+export function sanitizePageSettings(value: unknown): PageSettings {
+  if (!isRecord(value)) return {}
+  const settings: PageSettings = {}
+  if (typeof value.component === 'string' && COMPONENT_NAME_PATTERN.test(value.component)) {
+    settings.component = value.component
+  }
+  const title = tidy(value.title, TITLE_LIMIT)
+  if (title) settings.title = title
+  const description = tidy(value.description, DESCRIPTION_LIMIT)
+  if (description) settings.description = description
+  return settings
+}
+
+function withSettings(page: SavedPage, settings: PageSettings): SavedPage {
+  const { settings: _old, ...rest } = page
+  return Object.keys(settings).length ? { ...rest, settings } : rest
 }
 
 /** Most recently changed first. */
@@ -54,7 +93,8 @@ export function sanitizePageIndex(value: unknown): PageIndex {
     if (!isRecord(item) || typeof item.id !== 'string' || !ID_PATTERN.test(item.id) || ids.has(item.id)) continue
     ids.add(item.id)
     const updatedAt = typeof item.updatedAt === 'number' && Number.isFinite(item.updatedAt) ? item.updatedAt : 0
-    pages.push({ id: item.id, name: pageName(item.name) ?? UNTITLED, updatedAt })
+    const page = { id: item.id, name: pageName(item.name) ?? UNTITLED, updatedAt }
+    pages.push(withSettings(page, sanitizePageSettings(item.settings)))
   }
   const current = typeof value.current === 'string' && ids.has(value.current) ? value.current : null
   return { current: current ?? pagesByRecency(pages)[0]?.id ?? null, pages }
@@ -74,12 +114,16 @@ export function savePageIndex(storage: PageStorage | null, index: PageIndex): bo
   return write(storage, INDEX_KEY, index)
 }
 
+/** A stored or imported page tree, read leniently. Null when it isn't a page this registry can show. */
+export function readPageTree(registry: BuilderRegistry, data: unknown): ConfigNode | null {
+  return registry.hasPage ? readTree(registry, data, registry.createPage().component, pageLimits) : null
+}
+
 /** The page's tree, or null when it was never saved or can't be read as a page. */
 export function loadPageDocument(registry: BuilderRegistry, storage: PageStorage | null, id: string): ConfigNode | null {
-  if (!registry.hasPage) return null
   try {
     const raw = storage?.getItem(PAGE_KEY + id)
-    return raw ? readTree(registry, JSON.parse(raw), registry.createPage().component, pageLimits) : null
+    return raw ? readPageTree(registry, JSON.parse(raw)) : null
   } catch {
     return null
   }
@@ -149,6 +193,15 @@ export function renamePage(index: PageIndex, id: string, name: string): PageInde
   const page = index.pages.find((item) => item.id === id)
   if (!next || !page || page.name === next) return index
   return { ...index, pages: index.pages.map((item) => (item.id === id ? { ...item, name: next } : item)) }
+}
+
+/** Changes some of a page's settings. An empty value clears that setting. */
+export function configurePage(index: PageIndex, id: string, patch: PageSettings): PageIndex {
+  const page = index.pages.find((item) => item.id === id)
+  if (!page) return index
+  const settings = sanitizePageSettings({ ...page.settings, ...patch })
+  if (JSON.stringify(settings) === JSON.stringify(page.settings ?? {})) return index
+  return { ...index, pages: index.pages.map((item) => (item.id === id ? withSettings(item, settings) : item)) }
 }
 
 /** Removes a page. When it was the current one, the most recently changed page left takes over. */

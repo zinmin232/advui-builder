@@ -3,6 +3,7 @@ import { createBuilderReducer, createBuilderState } from '../state/builderState'
 import { compactTree, readTree } from '../shareConfig'
 import {
   addPage,
+  configurePage,
   loadPageDocument,
   loadPageIndex,
   removePage,
@@ -152,5 +153,25 @@ describe('page store', () => {
     expect(touchPage({ current: null, pages: [] }, 'page-x', 5).pages).toEqual([
       { id: 'page-x', name: 'Untitled page', updatedAt: 5 },
     ])
+  })
+
+  it('tidies page settings and clears a setting set to nothing', () => {
+    const page = { id: 'page-a', name: 'Home', updatedAt: 1 }
+    let index: PageIndex = { current: 'page-a', pages: [page] }
+    index = configurePage(index, 'page-a', { component: 'HomePage', title: '  Home   sweet home ' })
+    expect(index.pages[0].settings).toEqual({ component: 'HomePage', title: 'Home sweet home' })
+    expect(configurePage(index, 'page-a', { title: 'Home sweet home' })).toBe(index)
+    expect(configurePage(index, 'missing', { title: 'x' })).toBe(index)
+    // A lower-case name would be an HTML element in JSX, so it is not kept.
+    expect(configurePage(index, 'page-a', { component: 'homePage' }).pages[0].settings).toEqual({
+      title: 'Home sweet home',
+    })
+    index = configurePage(index, 'page-a', { component: '', title: ' ' })
+    expect(index.pages[0]).toEqual(page)
+
+    const stored = sanitizePageIndex({
+      pages: [{ ...page, settings: { component: '1st', title: 'x'.repeat(200), description: 3 } }],
+    })
+    expect(stored.pages[0].settings).toEqual({ title: 'x'.repeat(120) })
   })
 })
